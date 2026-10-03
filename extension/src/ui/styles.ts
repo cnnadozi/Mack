@@ -207,6 +207,8 @@ export const MACK_STYLES = `
 }
 .mack-panel .mack-title { font-size: 22px; flex-basis: auto; overflow-wrap: anywhere; }
 .mack-panel-tools { display: flex; gap: 6px; }
+.mack-panel-body { display: flex; flex-direction: column; gap: 12px; }
+.mack-panel[data-collapsed] { padding: 10px 12px; }
 .mack-panel-footer { display: flex; justify-content: flex-end; border-top: 2px solid var(--paper-alt); padding-top: 10px; }
 .mack-panel .mack-instruction { font-size: 22px; }
 .mack-panel .mack-request { position: static; border-top: none; padding: 0; }

@@ -23,6 +23,8 @@ const ICONS = {
   mic: "M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3ZM5 11a7 7 0 0 0 14 0M12 18v3",
   replay: "M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4",
   chevron: "M9 6l6 6-6 6",
+  chevronDown: "M6 9l6 6 6-6",
+  chevronUp: "M6 15l6-6 6 6",
 } as const;
 
 function Icon({ name }: { name: keyof typeof ICONS }) {
@@ -33,9 +35,17 @@ function Icon({ name }: { name: keyof typeof ICONS }) {
   );
 }
 
-function IconButton(props: { icon: keyof typeof ICONS; label: string; onClick(): void }) {
+function IconButton(props: { icon: keyof typeof ICONS; label: string; onClick(): void; expanded?: boolean; controls?: string }) {
   return (
-    <button type="button" className="mack-icon-btn" aria-label={props.label} title={props.label} onClick={props.onClick}>
+    <button
+      type="button"
+      className="mack-icon-btn"
+      aria-label={props.label}
+      title={props.label}
+      aria-expanded={props.expanded}
+      aria-controls={props.controls}
+      onClick={props.onClick}
+    >
       <Icon name={props.icon} />
     </button>
   );
@@ -192,31 +202,47 @@ function TaskButtonView(props: { button: TaskButton; highlighted: boolean; badge
 function OriginalPanel(props: MackAppProps) {
   const { state, onBack, onPreviousPage, onExit } = props;
   const [dock, setDock] = useState<Dock>("bottom-right");
+  const [collapsed, setCollapsed] = useState(false);
+  const bodyId = useId();
   const nextDock = DOCK_ORDER[(DOCK_ORDER.indexOf(dock) + 1) % DOCK_ORDER.length];
 
+  // New guidance or an error must never stay hidden behind the collapsed bar.
+  useEffect(() => setCollapsed(false), [state.instruction, state.error, state.clarificationOptions]);
+
   return (
-    <aside className="mack-panel" data-dock={dock} aria-label="Mack guide">
+    <aside className="mack-panel" data-dock={dock} data-collapsed={collapsed || undefined} aria-label="Mack guide">
       <header className="mack-panel-header">
         {onPreviousPage ? <IconButton icon="back" label="Previous page" onClick={onPreviousPage} /> : <span />}
         <h1 className="mack-title">{state.screen.title}</h1>
         <div className="mack-panel-tools">
+          <IconButton
+            icon={collapsed ? "chevronUp" : "chevronDown"}
+            label={collapsed ? "Expand" : "Minimize"}
+            expanded={!collapsed}
+            controls={bodyId}
+            onClick={() => setCollapsed(!collapsed)}
+          />
           <IconButton icon="expand" label="Full screen" onClick={onBack} />
           <IconButton icon="close" label="Exit Mack" onClick={onExit} />
         </div>
       </header>
-      <Guidance {...props} />
-      <RequestBar {...props} compact />
-      <footer className="mack-panel-footer">
-        <button
-          type="button"
-          className="mack-btn"
-          onClick={() => setDock(nextDock)}
-          aria-label={`Move this panel to the ${nextDock.replace("-", " ")}`}
-          title={`Move this panel to the ${nextDock.replace("-", " ")}`}
-        >
-          Move panel
-        </button>
-      </footer>
+      {!collapsed && (
+        <div id={bodyId} className="mack-panel-body">
+          <Guidance {...props} />
+          <RequestBar {...props} compact />
+          <footer className="mack-panel-footer">
+            <button
+              type="button"
+              className="mack-btn"
+              onClick={() => setDock(nextDock)}
+              aria-label={`Move this panel to the ${nextDock.replace("-", " ")}`}
+              title={`Move this panel to the ${nextDock.replace("-", " ")}`}
+            >
+              Move panel
+            </button>
+          </footer>
+        </div>
+      )}
     </aside>
   );
 }
