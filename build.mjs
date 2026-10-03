@@ -12,7 +12,8 @@ const common = {
 };
 const content = await build({ ...common, entryPoints: ["extension/src/content.ts"], outfile: "dist/content.js", format: "iife" });
 await build({ ...common, entryPoints: ["extension/src/service-worker.ts"], outfile: "dist/service-worker.js", format: "esm" });
-for (const file of ["manifest.json", "popup.html", "popup.css"]) await cp(`extension/${file}`, `dist/${file}`);
+await build({ ...common, entryPoints: ["extension/src/options.ts"], outfile: "dist/options.js", format: "esm" });
+for (const file of ["manifest.json", "options.html", "options.css"]) await cp(`extension/${file}`, `dist/${file}`);
 for (const input of Object.keys(content.metafile.inputs)) {
   if (input.includes("anthropic") || input.includes("platform/provider")) throw new Error("Provider code leaked into content bundle");
 }

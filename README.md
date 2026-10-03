@@ -22,19 +22,22 @@ ESM. It outputs the unpacked extension in `dist/`.
 1. Open `chrome://extensions` in Chrome.
 2. Enable **Developer mode**.
 3. Click **Load unpacked** and select this repository's `dist` folder.
-4. Open Mack from the browser's Extensions menu to see the popup.
+4. Open Mack's **Details → Extension options** and paste your temporary Anthropic key.
+5. Open `https://www.gov.uk/`, then click Mack in the Extensions menu or toolbar.
 
 After editing files, run `npm run build`, click **Reload** on Mack's extension
 card, and refresh the website tab.
 
 ## Files
 
-- `extension/manifest.json`: extension metadata and popup entry point.
-- `extension/popup.html`: static starter popup.
-- `extension/popup.css`: popup styles.
+- `extension/manifest.json`: permissions and service-worker entry point.
+- `extension/options.html`: extension-owned session credential setup.
+- `extension/src/`: TypeScript entry points and role modules.
+- `shared/contracts.ts`: Contract v1 and runtime validation.
 - `docs/`: product requirements and role responsibilities.
 
-The initial toolchain stage still shows the starter popup. Platform wiring is a
-separate change; voice requires Role 1's controller and a tested audio context.
+The action now injects the content entry point on GOV.UK. At the contexts stage,
+that entry is still empty; subsequent platform wiring mounts Role 3's UI. Voice
+requires Role 1's controller and a tested audio context.
 
 Chrome setup reference: [Hello World extension](https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world).
