@@ -1,16 +1,71 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { jsonObject, type ModelInput } from "./protocol";
-import { MODEL } from "./settings";
 
-export async function generateJSON(input: ModelInput, key: string, signal: AbortSignal): Promise<Record<string, unknown>> {
-  const client = new Anthropic({ apiKey: key, dangerouslyAllowBrowser: true, maxRetries: 0, timeout: 25000 });
-  const message = await client.messages.create({
-    model: MODEL, max_tokens: 4096,
-    system: `${input.system}\nReturn only one JSON object. Do not include Markdown or commentary.`,
-    messages: [{ role: "user", content: typeof input.payload === "string" ? input.payload : JSON.stringify(input.payload) }],
-  }, { signal });
-  if (message.stop_reason !== "end_turn") throw new Error("Incomplete model response");
-  const text = message.content.filter((block) => block.type === "text").map((block) => block.text).join("").trim();
-  const unfenced = text.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
-  return jsonObject(JSON.parse(unfenced));
+const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
+
+// Mirrors the reply shape Role 3's DESIGN_SYSTEM_PROMPT asks for; Role 3's grounding still validates it.
+export const DESIGN_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["status", "title", "sections"],
+  properties: {
+    status: { type: "string", enum: ["ready", "use_original", "not_found"] },
+    title: { type: "string" },
+    sections: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["priority", "heading", "buttons"],
+        properties: {
+          priority: { type: "string", enum: ["main", "more"] },
+          heading: { type: "string" },
+          buttons: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["actionId", "label"],
+              properties: { actionId: { type: "string" }, label: { type: "string" } },
+            },
+          },
+        },
+      },
+    },
+  },
+};
+
+// Raised for provider-reported failures; the message comes from the provider, never from the key.
+export class ProviderRejected extends Error {}
+
+export function geminiBody(input: ModelInput) {
+  return {
+    systemInstruction: { parts: [{ text: input.system }] },
+    contents: [{ role: "user", parts: [{ text: typeof input.payload === "string" ? input.payload : JSON.stringify(input.payload) }] }],
+    generationConfig: {
+      responseMimeType: "application/json",
+      ...(input.task === "design" ? { responseJsonSchema: DESIGN_SCHEMA } : {}),
+      temperature: 0.2,
+    },
+  };
+}
+
+export async function generateJSON(input: ModelInput, key: string, model: string, signal: AbortSignal): Promise<Record<string, unknown>> {
+  const response = await fetch(`${ENDPOINT}/${encodeURIComponent(model)}:generateContent`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-goog-api-key": key },
+    body: JSON.stringify(geminiBody(input)),
+    signal,
+  });
+  const data = await response.json().catch(() => ({})) as {
+    error?: { message?: string };
+    promptFeedback?: { blockReason?: string };
+    candidates?: { finishReason?: string; content?: { parts?: { text?: string }[] } }[];
+  };
+  if (!response.ok) throw new ProviderRejected(`Gemini ${response.status}: ${data.error?.message ?? "request failed"}`);
+  if (data.promptFeedback?.blockReason) throw new ProviderRejected(`Gemini blocked the request (${data.promptFeedback.blockReason})`);
+  const candidate = data.candidates?.[0];
+  const text = (candidate?.content?.parts ?? []).map((part) => part.text ?? "").join("").trim();
+  if (!text) throw new ProviderRejected(`Gemini returned no text (${candidate?.finishReason ?? "unknown"})`);
+  if (candidate?.finishReason && candidate.finishReason !== "STOP") throw new ProviderRejected(`Gemini stopped early (${candidate.finishReason})`);
+  return jsonObject(JSON.parse(text.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "")));
 }

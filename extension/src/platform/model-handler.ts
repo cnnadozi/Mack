@@ -1,4 +1,5 @@
 import { ModelMessageSchema, type ModelInput, type ModelReply } from "./protocol";
+import { ProviderRejected } from "./provider";
 import { supportedUrl } from "./settings";
 
 export function authorizedSender(sender: chrome.runtime.MessageSender, extensionId: string): boolean {
@@ -8,8 +9,8 @@ export function authorizedSender(sender: chrome.runtime.MessageSender, extension
 
 type Dependencies = {
   extensionId: string;
-  readAccess(tabId: number): Promise<{ active: boolean; key?: string }>;
-  generate(input: ModelInput, key: string, signal: AbortSignal): Promise<Record<string, unknown>>;
+  readAccess(tabId: number): Promise<{ active: boolean; key?: string; model: string }>;
+  generate(input: ModelInput, key: string, model: string, signal: AbortSignal): Promise<Record<string, unknown>>;
 };
 
 export function createModelHandler(deps: Dependencies) {
@@ -38,10 +39,13 @@ export function createModelHandler(deps: Dependencies) {
         if (controller.signal.aborted) return { ok: false, error: "aborted" };
         if (!access.active) return { ok: false, error: "inactive" };
         if (!access.key) return { ok: false, error: "missing_key" };
-        const result = await deps.generate(message.input, access.key, controller.signal);
+        const result = await deps.generate(message.input, access.key, access.model, controller.signal);
         return controller.signal.aborted ? { ok: false, error: "aborted" } : { ok: true, result };
-      } catch { return { ok: false, error: controller.signal.aborted ? "aborted" : "model_failed" }; }
-      finally { clearTimeout(timeout); if (jobs.get(id)?.controller === controller) jobs.delete(id); }
+      } catch (error) {
+        if (controller.signal.aborted) return { ok: false, error: "aborted" };
+        if (error instanceof ProviderRejected) return { ok: false, error: "model_rejected", detail: error.message.slice(0, 300) };
+        return { ok: false, error: "model_failed" };
+      } finally { clearTimeout(timeout); if (jobs.get(id)?.controller === controller) jobs.delete(id); }
     },
   };
 }

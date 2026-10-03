@@ -10,16 +10,18 @@
   <body>
     <main>
       <h1>Mack setup</h1>
-      <p>Enter your temporary Anthropic API key to try Mack on GOV.UK.</p>
+      <p>Enter your own temporary Gemini API key (from Google AI Studio). Only Mack's background worker reads it; web pages never see it.</p>
       <p>The key stays in this browser session. Enter it again after restarting Chrome or reloading Mack.</p>
       <form id="setup">
-        <label for="api-key">Anthropic API key</label>
+        <label for="api-key">Gemini API key</label>
         <input id="api-key" type="password" autocomplete="off" required />
-        <button type="submit">Save for this session</button>
+        <label for="model">Model</label>
+        <input id="model" type="text" autocomplete="off" spellcheck="false" required />
+        <button type="submit">Test and save for this session</button>
         <button id="forget" type="button">Forget key</button>
       </form>
       <p id="status" role="status" aria-live="polite"></p>
-      <p>After saving, open <a href="https://www.gov.uk/" target="_blank" rel="noreferrer">GOV.UK</a> and click Mack in the browser toolbar.</p>
+      <p>After saving, open <a href="https://www.uhc.com/" target="_blank" rel="noreferrer">uhc.com</a> or <a href="https://www.libertymutual.com/" target="_blank" rel="noreferrer">libertymutual.com</a> and click Mack in the browser toolbar.</p>
     </main>
   </body>
 </html>

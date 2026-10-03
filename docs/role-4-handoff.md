@@ -45,8 +45,20 @@ the idea into a team scope discussion.
 
 ## Request to Role 3 (Alex)
 
-The shared type names and shapes are preserved. Please review your boundary
-against `shared/contracts.ts`. No edits to `extension/src/ui/` are needed for v1.
+The real platform now implements everything in your README's "Needs from
+Role 4" and "Deep links" sections (details in `docs/demo.md`). Please re-test
+against it rather than the reference harness.
+
+1. `LensAppProps.onPreviousPage(): void` is now required in
+   `shared/contracts.ts`. Add `onPreviousPage: vi.fn()` to the props in
+   `__tests__/MackApp.test.tsx` and update the "only when provided" tests; until
+   then the full `tsc --noEmit` fails in that file (the build uses
+   `tsconfig.build.json`, which excludes tests).
+2. Context prefixes match your prompt exactly: `opens menu; `, `<type> field; `,
+   `menu: <name>`, and `one click away via "<label>"`.
+3. `DESIGN_SCHEMA` currently lives in `platform/provider.ts` and is sent only for
+   `task: "design"`. If you want to own it, propose an optional schema field on
+   the `ModelClient` input.
 
 ## Request to Role 1
 

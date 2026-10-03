@@ -7,11 +7,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run && npm run test:guidance",
     "test:guidance": "tsx --test extension/src/guidance/resolveIntent.test.ts",
-    "build": "npm run typecheck && node build.mjs",
+    "build": "tsc --noEmit -p tsconfig.build.json && node build.mjs",
     "check": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.68.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "zod": "^3.25.76"

@@ -3,6 +3,7 @@ import { createGenerateScreen, mountMackApp } from "./ui";
 import { startPlatform } from "./platform/controller";
 import { createModelClient } from "./platform/model-client";
 import { createResolveIntent } from "./platform/guidance-adapter";
+import { PeekReplySchema } from "./platform/protocol";
 
 type Activation = { platform?: ReturnType<typeof startPlatform> };
 const scope = globalThis as typeof globalThis & { __mackActivation?: Activation };
@@ -20,6 +21,7 @@ if (!scope.__mackActivation) {
       resolveIntent: createResolveIntent(model),
       initialGoal: session.goal,
       saveGoal: (goal) => { void chrome.runtime.sendMessage({ type: "mack:goal", goal }).catch(() => {}); },
+      peek: async (urls) => PeekReplySchema.parse(await chrome.runtime.sendMessage({ type: "mack:peek", urls })).pages,
       onExit: () => {
         window.removeEventListener("pagehide", onPageHide);
         delete scope.__mackActivation;

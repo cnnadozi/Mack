@@ -113,7 +113,8 @@ export type LensAppProps = {
   onMicStart(): void;
   onMicStop(): void;
   onReplay(): void;
-  onBack(): void;
+  onBack(): void; // return to the full-screen simplified Mack view
+  onPreviousPage(): void; // go to the previous website page
   onShowOriginal(): void;
   onRetry(): void;
   onExit(): void;
