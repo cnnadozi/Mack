@@ -81,14 +81,14 @@ describe("MackApp", () => {
 
   it("routes mic, replay, back, original and exit through callbacks", () => {
     const { props, rerenderWith } = setup(uiFixtures.withAddition);
-    fireEvent.click(screen.getByRole("button", { name: "Speak" }));
+    fireEvent.click(screen.getByRole("button", { name: /Speak/ }));
     expect(props.onMicStart).toHaveBeenCalled();
     rerenderWith({ ...uiFixtures.withAddition, voiceState: "listening" });
-    const stop = screen.getByRole("button", { name: "Stop" });
+    const stop = screen.getByRole("button", { name: /Stop/ });
     expect(stop.getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(stop);
     expect(props.onMicStop).toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Repeat instruction" }));
+    fireEvent.click(screen.getByRole("button", { name: /Repeat instruction/ }));
     fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
     fireEvent.click(screen.getByRole("button", { name: "Original page" }));
     fireEvent.click(screen.getByRole("button", { name: "Exit Mack" }));
@@ -142,6 +142,8 @@ describe("MackApp", () => {
     const onPreviousPage = vi.fn();
     const { props } = setup(uiFixtures.original);
     expect(screen.queryByRole("button", { name: "Previous page" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Exit Mack" }));
+    expect(props.onExit).toHaveBeenCalled();
     cleanup();
     const view = render(<MackApp {...props} onPreviousPage={onPreviousPage} />);
     fireEvent.click(screen.getByRole("button", { name: "Previous page" }));

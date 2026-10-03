@@ -15,6 +15,30 @@ const VOICE_STATUS: Record<VoiceState, string> = {
   error: "The microphone is not available. You can type instead.",
 };
 
+const ICONS = {
+  back: "M15 5 8 12l7 7",
+  move: "M12 3v18M3 12h18M12 3 9 6m3-3 3 3M12 21l-3-3m3 3 3-3M3 12l3-3m-3 3 3 3M21 12l-3-3m3 3-3 3",
+  close: "M6 6l12 12M18 6 6 18",
+  mic: "M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3ZM5 11a7 7 0 0 0 14 0M12 18v3",
+  replay: "M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4",
+} as const;
+
+function Icon({ name }: { name: keyof typeof ICONS }) {
+  return (
+    <svg className="mack-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
+      <path d={ICONS[name]} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconButton(props: { icon: keyof typeof ICONS; label: string; onClick(): void }) {
+  return (
+    <button type="button" className="mack-icon-btn" aria-label={props.label} title={props.label} onClick={props.onClick}>
+      <Icon name={props.icon} />
+    </button>
+  );
+}
+
 function prefersReducedMotion() {
   return typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 }
@@ -57,9 +81,9 @@ function SimplifiedView(props: MackAppProps) {
     <section className="mack-overlay" aria-label="Mack simplified view">
       <div className="mack-shell">
         <header className="mack-header">
+          <IconButton icon="back" label="Previous page" onClick={onPreviousPage ?? onBack} />
           <h1 className="mack-title">{screen.title}</h1>
           <div className="mack-toolbar" role="toolbar" aria-label="Mack controls">
-            <button type="button" className="mack-btn" onClick={onPreviousPage ?? onBack}>Previous page</button>
             <button type="button" className="mack-btn" onClick={onShowOriginal}>Original page</button>
             <button type="button" className="mack-btn" onClick={onExit}>Exit Mack</button>
           </div>
@@ -124,26 +148,19 @@ function OriginalPanel(props: MackAppProps) {
 
   return (
     <aside className="mack-panel" data-dock={dock} aria-label="Mack guide">
-      <header className="mack-header">
+      <header className="mack-panel-header">
+        {onPreviousPage ? <IconButton icon="back" label="Previous page" onClick={onPreviousPage} /> : <span />}
         <h1 className="mack-title">{state.screen.title}</h1>
-        <div className="mack-toolbar" role="toolbar" aria-label="Mack controls">
-          <button type="button" className="mack-btn" onClick={onBack}>Simple view</button>
-          {onPreviousPage && (
-            <button type="button" className="mack-btn" onClick={onPreviousPage}>Previous page</button>
-          )}
-          <button
-            type="button"
-            className="mack-btn"
-            onClick={() => setDock(nextDock)}
-            aria-label={`Move this panel to the ${nextDock.replace("-", " ")}`}
-          >
-            Move
-          </button>
-          <button type="button" className="mack-btn" onClick={onExit}>Exit</button>
+        <div className="mack-panel-tools" role="toolbar" aria-label="Panel controls">
+          <IconButton icon="move" label={`Move this panel to the ${nextDock.replace("-", " ")}`} onClick={() => setDock(nextDock)} />
+          <IconButton icon="close" label="Exit Mack" onClick={onExit} />
         </div>
       </header>
       <Guidance {...props} />
       <RequestBar {...props} compact />
+      <footer className="mack-panel-footer">
+        <button type="button" className="mack-btn mack-btn--block" onClick={onBack}>Simple view</button>
+      </footer>
     </aside>
   );
 }
@@ -230,9 +247,11 @@ function RequestBar(props: LensAppProps & { compact?: boolean }) {
           disabled={state.voiceState === "processing"}
           onClick={listening ? onMicStop : onMicStart}
         >
+          <Icon name="mic" />
           {listening ? "Stop" : "Speak"}
         </button>
         <button type="button" className="mack-btn" onClick={onReplay} disabled={!state.instruction}>
+          <Icon name="replay" />
           Repeat instruction
         </button>
       </div>

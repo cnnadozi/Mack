@@ -38,7 +38,7 @@ export const MACK_STYLES = `
   gap: 20px;
 }
 
-.mack-header { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; justify-content: space-between; }
+.mack-header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; justify-content: space-between; }
 .mack-title { margin: 0; font-size: 32px; line-height: 1.2; font-weight: 700; flex: 1 1 260px; }
 .mack-toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
 
@@ -59,6 +59,25 @@ export const MACK_STYLES = `
 .mack-btn--primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .mack-btn--primary:hover { background: #083ca3; }
 .mack-btn[aria-pressed="true"] { background: var(--danger); border-color: var(--danger); color: #fff; }
+
+.mack-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.mack-btn--block { width: 100%; min-height: 56px; font-weight: 700; }
+.mack-icon { flex: none; display: block; }
+.mack-icon-btn {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+}
+.mack-icon-btn:hover { background: var(--paper-alt); }
 
 .mack :focus-visible { outline: 4px solid var(--focus); outline-offset: 3px; }
 
@@ -176,7 +195,15 @@ export const MACK_STYLES = `
 .mack-panel[data-dock="bottom-left"] { left: 16px; bottom: 16px; }
 .mack-panel[data-dock="top-right"] { right: 16px; top: 16px; }
 .mack-panel[data-dock="top-left"] { left: 16px; top: 16px; }
-.mack-panel .mack-title { font-size: 24px; flex-basis: auto; }
+.mack-panel-header {
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+.mack-panel-tools { display: flex; gap: 6px; }
+.mack-panel .mack-title { font-size: 22px; flex-basis: auto; overflow-wrap: anywhere; }
+.mack-panel-footer { border-top: 2px solid var(--paper-alt); padding-top: 12px; }
 .mack-panel .mack-instruction { font-size: 22px; }
 .mack-panel .mack-request { position: static; border-top: none; padding: 0; }
 
