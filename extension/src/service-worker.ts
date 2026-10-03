@@ -72,7 +72,8 @@ chrome.tabs.onUpdated.addListener((id, change, tab) => {
   void (async () => {
     const session = await readTab(id);
     if (!session.active) return;
-    if (tab.url && !supportedUrl(tab.url)) {
+    // Without host access Chrome omits tab.url, which also means the tab left the supported site.
+    if (!supportedUrl(tab.url)) {
       await chrome.storage.session.remove(tabKey(id));
       return;
     }

@@ -1,6 +1,7 @@
 import {
   DesignProposalSchema, LensUIStateSchema, SpeechJobSchema, parseDesignRequest, parseGuidanceRequest, sameStamp, validateDesign,
-  type GenerateScreen, type LensAppProps, type LensUIState, type ResolveIntent, type Stamp, type VoiceCallbacks, type VoiceController,
+  type CommittedScreen, type GenerateScreen, type LensAppProps, type LensUIState, type PageSnapshot, type ResolveIntent, type Stamp,
+  type VoiceCallbacks, type VoiceController,
 } from "../../../shared/contracts";
 import { extractPage, isMack, liveTarget, sourceKind, type Extraction } from "./extractor";
 import { mergeGuidance } from "./state";
@@ -12,6 +13,10 @@ type Dependencies = {
   initialGoal?: string; saveGoal(goal: string): void; onExit(): void;
   extract?: () => Extraction;
 };
+
+function fingerprint(snapshot: PageSnapshot): string {
+  return JSON.stringify([snapshot.title, snapshot.headings, snapshot.actions.map((a) => [a.label, a.kind, a.disabled, a.href ?? "", a.context])]);
+}
 
 export function startPlatform(deps: Dependencies) {
   const extract = deps.extract ?? extractPage;
@@ -33,6 +38,8 @@ export function startPlatform(deps: Dependencies) {
   let highlight: HTMLElement | undefined;
   let actionPending = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let mutationTimer: ReturnType<typeof setTimeout> | undefined;
+  let simplifiedScreen: CommittedScreen | undefined;
   let clickTimer: ReturnType<typeof setTimeout> | undefined;
   let url = location.href;
 
@@ -80,14 +87,14 @@ export function startPlatform(deps: Dependencies) {
     state = { ...state, busy: false, error: { code, message, retryable: true }, screen: { ...state.screen, screenVersion: crypto.randomUUID() } };
     render();
   }
-  async function refresh() {
+  async function refresh(next?: Extraction) {
     if (!active) return;
-    invalidate(); actionPending = false;
+    invalidate(); actionPending = false; simplifiedScreen = undefined;
     if (clickTimer) clearTimeout(clickTimer);
     designPending = true;
     const controller = designAbort = new AbortController();
     try {
-      extraction = extract();
+      extraction = next ?? extract();
       state = {
         screen: { title: extraction.snapshot.title || "This page", mode: "simplified", sections: [], snapshotVersion: extraction.snapshot.version, screenVersion: crypto.randomUUID() },
         instruction: "", transcript: state?.transcript ?? "", voiceState: voice ? "idle" : "error", busy: true,
@@ -118,6 +125,7 @@ export function startPlatform(deps: Dependencies) {
       if (!current(expected, proposal.stamp, guideStamp) || controller.signal.aborted) return;
       const accepted = mergeGuidance(state.screen, extraction.snapshot, proposal);
       if (accepted.proposal.targetActionId) liveTarget(extraction, accepted.proposal.targetActionId);
+      if (state.screen.mode === "simplified" && accepted.screen.mode === "original") simplifiedScreen = state.screen;
       state = {
         ...state, screen: { ...accepted.screen, screenVersion: crypto.randomUUID() }, instruction: accepted.proposal.responseText,
         highlightedActionId: accepted.proposal.targetActionId, clarificationOptions: accepted.proposal.clarificationOptions,
@@ -170,14 +178,45 @@ export function startPlatform(deps: Dependencies) {
   }
   function original() {
     if (!active) return;
+    if (state.screen.mode === "simplified" && !designPending) simplifiedScreen = state.screen;
     invalidate(); designPending = false;
     state = { ...state, instruction: "", busy: false, highlightedActionId: undefined, clarificationOptions: undefined, screen: { ...state.screen, mode: "original", sections: [], screenVersion: crypto.randomUUID() } };
     render();
+  }
+  function back() {
+    if (!active) return;
+    if (state.screen.mode === "simplified") { scheduleRefresh(); history.back(); return; }
+    const saved = simplifiedScreen;
+    if (!saved || saved.snapshotVersion !== extraction.snapshot.version) { void refresh(); return; }
+    invalidate(); simplifiedScreen = undefined;
+    state = { ...state, instruction: "", busy: false, error: undefined, highlightedActionId: undefined, clarificationOptions: undefined, screen: { ...saved, screenVersion: crypto.randomUUID() } };
+    render();
+  }
+  function adoptOriginal(next: Extraction) {
+    const pendingGuide = state.busy && !!guideStamp;
+    invalidate(); extraction = next; simplifiedScreen = undefined;
+    state = { ...state, instruction: "", busy: false, highlightedActionId: undefined, clarificationOptions: undefined, screen: { ...state.screen, sections: [], snapshotVersion: next.snapshot.version, screenVersion: crypto.randomUUID() } };
+    render();
+    if (pendingGuide && goal) void guide(goal);
+  }
+  function pageChanged() {
+    if (!active) return;
+    if (location.href !== url) { urlChanged(); return; }
+    const next = extract();
+    if (fingerprint(next.snapshot) === fingerprint(extraction.snapshot)) {
+      // Same content re-rendered: keep current IDs but point them at the live nodes.
+      const registry = new Map(extraction.snapshot.actions.map((a, i) => [a.id, next.registry.get(next.snapshot.actions[i]!.id)!]));
+      extraction = { snapshot: extraction.snapshot, registry };
+      return;
+    }
+    if (state.screen.mode === "original" && !designPending) adoptOriginal(next);
+    else void refresh(next);
   }
   function exit(preserveSession = false) {
     if (!active) return;
     active = false; invalidate(); observer.disconnect(); clearInterval(urlPoll);
     if (timer) clearTimeout(timer);
+    if (mutationTimer) clearTimeout(mutationTimer);
     if (clickTimer) clearTimeout(clickTimer);
     window.removeEventListener("popstate", urlChanged); window.removeEventListener("hashchange", urlChanged);
     currentBody.inert = bodyInert;
@@ -195,7 +234,7 @@ export function startPlatform(deps: Dependencies) {
     onMicStart: () => { if (voice) { cancelSpeech(); void voice.startListening().catch(fail); } else unavailableVoice(); },
     onMicStop: () => { if (voice) void voice.stopListening().catch(fail); },
     onReplay: () => { if (voice) { voice.cancelSpeech(); speechVersion = state.screen.screenVersion; speak(speechVersion); } else unavailableVoice(); },
-    onBack: () => { scheduleRefresh(); history.back(); }, onShowOriginal: original,
+    onBack: back, onShowOriginal: original,
     onRetry: () => { void refresh(); }, onExit: exit, onRendered: speak,
   };
   function scheduleRefresh() {
@@ -214,7 +253,9 @@ export function startPlatform(deps: Dependencies) {
       if (record.type === "childList") return [...record.addedNodes, ...record.removedNodes].some((node) => !isMack(node));
       return true;
     });
-    if (relevant) scheduleRefresh();
+    if (!relevant) return;
+    if (mutationTimer) clearTimeout(mutationTimer);
+    mutationTimer = setTimeout(pageChanged, 400);
   });
   observer.observe(document.documentElement, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["href", "disabled", "aria-disabled", "hidden", "class", "style", "aria-label"] });
   window.addEventListener("popstate", urlChanged); window.addEventListener("hashchange", urlChanged);
