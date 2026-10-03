@@ -3,6 +3,7 @@
   "name": "Mack",
   "version": "0.1.0",
   "description": "Mack Chrome extension starter.",
+  "permissions": ["activeTab", "scripting"],
   "action": {
     "default_title": "Mack",
     "default_popup": "popup.html"
