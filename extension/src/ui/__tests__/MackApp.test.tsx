@@ -89,7 +89,7 @@ describe("MackApp", () => {
     fireEvent.click(stop);
     expect(props.onMicStop).toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Repeat instruction" }));
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
     fireEvent.click(screen.getByRole("button", { name: "Original page" }));
     fireEvent.click(screen.getByRole("button", { name: "Exit Mack" }));
     expect(props.onReplay).toHaveBeenCalled();
@@ -125,7 +125,9 @@ describe("MackApp", () => {
   });
 
   it("renders only a compact movable guide in original mode", () => {
-    setup(uiFixtures.original);
+    const { props } = setup(uiFixtures.original);
+    fireEvent.click(screen.getByRole("button", { name: "Simple view" }));
+    expect(props.onBack).toHaveBeenCalled();
     const panel = screen.getByRole("complementary", { name: "Mack guide" });
     expect(document.querySelector(".mack-overlay")).toBeNull();
     expect(document.querySelectorAll("[data-action-id]")).toHaveLength(0);
@@ -133,6 +135,7 @@ describe("MackApp", () => {
     act(() => fireEvent.click(screen.getByRole("button", { name: /Move this panel/ })));
     expect(panel.getAttribute("data-dock")).toBe("bottom-left");
     screen.getByLabelText("Ask Mack");
+    expect(screen.queryByRole("button", { name: "Previous page" })).toBeNull();
   });
 
   it("uses native buttons so every control is keyboard reachable", () => {

@@ -56,7 +56,7 @@ function SimplifiedView(props: LensAppProps) {
         <header className="mack-header">
           <h1 className="mack-title">{screen.title}</h1>
           <div className="mack-toolbar" role="toolbar" aria-label="Mack controls">
-            <button type="button" className="mack-btn" onClick={onBack}>Back</button>
+            <button type="button" className="mack-btn" onClick={onBack}>Previous page</button>
             <button type="button" className="mack-btn" onClick={onShowOriginal}>Original page</button>
             <button type="button" className="mack-btn" onClick={onExit}>Exit Mack</button>
           </div>
@@ -124,7 +124,7 @@ function OriginalPanel(props: LensAppProps) {
       <header className="mack-header">
         <h1 className="mack-title">{state.screen.title}</h1>
         <div className="mack-toolbar" role="toolbar" aria-label="Mack controls">
-          <button type="button" className="mack-btn" onClick={onBack}>Back</button>
+          <button type="button" className="mack-btn" onClick={onBack}>Simple view</button>
           <button
             type="button"
             className="mack-btn"

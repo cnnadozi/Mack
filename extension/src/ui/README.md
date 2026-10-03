@@ -20,11 +20,11 @@ Owned path: `extension/src/ui/`. Implements `GenerateScreen` and `MackApp` again
 - Design status: `ready` → `mode: "simplified"`; `use_original` / `not_found` → `mode: "original"` with no sections. Pages with only form fields skip the model and return `use_original`.
 - No button cap and no mandatory buttons. Disabled, `field` and `submit` actions never appear in a simplified view.
 - `onRendered(screenVersion)` fires once per committed version, after the DOM commits.
-- Simplified mode: a full-viewport overlay with title, Back / Original page / Exit, one instruction (`aria-live`), status, error with Try again, clarification choices (sent through `onRequest`), all sections, and a sticky request bar.
+- Simplified mode: a full-viewport overlay with title, Previous page / Original page / Exit, one instruction (`aria-live`), status, error with Try again, clarification choices (sent through `onRequest`), all sections, and a sticky request bar.
 - Highlight: the `highlightedActionId` button gets a double border, a "Next step" badge (`aria-describedby`), and is scrolled into view. It does not rely on colour alone.
 - Transcript: `state.transcript` fills the input so the user can correct it and resend. Send is disabled when the input is empty.
 - Mic: Speak/Stop (`aria-pressed`) call `onMicStart`/`onMicStop`; disabled while `processing`. In the `error` voice state the UI says typing still works.
-- Original mode: only a compact guide panel. A "Move" button cycles it between the four corners so it can be moved off the source target.
+- Original mode: only a compact guide panel. Its "Simple view" button calls `onBack` (Role 4 should return to the committed simplified screen, or explain there is none). A "Move" button cycles it between the four corners so it can be moved off the source target.
 - Accessibility: task buttons ≥64px tall with 24px labels, other controls ≥44px, essential text ≥20px, visible focus ring, native buttons and labelled input, at most two columns, `prefers-reduced-motion` and `forced-colors` support.
 
 ## Needs from Role 4
