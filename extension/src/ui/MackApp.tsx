@@ -17,7 +17,7 @@ const VOICE_STATUS: Record<VoiceState, string> = {
 
 const ICONS = {
   back: "M15 5 8 12l7 7",
-  move: "M12 3v18M3 12h18M12 3 9 6m3-3 3 3M12 21l-3-3m3 3 3-3M3 12l3-3m-3 3 3 3M21 12l-3-3m3 3-3 3",
+  expand: "M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5",
   close: "M6 6l12 12M18 6 6 18",
   mic: "M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3ZM5 11a7 7 0 0 0 14 0M12 18v3",
   replay: "M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4",
@@ -151,15 +151,24 @@ function OriginalPanel(props: MackAppProps) {
       <header className="mack-panel-header">
         {onPreviousPage ? <IconButton icon="back" label="Previous page" onClick={onPreviousPage} /> : <span />}
         <h1 className="mack-title">{state.screen.title}</h1>
-        <div className="mack-panel-tools" role="toolbar" aria-label="Panel controls">
-          <IconButton icon="move" label={`Move this panel to the ${nextDock.replace("-", " ")}`} onClick={() => setDock(nextDock)} />
-          <IconButton icon="close" label="Exit Mack" onClick={onExit} />
-        </div>
+        <IconButton icon="close" label="Exit Mack" onClick={onExit} />
       </header>
       <Guidance {...props} />
       <RequestBar {...props} compact />
       <footer className="mack-panel-footer">
-        <button type="button" className="mack-btn mack-btn--block" onClick={onBack}>Simple view</button>
+        <button type="button" className="mack-btn mack-btn--block" onClick={onBack}>
+          <Icon name="expand" />
+          Full screen
+        </button>
+        <button
+          type="button"
+          className="mack-btn"
+          onClick={() => setDock(nextDock)}
+          aria-label={`Move this panel to the ${nextDock.replace("-", " ")}`}
+          title={`Move this panel to the ${nextDock.replace("-", " ")}`}
+        >
+          Move
+        </button>
       </footer>
     </aside>
   );

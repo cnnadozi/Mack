@@ -61,7 +61,7 @@ export const MACK_STYLES = `
 .mack-btn[aria-pressed="true"] { background: var(--danger); border-color: var(--danger); color: #fff; }
 
 .mack-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
-.mack-btn--block { width: 100%; min-height: 56px; font-weight: 700; }
+.mack-btn--block { flex: 1; min-height: 56px; font-weight: 700; }
 .mack-icon { flex: none; display: block; }
 .mack-icon-btn {
   flex: none;
@@ -197,13 +197,13 @@ export const MACK_STYLES = `
 .mack-panel[data-dock="top-left"] { left: 16px; top: 16px; }
 .mack-panel-header {
   display: grid;
-  grid-template-columns: 48px 1fr auto;
+  grid-template-columns: 48px 1fr 48px;
   align-items: center;
   gap: 10px;
 }
-.mack-panel-tools { display: flex; gap: 6px; }
 .mack-panel .mack-title { font-size: 22px; flex-basis: auto; overflow-wrap: anywhere; }
-.mack-panel-footer { border-top: 2px solid var(--paper-alt); padding-top: 12px; }
+.mack-panel-footer { display: flex; gap: 8px; border-top: 2px solid var(--paper-alt); padding-top: 12px; }
+.mack-panel-footer .mack-btn:not(.mack-btn--block) { min-height: 56px; }
 .mack-panel .mack-instruction { font-size: 22px; }
 .mack-panel .mack-request { position: static; border-top: none; padding: 0; }
 
