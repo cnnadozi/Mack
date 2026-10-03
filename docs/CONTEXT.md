@@ -2,7 +2,7 @@
 
 This document contains the full current product, contracts, role assignments, and collaboration rules. No earlier conversation is needed. Roles: 1 ElevenLabs/voice, 2 intent/guidance, 3 UI generation, 4 Chrome extension/integration. Application architecture is extension-only.
 
-Tell your agent its role number before implementation. If unspecified, ask. Read all sections, then implement your owned portion. Standalone source documents in this repo generate this combined document via build_context.py; synchronize them after coordinated changes.
+Tell your agent its role number before implementation. If unspecified, ask. Read all sections, then implement your owned portion. PRD.md and the role-*.md files in this folder are standalone copies of sections of this document; keep them in sync with it after coordinated changes.
 
 
 ## Mack AI — Main PRD
@@ -84,7 +84,7 @@ No fake portal, application backend, second website project, general autonomous 
 
 ### Authority and file ownership
 
-The current MAIN_PRD and this contract govern all four roles. All agents read the full context document. Each is assigned exactly one role by their human. If a role is unspecified, ask before editing. Do not spawn other coding agents unless explicitly requested.
+The current PRD and this contract govern all four roles. All agents read the full context document. Each is assigned exactly one role by their human. If a role is unspecified, ask before editing. Do not spawn other coding agents unless explicitly requested.
 
 Use one repo with separate branches, e.g. role-1/voice, role-2/guidance, role-3/ui, role-4/platform. Role 4 creates the shared skeleton and owns root dependencies, lockfile, manifest, entry points, and shared types. Send dependency requests to Role 4. Feature owners may edit only their paths unless an affected owner explicitly coordinates a shared edit.
 
@@ -166,7 +166,7 @@ Actual speech becomes a single request; exact accepted guidance is spoken by Ele
 
 ### Agent kickoff prompt
 
-> Read CONTEXT.md in full. I own Role 1. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.
+> Read docs/CONTEXT.md in full. I own Role 1. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.
 
 
 ## Role 2 — User intent, AI guidance, and UI change proposals
@@ -202,7 +202,7 @@ A typed and a spoken request produce equivalent grounded proposals; existing lab
 
 ### Agent kickoff prompt
 
-> Read CONTEXT.md in full. I own Role 2. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.
+> Read docs/CONTEXT.md in full. I own Role 2. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.
 
 
 ## Role 3 — AI interface generation and rendering
@@ -246,7 +246,7 @@ Live AI design reflects real source actions; different counts/groups display cor
 
 ### Agent kickoff prompt
 
-> Read CONTEXT.md in full. I own Role 3. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.
+> Read docs/CONTEXT.md in full. I own Role 3. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.
 
 
 ## Role 4 — Chrome extension, website engine, and integration
@@ -291,12 +291,12 @@ Extension loads; one generated button navigates the real site; AI-generated UI u
 
 ### Agent kickoff prompt
 
-> Read CONTEXT.md in full. I own Role 4. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.
+> Read docs/CONTEXT.md in full. I own Role 4. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.
 
 
 ## Mack repository agent instructions
 
-Read CONTEXT.md in full before changing code. Ask the human for their role number if none was assigned. Implement that role and respect the ownership table. Do not spawn agents unless explicitly asked.
+Read docs/CONTEXT.md in full before changing code. Ask the human for their role number if none was assigned. Implement that role and respect the ownership table. Do not spawn agents unless explicitly asked.
 
 This pack supersedes older Mack role splits and backend designs. The roles are: 1 voice/ElevenLabs, 2 intent/guidance, 3 interface generation/rendering, 4 extension/platform/integration. No application backend and no fake website.
 
@@ -304,5 +304,5 @@ Role 4 owns root configuration, lockfile, shared contracts, and authoritative st
 
 Build only the pitch. Use fixtures only during component development; verify live AI/voice on a real website before claiming completion. Never commit credentials. If provider authentication is blocked, explain the concrete missing capability and continue independent work; do not silently change architecture.
 
-When shared requirements change, update the relevant standalone file and regenerate CONTEXT.md using python3 build_context.py. Do not maintain two conflicting sources of truth. Changes require human/team agreement, not unilateral scope expansion.
+When shared requirements change, update both the relevant standalone file (PRD.md or a role-*.md file) and the matching section of CONTEXT.md. Do not maintain two conflicting sources of truth. Changes require human/team agreement, not unilateral scope expansion.
 

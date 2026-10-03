@@ -1,6 +1,6 @@
 # Role 2 — User intent, AI guidance, and UI change proposals
 
-Read MAIN_PRD.md and SHARED_CONTRACT.md before implementing. The combined CONTEXT.md includes all of these documents.
+Read PRD.md and the shared integration contract in CONTEXT.md before implementing. The combined CONTEXT.md includes the PRD, the contract, and every role.
 
 You own extension/src/guidance/. Interpret what the user wants using the current source page and the current redesigned screen. Return what to say, which real action to surface, and which visible target to highlight.
 
@@ -31,4 +31,4 @@ A typed and a spoken request produce equivalent grounded proposals; existing lab
 
 ## Agent kickoff prompt
 
-> Read CONTEXT.md in full. I own Role 2. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.
+> Read docs/CONTEXT.md in full. I own Role 2. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.

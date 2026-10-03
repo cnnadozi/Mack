@@ -1,6 +1,6 @@
 # Role 4 — Chrome extension, website engine, and integration
 
-Read MAIN_PRD.md and SHARED_CONTRACT.md before implementing. The combined CONTEXT.md includes all of these documents.
+Read PRD.md and the shared integration contract in CONTEXT.md before implementing. The combined CONTEXT.md includes the PRD, the contract, and every role.
 
 You own extension/src/platform/, extension entry/manifest/build files, root workspace configuration, and shared/. You coordinate the other three parts and own authoritative state. There is no application backend to scaffold.
 
@@ -40,4 +40,4 @@ Extension loads; one generated button navigates the real site; AI-generated UI u
 
 ## Agent kickoff prompt
 
-> Read CONTEXT.md in full. I own Role 4. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.
+> Read docs/CONTEXT.md in full. I own Role 4. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.
