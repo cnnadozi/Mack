@@ -7,7 +7,7 @@ export async function generateJSON(input: ModelInput, key: string, signal: Abort
   const message = await client.messages.create({
     model: MODEL, max_tokens: 4096,
     system: `${input.system}\nReturn only one JSON object. Do not include Markdown or commentary.`,
-    messages: [{ role: "user", content: JSON.stringify(input.payload) }],
+    messages: [{ role: "user", content: typeof input.payload === "string" ? input.payload : JSON.stringify(input.payload) }],
   }, { signal });
   if (message.stop_reason !== "end_turn") throw new Error("Incomplete model response");
   const text = message.content.filter((block) => block.type === "text").map((block) => block.text).join("").trim();

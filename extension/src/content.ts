@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createGenerateScreen, mountMackApp } from "./ui";
 import { startPlatform } from "./platform/controller";
 import { createModelClient } from "./platform/model-client";
+import { createResolveIntent } from "./platform/guidance-adapter";
 
 type Activation = { platform?: ReturnType<typeof startPlatform> };
 const scope = globalThis as typeof globalThis & { __mackActivation?: Activation };
@@ -16,7 +17,7 @@ if (!scope.__mackActivation) {
     const onPageHide = () => { activation.platform?.exit(true); delete scope.__mackActivation; };
     const platform = startPlatform({
       mount, generateScreen: createGenerateScreen(model),
-      resolveIntent: async () => { throw new Error("Guidance is not connected yet. Use the generated actions or open the original page."); },
+      resolveIntent: createResolveIntent(model),
       initialGoal: session.goal,
       saveGoal: (goal) => { void chrome.runtime.sendMessage({ type: "mack:goal", goal }).catch(() => {}); },
       onExit: () => {

@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run && npm run test:guidance",
+    "test:guidance": "tsx --test extension/src/guidance/resolveIntent.test.ts",
     "build": "npm run typecheck && node build.mjs",
     "check": "npm run typecheck && npm test && npm run build"
   },
@@ -24,9 +25,12 @@
     "@vitejs/plugin-react": "^5.0.0",
     "esbuild": "^0.25.0",
     "jsdom": "^27.0.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.0",
     "vite": "^7.1.0",
     "vitest": "^3.2.0"
   },
-  "engines": { "node": ">=22.12.0" }
+  "engines": {
+    "node": ">=22.12.0"
+  }
 }
