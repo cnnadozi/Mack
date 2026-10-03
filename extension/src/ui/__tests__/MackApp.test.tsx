@@ -154,6 +154,25 @@ describe("MackApp", () => {
     expect(props.onBack).not.toHaveBeenCalled();
   });
 
+  it("collapses the guide panel to its top bar and expands it again", () => {
+    const { rerenderWith } = setup(uiFixtures.original);
+    const minimize = screen.getByRole("button", { name: "Minimize" });
+    expect(minimize.getAttribute("aria-expanded")).toBe("true");
+    fireEvent.click(minimize);
+    expect(screen.queryByLabelText("Ask Mack")).toBeNull();
+    expect(screen.queryByText(/Type your email address/)).toBeNull();
+    screen.getByRole("heading", { level: 1, name: "Fill in the sign-up form" });
+    screen.getByRole("button", { name: "Full screen" });
+    screen.getByRole("button", { name: "Exit Mack" });
+    const expand = screen.getByRole("button", { name: "Expand" });
+    expect(expand.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(expand);
+    screen.getByLabelText("Ask Mack");
+    fireEvent.click(screen.getByRole("button", { name: "Minimize" }));
+    rerenderWith({ ...uiFixtures.original, instruction: "Now type your password." });
+    screen.getByText("Now type your password.");
+  });
+
   it("shows the next step first and keeps other options collapsed until asked", () => {
     const { rerenderWith } = setup(uiFixtures.goalWithMore);
     expect(document.querySelectorAll("[data-action-id]")).toHaveLength(2);
