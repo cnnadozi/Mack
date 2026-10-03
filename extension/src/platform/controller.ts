@@ -11,7 +11,7 @@ type Mount = { host: HTMLElement; render(props: LensAppProps): void; unmount(): 
 type Dependencies = {
   mount: Mount; generateScreen: GenerateScreen; resolveIntent: ResolveIntent;
   createVoice?: (callbacks: VoiceCallbacks) => VoiceController;
-  initialGoal?: string; saveGoal(goal: string): void; onExit(): void;
+  initialGoal?: string; saveGoal(goal: string, fromUrl?: string): void; onExit(): void;
   extract?: () => Extraction;
   peek?: Peek;
   navigate?: (url: string) => void;
@@ -43,6 +43,8 @@ export function startPlatform(deps: Dependencies) {
   };
   let active = true;
   let goal = deps.initialGoal;
+  // The page where the goal was set. Returning there (or pressing previous page) drops the goal.
+  let goalFrom: string | undefined;
   let designPending = false;
   let designAbort: AbortController | undefined;
   let guideAbort: AbortController | undefined;
@@ -110,7 +112,13 @@ export function startPlatform(deps: Dependencies) {
   }
   function setGoal(next: string) {
     goal = next.trim().slice(0, 2000) || undefined;
-    if (goal) deps.saveGoal(goal);
+    goalFrom = goal ? location.href : undefined;
+    deps.saveGoal(goal ?? "", goalFrom);
+  }
+  function dropGoal() {
+    if (!goal && !goalFrom) return;
+    goal = undefined; goalFrom = undefined;
+    deps.saveGoal("");
   }
   async function peekAhead(target: Extraction, signal: AbortSignal) {
     const candidates = deps.peek && !hasPasswordField(target) ? peekCandidates(target) : [];
@@ -247,6 +255,7 @@ export function startPlatform(deps: Dependencies) {
   }
   function previousPage() {
     if (!active) return;
+    dropGoal();
     scheduleRefresh();
     history.back();
   }
@@ -304,7 +313,12 @@ export function startPlatform(deps: Dependencies) {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => { void refresh(); }, 250);
   }
-  function urlChanged() { if (location.href !== url) { url = location.href; scheduleRefresh(); } }
+  function urlChanged() {
+    if (location.href === url) return;
+    url = location.href;
+    if (goalFrom && location.href === goalFrom) dropGoal();
+    scheduleRefresh();
+  }
   const observer = new MutationObserver((records) => {
     const relevant = records.some((record) => {
       if (isMack(record.target)) return false;

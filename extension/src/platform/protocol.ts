@@ -13,7 +13,7 @@ export const ModelMessageSchema = z.discriminatedUnion("type", [
 ]);
 export const SessionMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("mack:session") }).strict(),
-  z.object({ type: z.literal("mack:goal"), goal: z.string().max(2000) }).strict(),
+  z.object({ type: z.literal("mack:goal"), goal: z.string().max(2000), fromUrl: z.string().max(2000).optional() }).strict(),
   z.object({ type: z.literal("mack:exit") }).strict(),
   z.object({ type: z.literal("mack:resume") }).strict(),
   z.object({ type: z.literal("mack:peek"), urls: z.array(z.string().url()).max(8) }).strict(),

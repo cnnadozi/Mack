@@ -110,7 +110,7 @@ describe("execution", () => {
     h.props().onAction(h.idOf("Claims"));
     expect(h.navigate).toHaveBeenCalledWith("https://www.uhc.com/claims?tab=2#top");
     expect(click).not.toHaveBeenCalled();
-    expect(h.saveGoal).toHaveBeenCalledWith("Claims");
+    expect(h.saveGoal).toHaveBeenCalledWith("Claims", location.href);
     h.platform.exit();
   });
   it("refuses a deep link whose stored href no longer validates", async () => {
@@ -157,11 +157,38 @@ describe("goal carry and lifecycle triggers", () => {
     expect(h.requests[0]!.goal).toBe("Find a doctor");
     vi.spyOn(HTMLElement.prototype, "click").mockImplementation(() => {});
     h.props().onAction(h.idOf("Check claims (sign in first)"));
-    expect(h.saveGoal).toHaveBeenCalledWith("Check claims");
+    expect(h.saveGoal).toHaveBeenCalledWith("Check claims", location.href);
     h.platform.refresh();
     await vi.waitFor(() => expect(h.requests.at(-1)!.goal).toBe("Check claims"));
     h.props().onRequest("pay my bill");
-    expect(h.saveGoal).toHaveBeenLastCalledWith("pay my bill");
+    expect(h.saveGoal).toHaveBeenLastCalledWith("pay my bill", location.href);
+    h.platform.exit();
+  });
+  it("drops the goal when the page returns to the URL where it was set", async () => {
+    document.body.innerHTML = '<a href="/claims">Claims</a>';
+    const h = setup({ initialGoal: "Find a doctor" });
+    await h.ready();
+    vi.spyOn(HTMLElement.prototype, "click").mockImplementation(() => {});
+    h.props().onAction(h.idOf("Claims"));
+    const from = location.href;
+    expect(h.saveGoal).toHaveBeenCalledWith("Claims", from);
+    history.pushState({}, "", "/claims");
+    await vi.waitFor(() => expect(h.requests.at(-1)!.goal).toBe("Claims"), { timeout: 2000 });
+    history.pushState({}, "", from);
+    await vi.waitFor(() => expect(h.saveGoal).toHaveBeenLastCalledWith(""), { timeout: 2000 });
+    await vi.waitFor(() => expect(h.requests.at(-1)!.goal).toBeUndefined(), { timeout: 2000 });
+    h.platform.exit();
+  });
+  it("previousPage clears the goal before going back", async () => {
+    document.body.innerHTML = '<a href="/a">Account</a>';
+    const back = vi.spyOn(history, "back").mockImplementation(() => {});
+    const h = setup({ initialGoal: "Find a doctor" });
+    await h.ready();
+    h.props().onPreviousPage();
+    expect(h.saveGoal).toHaveBeenLastCalledWith("");
+    expect(back).toHaveBeenCalled();
+    h.platform.refresh();
+    await vi.waitFor(() => expect(h.requests.at(-1)!.goal).toBeUndefined());
     h.platform.exit();
   });
   it("redesigns when form fields render late in simplified mode", async () => {

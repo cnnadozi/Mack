@@ -30,15 +30,15 @@ export async function trustedSession(): Promise<void> {
 
 export const tabKey = (id: number) => `mack-tab:${id}`;
 // leftAt: when the tab went to an unsupported site (e.g. a third-party sign-in), so the session survives the hop.
-export type TabSession = { active: boolean; goal?: string; goalAt?: number; leftAt?: number };
+export type TabSession = { active: boolean; goal?: string; goalAt?: number; goalFrom?: string; leftAt?: number };
 
 export async function readStored(id: number): Promise<TabSession | undefined> {
   return (await chrome.storage.session.get(tabKey(id)))[tabKey(id)] as TabSession | undefined;
 }
 
-export async function readTab(id: number, now = Date.now()): Promise<{ active: boolean; goal?: string }> {
+export async function readTab(id: number, now = Date.now()): Promise<{ active: boolean; goal?: string; goalFrom?: string }> {
   const stored = await readStored(id);
   if (stored?.active !== true) return { active: false };
   const fresh = typeof stored.goal === "string" && typeof stored.goalAt === "number" && now - stored.goalAt < GOAL_TTL_MS;
-  return { active: true, ...(fresh ? { goal: stored.goal } : {}) };
+  return { active: true, ...(fresh ? { goal: stored.goal, ...(typeof stored.goalFrom === "string" ? { goalFrom: stored.goalFrom } : {}) } : {}) };
 }

@@ -11,16 +11,19 @@ if (!scope.__mackActivation) {
   const activation: Activation = {};
   scope.__mackActivation = activation;
   void (async () => {
-    const session = z.object({ active: z.boolean(), goal: z.string().optional() }).parse(await chrome.runtime.sendMessage({ type: "mack:session" }));
+    const session = z.object({ active: z.boolean(), goal: z.string().optional(), goalFrom: z.string().optional() }).parse(await chrome.runtime.sendMessage({ type: "mack:session" }));
     if (!session.active) { delete scope.__mackActivation; return; }
+    // The goal was set on this exact page, so the user came back to it: the goal no longer applies.
+    const returned = !!session.goal && session.goalFrom === location.href;
+    if (returned) void chrome.runtime.sendMessage({ type: "mack:goal", goal: "" }).catch(() => {});
     const model = createModelClient();
     const mount = mountMackApp();
     const onPageHide = () => { activation.platform?.exit(true); delete scope.__mackActivation; };
     const platform = startPlatform({
       mount, generateScreen: createGenerateScreen(model),
       resolveIntent: createResolveIntent(model),
-      initialGoal: session.goal,
-      saveGoal: (goal) => { void chrome.runtime.sendMessage({ type: "mack:goal", goal }).catch(() => {}); },
+      initialGoal: returned ? undefined : session.goal,
+      saveGoal: (goal, fromUrl) => { void chrome.runtime.sendMessage({ type: "mack:goal", goal, ...(fromUrl ? { fromUrl } : {}) }).catch(() => {}); },
       peek: async (urls) => PeekReplySchema.parse(await chrome.runtime.sendMessage({ type: "mack:peek", urls })).pages,
       onExit: () => {
         window.removeEventListener("pagehide", onPageHide);

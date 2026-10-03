@@ -52,7 +52,8 @@ chrome.runtime.onMessage.addListener((raw: unknown, sender, respond) => {
       await chrome.storage.session.remove(tabKey(id));
     } else if (session.active) {
       const goal = message.goal.trim();
-      await chrome.storage.session.set({ [tabKey(id)]: goal ? { active: true, goal, goalAt: Date.now() } : { active: true } });
+      // goalFrom is the page where the goal was set, so returning there drops it.
+      await chrome.storage.session.set({ [tabKey(id)]: goal ? { active: true, goal, goalAt: Date.now(), ...(message.fromUrl ? { goalFrom: message.fromUrl } : {}) } : { active: true } });
     }
     respond({ ok: true });
   })().catch(() => respond({ ok: false }));

@@ -49,7 +49,9 @@ bundle contains the provider host.
   client-side URL changes, and new form fields in simplified mode.
 - Goal carry: a clicked label (minus " (sign in first)") or a typed request
   becomes the tab's goal in session storage for 15 minutes and goes into every
-  `DesignRequest`. Exit and tab close clear it.
+  `DesignRequest`, stored with the URL of the page where it was set. The goal is
+  dropped when a page loads at that same URL (so the homepage is not narrowed on
+  return) and when the previous-page button is pressed. Exit and tab close clear it.
 - Controls: `onBack` returns from the original page to the saved simplified
   screen (or shows the "no simple view" notice); `onPreviousPage` calls
   `history.back()`; `onExit` aborts work, restores `inert`, and unmounts.
