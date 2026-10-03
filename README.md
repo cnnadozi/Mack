@@ -17,9 +17,10 @@ Mack works on top of an existing real website. There is no separate backend: all
 3. Click **Load unpacked** and select this repository's `extension` folder.
 4. Open Mack from the browser's Extensions menu to see the popup.
 5. On a normal website, press **Turn on Mack cursor** to swap the mouse cursor on that page.
+6. Choose **Speak a test sentence**, paste an ElevenLabs API key, and choose **Speak the sentence**. The key stays in memory for this browser session. The page speaks: "Mack is speaking this sentence."
+7. Open `src/voice/mic-check.html` from the loaded extension to record from the microphone.
 
-No dependencies or build step are required. After editing files, click **Reload**
-on Mack's extension card and reopen the popup.
+No install step is required to load the extension. After editing the TypeScript in `extension/src/voice/`, compile it with `npx --yes typescript@5.9.2 tsc -p extension/src/voice`, then click **Reload** on Mack's extension card.
 
 Chrome setup reference: [Hello World extension](https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world).
 
@@ -42,6 +43,7 @@ The work is split into four roles:
 - `extension/assets/`: Mack cursor images. The purple arrow is the normal cursor; the orange arrow is for links and buttons.
 - `extension/popup.css`: popup styles.
 - `extension/src/guidance/`: Role 2's guidance module (not yet wired into the extension).
+- `extension/src/voice/`: Role 1's microphone capture check and ElevenLabs speech check.
 - `docs/`: product requirements and role responsibilities.
 
 ## Documentation
@@ -53,4 +55,4 @@ The work is split into four roles:
 
 ## Status
 
-Early stage. The extension is a starter popup with a custom cursor toggle; it does not yet implement page extraction, AI, voice, or navigation.
+Early stage. The extension is a starter popup with a custom cursor toggle. It does not yet implement page extraction, AI guidance, or navigation. Microphone capture and one fixed spoken sentence are in `extension/src/voice/`.
