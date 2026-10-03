@@ -23,3 +23,19 @@ p {
   font-size: 20px;
   line-height: 1.5;
 }
+
+button {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 16px;
+  padding: 8px 12px;
+  font: inherit;
+  color: #ffffff;
+  background: #172033;
+}
+
+button:focus-visible {
+  outline: 3px solid #0b57d0;
+  outline-offset: 2px;
+}

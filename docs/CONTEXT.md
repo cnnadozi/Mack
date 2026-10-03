@@ -146,6 +146,12 @@ You own extension/src/voice/. Your output is voice transport: microphone → tra
 - Playback cancellation, replay support through Role 4's current instruction, and disposal of microphone/audio resources on exit.
 - A concise provider/setup note with credential placeholders and the tested audio context. Never commit actual secrets.
 
+### Current speech path
+
+The loaded-extension speech check is `extension/src/voice/speech-check.html`, opened from the toolbar popup. It is an extension page, not a service worker and not a website. It speaks one fixed sentence through ElevenLabs and plays the audio in that page.
+
+The operator supplies an API key at runtime. The page stores it in `chrome.storage.session` only. The default voice id is the public premade id `JBFqnCBsd6RMkjVDRZzb`, and it can be changed at runtime. The request uses `eleven_flash_v2_5`. See `extension/src/voice/PROVIDER.md`. This check does not record the microphone.
+
 ### Sequence
 
 1. With Role 4, verify a real microphone recording and a real ElevenLabs utterance inside the loaded extension. Resolve provider credentials immediately; a normal webpage test alone is insufficient.
