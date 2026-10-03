@@ -1,22 +1,22 @@
-# Lens AI — Complete Context for All Four Agents
+# Mack AI — Complete Context for All Four Agents
 
 This document contains the full current product, contracts, role assignments, and collaboration rules. No earlier conversation is needed. Roles: 1 ElevenLabs/voice, 2 intent/guidance, 3 UI generation, 4 Chrome extension/integration. Application architecture is extension-only.
 
 Tell your agent its role number before implementation. If unspecified, ask. Read all sections, then implement your owned portion. Standalone source documents in this repo generate this combined document via build_context.py; synchronize them after coordinated changes.
 
 
-## Lens AI — Main PRD
+## Mack AI — Main PRD
 
 ### Pitch and build rule
 
-“Lens turns confusing websites into simple interfaces and guides you through them by voice.”
+“Mack turns confusing websites into simple interfaces and guides you through them by voice.”
 
 Build only what delivers the pitch or directly makes it work reliably. Build a Chrome extension that works on an existing real website. Do not build a fake website or a separate application backend.
 
 Three promises:
 1. AI redesigns the current screen into useful, clearly labeled actions.
 2. Users speak or type a request and receive a spoken, highlighted next step.
-3. Lens adapts after navigation and can surface real actions missing from the current simplified view.
+3. Mack adapts after navigation and can surface real actions missing from the current simplified view.
 
 ### Exact four roles
 
@@ -61,17 +61,17 @@ References checked for this design: https://elevenlabs.io/docs/api-reference/aut
 
 ### Grounding and state
 
-Role 4 extracts headings, concise text, visible links/buttons/field labels and generates snapshot-scoped action IDs. Exclude Lens DOM and sensitive input values. Original elements stay in a local registry, not provider payloads. Model output may reference only current IDs.
+Role 4 extracts headings, concise text, visible links/buttons/field labels and generates snapshot-scoped action IDs. Exclude Mack DOM and sensitive input values. Original elements stay in a local registry, not provider payloads. Model output may reference only current IDs.
 
 Role 3 designs the initial screen. Role 2 proposes contextual additions and highlights after user requests. Only Role 4 commits state changes; Role 3 renders accepted state. No race between two agents rewriting the same UI.
 
-On navigation or relevant page change, invalidate old requests, mappings, highlights, and speech. Ignore Lens's own DOM mutations. Carry the user goal to the new page, refresh its design, then request guidance against that accepted design. Discard delayed results using snapshot version, screen version, and request ID.
+On navigation or relevant page change, invalidate old requests, mappings, highlights, and speech. Ignore Mack's own DOM mutations. Carry the user goal to the new page, refresh its design, then request guidance against that accepted design. Discard delayed results using snapshot version, screen version, and request ID.
 
 Role 2 never clicks. Role 3 never finds source elements. Role 1 never makes independent navigation decisions. A rendered button sends an action ID to Role 4, which validates and executes the source action following a user click.
 
 ### Demo and completion
 
-Existing real page → activate Lens → AI-generated simplified view → spoken request → accepted button addition/highlight → spoken next instruction → user clicks → real navigation → refreshed UI → additional available task. Pick tasks based on what the chosen website actually supports. Do not hide a useful action merely to stage an omitted-button demo.
+Existing real page → activate Mack → AI-generated simplified view → spoken request → accepted button addition/highlight → spoken next instruction → user clicks → real navigation → refreshed UI → additional available task. Pick tasks based on what the chosen website actually supports. Do not hide a useful action merely to stage an omitted-button demo.
 
 Require live AI, real microphone input, ElevenLabs speech, actual source actions, keyboard access, original-view restoration, stale-response rejection, and honest missing-target behavior. Verify microphone denial still permits typed requests. Component fixtures are allowed during development but cannot substitute for the real final flow.
 
@@ -88,145 +88,13 @@ The current MAIN_PRD and this contract govern all four roles. All agents read th
 
 Use one repo with separate branches, e.g. role-1/voice, role-2/guidance, role-3/ui, role-4/platform. Role 4 creates the shared skeleton and owns root dependencies, lockfile, manifest, entry points, and shared types. Send dependency requests to Role 4. Feature owners may edit only their paths unless an affected owner explicitly coordinates a shared edit.
 
-Before parallel implementation, Role 4 lands the types below in shared/contracts.ts with input/output runtime validation. Roles 1–3 review their boundaries. Propose changes in writing with old shape, new shape, consumers affected, and reason; Role 4 lands the change once. Do not define local alternate copies of shared types.
-
-### Core types (Contract v1)
-
-```ts
-type Version = string;
-type ActionId = string;
-type SourceAction = {
-  id: ActionId;
-  label: string;
-  kind: "navigate" | "button" | "field" | "submit";
-  context: string;
-  disabled: boolean;
-  href?: string; // sanitized, never guessed by the model
-};
-type PageSnapshot = {
-  version: Version;
-  pageUrl: string; // sanitized
-  title: string;
-  headings: string[];
-  context: string; // concise, excludes private form values
-  actions: SourceAction[];
-};
-type TaskButton = { actionId: ActionId; label: string };
-type ScreenSection = { id: string; heading?: string; buttons: TaskButton[] };
-type ScreenDesign = {
-  title: string;
-  mode: "simplified" | "original";
-  sections: ScreenSection[];
-};
-type CommittedScreen = ScreenDesign & {
-  snapshotVersion: Version;
-  screenVersion: Version; // assigned only by Role 4
-};
-type Stamp = {
-  requestId: string;
-  snapshotVersion: Version;
-  screenVersion: Version; // input view revision, not output revision
-};
-type DesignRequest = {
-  stamp: Stamp;
-  snapshot: PageSnapshot;
-  goal?: string;
-};
-type DesignProposal = {
-  stamp: Stamp;
-  status: "ready" | "use_original" | "not_found";
-  design: ScreenDesign;
-};
-type GuidanceRequest = {
-  stamp: Stamp;
-  snapshot: PageSnapshot;
-  screen: CommittedScreen;
-  utterance?: string;
-  goal?: string;
-};
-type GuidanceProposal = {
-  stamp: Stamp;
-  status: "ready" | "needs_clarification" | "not_found" | "use_original";
-  responseText: string; // one short displayed and spoken instruction
-  mode: "simplified" | "original";
-  additions: TaskButton[]; // current source IDs only; no generated handlers
-  targetActionId?: ActionId;
-  clarificationOptions?: string[];
-};
-type LensError = { code: string; message: string; retryable: boolean };
-type VoiceState = "idle" | "listening" | "processing" | "speaking" | "error";
-type SpeechJob = {
-  jobId: string;
-  snapshotVersion: Version;
-  screenVersion: Version;
-  text: string;
-};
-```
+Before parallel implementation, Role 4 lands the shared types in shared/contracts.ts with input/output runtime validation. Roles 1–3 review their boundaries. Propose changes in writing with old shape, new shape, consumers affected, and reason; Role 4 lands the change once. Do not define local alternate copies of shared types.
 
 ### Module APIs — no application HTTP endpoints
 
-```ts
-// Role 4 owns model transport/runtime, timeout/cancellation, and credentials.
-// JSON validation and prompts belong to each consumer (Roles 2 and 3).
-interface ModelClient {
-  generateJSON(input: {
-    task: "design" | "guide";
-    system: string;
-    payload: unknown;
-  }, signal: AbortSignal): Promise<unknown>;
-}
-// Role 3 owns this function and prompt.
-type GenerateScreen = (request: DesignRequest, signal: AbortSignal)
-  => Promise<DesignProposal>;
-// Role 2 owns this function and prompt.
-type ResolveIntent = (request: GuidanceRequest, signal: AbortSignal)
-  => Promise<GuidanceProposal>;
-// Role 1 owns this controller. Role 4 instantiates/wires it.
-interface VoiceController {
-  startListening(): Promise<void>;
-  stopListening(): Promise<void>;
-  speak(job: SpeechJob): Promise<void>;
-  cancelSpeech(): void;
-  dispose(): void;
-}
-type VoiceCallbacks = {
-  onTranscript(text: string): void;
-  onState(state: VoiceState): void;
-  onError(error: LensError): void;
-};
-```
-
 Each feature receives its dependencies through initialization or imports the single agreed bridge, not a second provider client. Boundaries can use extension messages where required; Role 4 implements transport. Do not assume AbortSignal, functions, Blob, or DOM nodes can cross an extension messaging boundary. Serialize cancellation as job IDs where needed and reconstruct local controllers in the owning context.
 
-Role 3 exports LensApp with:
-
-```ts
-type LensUIState = {
-  screen: CommittedScreen;
-  instruction: string;
-  highlightedActionId?: ActionId;
-  transcript: string;
-  voiceState: VoiceState;
-  busy: boolean;
-  error?: LensError;
-  clarificationOptions?: string[];
-};
-type LensAppProps = {
-  state: LensUIState;
-  onAction(id: ActionId): void;
-  onRequest(text: string): void;
-  onMicStart(): void;
-  onMicStop(): void;
-  onReplay(): void;
-  onBack(): void;
-  onShowOriginal(): void;
-  onRetry(): void;
-  onExit(): void;
-  onRendered(screenVersion: Version): void;
-};
-```
-
-Role 4 uses onRendered as an acknowledgement, not a reason to rerender repeatedly. Original-source highlight readiness is checked separately by Role 4 before speech. Clarification controls send their text via onRequest.
+Role 3 exports MackApp. Role 4 uses onRendered as an acknowledgement, not a reason to rerender repeatedly. Original-source highlight readiness is checked separately by Role 4 before speech. Clarification controls send their text via onRequest.
 
 ### Exact lifecycle and conflict prevention
 
@@ -235,15 +103,15 @@ Role 4 uses onRendered as an acknowledgement, not a reason to rerender repeatedl
 3. Role 1 emits a completed transcription, or Role 3's typed form emits text. Both enter Role 4's same request path. Role 4 stores the latest goal, cancels obsolete work, and calls Role 2 against the committed screen. If design is pending, queue only the newest user request until it commits.
 4. Role 2 returns a proposal. Role 4 validates it against the still-current request/page/view. In simplified mode, merge additions into the visible screen: deduplicate by action ID, preserve existing labels/order, and append new actions into a single plain “For your request” section. A proposal targeting an existing action must use its displayed label; a new target uses its accepted addition label. No silent renaming of an existing button.
 5. A simplified target must exist after the merge and must map to a current source action. Otherwise reject or regenerate. A field/submit target uses original mode; restore the original page before guidance. Role 4 commits mode/additions/instruction/highlight together and assigns a new screen version.
-6. Role 3 renders the accepted state and highlights the Lens button. In original mode, Role 4 highlights the source element. After render/target readiness, Role 4 creates a SpeechJob for the accepted output versions and calls Role 1.
-7. User clicking a Lens button sends its ID to Role 4. Role 4 validates the live registry and executes an eligible action. Model output never directly clicks. Sensitive submission stays a direct original-page action.
+6. Role 3 renders the accepted state and highlights the Mack button. In original mode, Role 4 highlights the source element. After render/target readiness, Role 4 creates a SpeechJob for the accepted output versions and calls Role 1.
+7. User clicking a Mack button sends its ID to Role 4. Role 4 validates the live registry and executes an eligible action. Model output never directly clicks. Sensitive submission stays a direct original-page action.
 8. Real navigation invalidates old jobs, clears mappings, stops audio, and repeats extraction/design. If a goal is active, resolve guidance after the new screen commits. A no-navigation action is checked by relevant page mutations; a lack of visible change is not proof of success.
 
 Only Role 4 mutates authoritative state. Role 2 proposes changes, Role 3 proposes designs/renders, Role 1 reports audio events. No direct Role 1→Role 2 provider calls or Role 2→Role 3 state writes. Model calls for design and guidance share transport but separate prompts and schemas.
 
 ### Reliability rules
 
-Ignore mutations created by Lens. Recheck live elements just before use. Block unknown/stale/disabled targets; never substitute a guessed URL. Maintain one active instruction and speech job. On new input/navigation/exit, reject delayed responses and delayed audio. Repeated clicks while an action is pending must not duplicate execution. Preserve source amounts/notices when showing original forms. Avoid private input values in model context.
+Ignore mutations created by Mack. Recheck live elements just before use. Block unknown/stale/disabled targets; never substitute a guessed URL. Maintain one active instruction and speech job. On new input/navigation/exit, reject delayed responses and delayed audio. Repeated clicks while an action is pending must not duplicate execution. Preserve source amounts/notices when showing original forms. Avoid private input values in model context.
 
 ### First integration checkpoints
 
@@ -298,7 +166,7 @@ Actual speech becomes a single request; exact accepted guidance is spoken by Ele
 
 ### Agent kickoff prompt
 
-> Read LENS_CONTEXT.md in full. I own Role 1. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.
+> Read CONTEXT.md in full. I own Role 1. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.
 
 
 ## Role 2 — User intent, AI guidance, and UI change proposals
@@ -317,9 +185,9 @@ You own extension/src/guidance/. Interpret what the user wants using the current
 ### Responsibilities
 
 1. Receive typed and spoken text through Role 4's identical pipeline; do not implement transcription.
-2. Use both source actions and currently displayed labels. Existing Lens buttons must be named exactly as displayed.
+2. Use both source actions and currently displayed labels. Existing Mack buttons must be named exactly as displayed.
 3. When the request needs an omitted action, return additions with actual source IDs and clear labels. Ask for one next action, not a long autonomous plan. Do not invent “Contact” merely because the user wants it.
-4. Return targetActionId for highlighting. Role 3 draws Lens highlights and Role 4 draws original-page highlights; you own the decision, not the drawing or mutation.
+4. Return targetActionId for highlighting. Role 3 draws Mack highlights and Role 4 draws original-page highlights; you own the decision, not the drawing or mutation.
 5. Return use_original for source form fields/submit controls or a target that cannot be faithfully simplified. Guidance is emitted only after Role 4 switches and verifies the view.
 6. Return honest missing/ambiguous results. A support request uses the same resolver as any task; no hardcoded customer-service logic.
 7. Echo validated request versions through code, not model guesses. Use Role 4's ModelClient and abort signal; validate model JSON and IDs. Treat website text as data, not privileged instructions.
@@ -334,7 +202,7 @@ A typed and a spoken request produce equivalent grounded proposals; existing lab
 
 ### Agent kickoff prompt
 
-> Read LENS_CONTEXT.md in full. I own Role 2. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.
+> Read CONTEXT.md in full. I own Role 2. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.
 
 
 ## Role 3 — AI interface generation and rendering
@@ -346,7 +214,7 @@ You own extension/src/ui/, including a design subfolder for generateScreen and i
 ### Deliverables
 
 - generateScreen following DesignRequest/DesignProposal using Role 4's ModelClient.
-- LensApp following the shared props and state.
+- MackApp following the shared props and state.
 - Structured design validation and reusable accessible components.
 - Fixtures for different action counts, grouped tasks, loading, original mode, and guidance additions.
 
@@ -378,7 +246,7 @@ Live AI design reflects real source actions; different counts/groups display cor
 
 ### Agent kickoff prompt
 
-> Read LENS_CONTEXT.md in full. I own Role 3. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.
+> Read CONTEXT.md in full. I own Role 3. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.
 
 
 ## Role 4 — Chrome extension, website engine, and integration
@@ -405,7 +273,7 @@ You own extension/src/platform/, extension entry/manifest/build files, root work
 
 ### Browser responsibilities
 
-Extract actual headings, context, links/buttons/labels; exclude Lens DOM and private values. Keep DOM elements local behind action IDs. Recheck connection, snapshot, visibility/disabled state before user-triggered execution. No hardcoded task URL/selector logic. Sensitive form submissions are never triggered from a model response or generated shortcut.
+Extract actual headings, context, links/buttons/labels; exclude Mack DOM and private values. Keep DOM elements local behind action IDs. Recheck connection, snapshot, visibility/disabled state before user-triggered execution. No hardcoded task URL/selector logic. Sensitive form submissions are never triggered from a model response or generated shortcut.
 
 Handle the actual site's full-page or client-side navigation, debounced relevant changes, and extension reinjection. Keep task goal scoped to the active tab and clear it appropriately. Handle worker/context lifecycle rather than assuming permanent in-memory background state. Ignore own overlay mutations.
 
@@ -423,18 +291,18 @@ Extension loads; one generated button navigates the real site; AI-generated UI u
 
 ### Agent kickoff prompt
 
-> Read LENS_CONTEXT.md in full. I own Role 4. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.
+> Read CONTEXT.md in full. I own Role 4. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.
 
 
-## Lens repository agent instructions
+## Mack repository agent instructions
 
-Read LENS_CONTEXT.md in full before changing code. Ask the human for their role number if none was assigned. Implement that role and respect the ownership table. Do not spawn agents unless explicitly asked.
+Read CONTEXT.md in full before changing code. Ask the human for their role number if none was assigned. Implement that role and respect the ownership table. Do not spawn agents unless explicitly asked.
 
-This pack supersedes older Lens role splits and backend designs. The roles are: 1 voice/ElevenLabs, 2 intent/guidance, 3 interface generation/rendering, 4 extension/platform/integration. No application backend and no fake website.
+This pack supersedes older Mack role splits and backend designs. The roles are: 1 voice/ElevenLabs, 2 intent/guidance, 3 interface generation/rendering, 4 extension/platform/integration. No application backend and no fake website.
 
 Role 4 owns root configuration, lockfile, shared contracts, and authoritative state. Other roles request shared edits rather than making incompatible copies. Small coordinated integration changes are allowed after agreement with the affected owner.
 
 Build only the pitch. Use fixtures only during component development; verify live AI/voice on a real website before claiming completion. Never commit credentials. If provider authentication is blocked, explain the concrete missing capability and continue independent work; do not silently change architecture.
 
-When shared requirements change, update the relevant standalone file and regenerate LENS_CONTEXT.md using python3 build_context.py. Do not maintain two conflicting sources of truth. Changes require human/team agreement, not unilateral scope expansion.
+When shared requirements change, update the relevant standalone file and regenerate CONTEXT.md using python3 build_context.py. Do not maintain two conflicting sources of truth. Changes require human/team agreement, not unilateral scope expansion.
 

@@ -1,15 +1,17 @@
-# Lens AI — Main PRD
+# Mack — Main PRD
+
+**Mack is a Chrome extension.** It is not a website, a web app, a mobile app, or a standalone desktop app. Everything in this PRD is built and shipped as a Chrome extension that runs on top of an existing real website.
 
 ## Pitch and build rule
 
-“Lens turns confusing websites into simple interfaces and guides you through them by voice.”
+“Mack turns confusing websites into simple interfaces and guides you through them by voice.”
 
 Build only what delivers the pitch or directly makes it work reliably. Build a Chrome extension that works on an existing real website. Do not build a fake website or a separate application backend.
 
 Three promises:
 1. AI redesigns the current screen into useful, clearly labeled actions.
 2. Users speak or type a request and receive a spoken, highlighted next step.
-3. Lens adapts after navigation and can surface real actions missing from the current simplified view.
+3. Mack adapts after navigation and can surface real actions missing from the current simplified view.
 
 ## Exact four roles
 
@@ -24,7 +26,7 @@ Role 4 coordinates integration. Roles 2 and 3 use one model-access boundary owne
 
 ## Architecture
 
-All application logic runs in extension contexts. No server/, REST application endpoints, or localhost application backend. Cloud provider calls may still be used: “client-side application” does not mean the AI model runs locally or that voice is offline. The team must choose and record the actual language-model provider/runtime.
+Mack is a Chrome extension, and all application logic runs in extension contexts. No server/, REST application endpoints, or localhost application backend. Cloud provider calls may still be used: “client-side application” does not mean the AI model runs locally or that voice is offline. The team must choose and record the actual language-model provider/runtime.
 
 AI produces structured screen descriptions, grounded action IDs, labels, and groups. Code renders accessible components. Do not execute model-generated JavaScript or arbitrary HTML. Redesign can vary per site and screen; there is no fixed two/three-button template and no compulsory customer-service button.
 
@@ -54,17 +56,17 @@ References checked for this design: https://elevenlabs.io/docs/api-reference/aut
 
 ## Grounding and state
 
-Role 4 extracts headings, concise text, visible links/buttons/field labels and generates snapshot-scoped action IDs. Exclude Lens DOM and sensitive input values. Original elements stay in a local registry, not provider payloads. Model output may reference only current IDs.
+Role 4 extracts headings, concise text, visible links/buttons/field labels and generates snapshot-scoped action IDs. Exclude Mack DOM and sensitive input values. Original elements stay in a local registry, not provider payloads. Model output may reference only current IDs.
 
 Role 3 designs the initial screen. Role 2 proposes contextual additions and highlights after user requests. Only Role 4 commits state changes; Role 3 renders accepted state. No race between two agents rewriting the same UI.
 
-On navigation or relevant page change, invalidate old requests, mappings, highlights, and speech. Ignore Lens's own DOM mutations. Carry the user goal to the new page, refresh its design, then request guidance against that accepted design. Discard delayed results using snapshot version, screen version, and request ID.
+On navigation or relevant page change, invalidate old requests, mappings, highlights, and speech. Ignore Mack's own DOM mutations. Carry the user goal to the new page, refresh its design, then request guidance against that accepted design. Discard delayed results using snapshot version, screen version, and request ID.
 
 Role 2 never clicks. Role 3 never finds source elements. Role 1 never makes independent navigation decisions. A rendered button sends an action ID to Role 4, which validates and executes the source action following a user click.
 
 ## Demo and completion
 
-Existing real page → activate Lens → AI-generated simplified view → spoken request → accepted button addition/highlight → spoken next instruction → user clicks → real navigation → refreshed UI → additional available task. Pick tasks based on what the chosen website actually supports. Do not hide a useful action merely to stage an omitted-button demo.
+Existing real page → activate Mack → AI-generated simplified view → spoken request → accepted button addition/highlight → spoken next instruction → user clicks → real navigation → refreshed UI → additional available task. Pick tasks based on what the chosen website actually supports. Do not hide a useful action merely to stage an omitted-button demo.
 
 Require live AI, real microphone input, ElevenLabs speech, actual source actions, keyboard access, original-view restoration, stale-response rejection, and honest missing-target behavior. Verify microphone denial still permits typed requests. Component fixtures are allowed during development but cannot substitute for the real final flow.
 

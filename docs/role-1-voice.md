@@ -1,6 +1,6 @@
 # Role 1 — ElevenLabs and voice input
 
-Read MAIN_PRD.md and SHARED_CONTRACT.md before implementing. The combined LENS_CONTEXT.md includes all of these documents.
+Read MAIN_PRD.md and SHARED_CONTRACT.md before implementing. The combined CONTEXT.md includes all of these documents.
 
 You own extension/src/voice/. Your output is voice transport: microphone → transcript, and accepted instruction → ElevenLabs speech. You do not decide page actions or build a parallel conversation agent.
 
@@ -32,4 +32,4 @@ Actual speech becomes a single request; exact accepted guidance is spoken by Ele
 
 ## Agent kickoff prompt
 
-> Read LENS_CONTEXT.md in full. I own Role 1. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.
+> Read CONTEXT.md in full. I own Role 1. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.

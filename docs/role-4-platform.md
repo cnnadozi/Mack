@@ -1,6 +1,6 @@
 # Role 4 — Chrome extension, website engine, and integration
 
-Read MAIN_PRD.md and SHARED_CONTRACT.md before implementing. The combined LENS_CONTEXT.md includes all of these documents.
+Read MAIN_PRD.md and SHARED_CONTRACT.md before implementing. The combined CONTEXT.md includes all of these documents.
 
 You own extension/src/platform/, extension entry/manifest/build files, root workspace configuration, and shared/. You coordinate the other three parts and own authoritative state. There is no application backend to scaffold.
 
@@ -22,7 +22,7 @@ You own extension/src/platform/, extension entry/manifest/build files, root work
 
 ## Browser responsibilities
 
-Extract actual headings, context, links/buttons/labels; exclude Lens DOM and private values. Keep DOM elements local behind action IDs. Recheck connection, snapshot, visibility/disabled state before user-triggered execution. No hardcoded task URL/selector logic. Sensitive form submissions are never triggered from a model response or generated shortcut.
+Extract actual headings, context, links/buttons/labels; exclude Mack DOM and private values. Keep DOM elements local behind action IDs. Recheck connection, snapshot, visibility/disabled state before user-triggered execution. No hardcoded task URL/selector logic. Sensitive form submissions are never triggered from a model response or generated shortcut.
 
 Handle the actual site's full-page or client-side navigation, debounced relevant changes, and extension reinjection. Keep task goal scoped to the active tab and clear it appropriately. Handle worker/context lifecycle rather than assuming permanent in-memory background state. Ignore own overlay mutations.
 
@@ -40,4 +40,4 @@ Extension loads; one generated button navigates the real site; AI-generated UI u
 
 ## Agent kickoff prompt
 
-> Read LENS_CONTEXT.md in full. I own Role 4. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.
+> Read CONTEXT.md in full. I own Role 4. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.

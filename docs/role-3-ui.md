@@ -1,13 +1,13 @@
 # Role 3 — AI interface generation and rendering
 
-Read MAIN_PRD.md and SHARED_CONTRACT.md before implementing. The combined LENS_CONTEXT.md includes all of these documents.
+Read MAIN_PRD.md and SHARED_CONTRACT.md before implementing. The combined CONTEXT.md includes all of these documents.
 
 You own extension/src/ui/, including a design subfolder for generateScreen and its prompt. You own both the AI-generated screen design and the renderer that displays it. This is not a manually hardcoded set of buttons for each website.
 
 ## Deliverables
 
 - generateScreen following DesignRequest/DesignProposal using Role 4's ModelClient.
-- LensApp following the shared props and state.
+- MackApp following the shared props and state.
 - Structured design validation and reusable accessible components.
 - Fixtures for different action counts, grouped tasks, loading, original mode, and guidance additions.
 
@@ -39,4 +39,4 @@ Live AI design reflects real source actions; different counts/groups display cor
 
 ## Agent kickoff prompt
 
-> Read LENS_CONTEXT.md in full. I own Role 3. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.
+> Read CONTEXT.md in full. I own Role 3. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.
