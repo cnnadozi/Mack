@@ -1,4 +1,4 @@
-export { MackApp } from "./MackApp";
+export { MackApp, type MackAppProps } from "./MackApp";
 export { mountMackApp, type MackMount } from "./mount";
 export { MACK_STYLES } from "./styles";
 export { createGenerateScreen } from "./design/generateScreen";

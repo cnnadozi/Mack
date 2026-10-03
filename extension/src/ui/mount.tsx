@@ -1,12 +1,11 @@
 import { createRoot } from "react-dom/client";
-import type { LensAppProps } from "../../../shared/contracts";
-import { MackApp } from "./MackApp";
+import { MackApp, type MackAppProps } from "./MackApp";
 import { MACK_STYLES } from "./styles";
 
 export type MackMount = {
   /** The element Role 4 should exclude from extraction and mutation observation. */
   host: HTMLElement;
-  render(props: LensAppProps): void;
+  render(props: MackAppProps): void;
   unmount(): void;
 };
 

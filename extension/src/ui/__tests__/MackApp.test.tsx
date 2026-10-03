@@ -138,6 +138,20 @@ describe("MackApp", () => {
     expect(screen.queryByRole("button", { name: "Previous page" })).toBeNull();
   });
 
+  it("offers Previous page in both views only through onPreviousPage when provided", () => {
+    const onPreviousPage = vi.fn();
+    const { props } = setup(uiFixtures.original);
+    expect(screen.queryByRole("button", { name: "Previous page" })).toBeNull();
+    cleanup();
+    const view = render(<MackApp {...props} onPreviousPage={onPreviousPage} />);
+    fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
+    expect(onPreviousPage).toHaveBeenCalledTimes(1);
+    view.rerender(<MackApp {...props} onPreviousPage={onPreviousPage} state={uiFixtures.manyGrouped} />);
+    fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
+    expect(onPreviousPage).toHaveBeenCalledTimes(2);
+    expect(props.onBack).not.toHaveBeenCalled();
+  });
+
   it("uses native buttons so every control is keyboard reachable", () => {
     setup(uiFixtures.withAddition);
     const controls = document.querySelectorAll("button, input");

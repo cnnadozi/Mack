@@ -1,6 +1,9 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import type { LensAppProps, LensUIState, TaskButton, VoiceState } from "../../../shared/contracts";
 
+// Pending contract proposal: onPreviousPage joins LensAppProps once Role 4 lands it in shared/contracts.ts.
+export type MackAppProps = LensAppProps & { onPreviousPage?(): void };
+
 type Dock = "bottom-right" | "bottom-left" | "top-left" | "top-right";
 const DOCK_ORDER: Dock[] = ["bottom-right", "bottom-left", "top-left", "top-right"];
 
@@ -16,7 +19,7 @@ function prefersReducedMotion() {
   return typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 }
 
-export function MackApp(props: LensAppProps) {
+export function MackApp(props: MackAppProps) {
   const { state, onRendered } = props;
   const { screenVersion } = state.screen;
   const lastAcked = useRef<string | undefined>(undefined);
@@ -35,8 +38,8 @@ export function MackApp(props: LensAppProps) {
   );
 }
 
-function SimplifiedView(props: LensAppProps) {
-  const { state, onAction, onBack, onShowOriginal, onExit } = props;
+function SimplifiedView(props: MackAppProps) {
+  const { state, onAction, onBack, onPreviousPage, onShowOriginal, onExit } = props;
   const { screen, highlightedActionId } = state;
   const badgeId = useId();
   const gridRef = useRef<HTMLDivElement>(null);
@@ -56,7 +59,7 @@ function SimplifiedView(props: LensAppProps) {
         <header className="mack-header">
           <h1 className="mack-title">{screen.title}</h1>
           <div className="mack-toolbar" role="toolbar" aria-label="Mack controls">
-            <button type="button" className="mack-btn" onClick={onBack}>Previous page</button>
+            <button type="button" className="mack-btn" onClick={onPreviousPage ?? onBack}>Previous page</button>
             <button type="button" className="mack-btn" onClick={onShowOriginal}>Original page</button>
             <button type="button" className="mack-btn" onClick={onExit}>Exit Mack</button>
           </div>
@@ -114,8 +117,8 @@ function TaskButtonView(props: { button: TaskButton; highlighted: boolean; badge
   );
 }
 
-function OriginalPanel(props: LensAppProps) {
-  const { state, onBack, onExit } = props;
+function OriginalPanel(props: MackAppProps) {
+  const { state, onBack, onPreviousPage, onExit } = props;
   const [dock, setDock] = useState<Dock>("bottom-right");
   const nextDock = DOCK_ORDER[(DOCK_ORDER.indexOf(dock) + 1) % DOCK_ORDER.length];
 
@@ -125,6 +128,9 @@ function OriginalPanel(props: LensAppProps) {
         <h1 className="mack-title">{state.screen.title}</h1>
         <div className="mack-toolbar" role="toolbar" aria-label="Mack controls">
           <button type="button" className="mack-btn" onClick={onBack}>Simple view</button>
+          {onPreviousPage && (
+            <button type="button" className="mack-btn" onClick={onPreviousPage}>Previous page</button>
+          )}
           <button
             type="button"
             className="mack-btn"
