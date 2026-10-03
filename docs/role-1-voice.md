@@ -30,6 +30,12 @@ Do not assume a service worker has a microphone, DOM, or persistent audio lifeti
 
 Actual speech becomes a single request; exact accepted guidance is spoken by ElevenLabs; assistant audio is not transcribed as user input; permission denial allows typing; navigation/new requests stop stale speech; stop/exit releases devices; transcript can be corrected through the UI. A pre-recorded clip is not completion.
 
+## Microphone context
+
+Push-to-talk capture runs in a top-level extension document. The development fixture is `extension/src/voice/mic-check.html`, opened as a `chrome-extension://` tab. Chrome can show the microphone permission prompt there. A service worker cannot record. An offscreen document can call `getUserMedia` only after that permission already exists, and creating one needs the `offscreen` manifest permission owned by Role 4.
+
+This phase records microphone audio only. It does not transcribe speech or call ElevenLabs. No credentials are stored. The extension loads the compiled JavaScript beside the TypeScript; recompile with `npx -p typescript tsc -p extension/src/voice/tsconfig.json` after editing the TypeScript.
+
 ## Agent kickoff prompt
 
 > Read CONTEXT.md in full. I own Role 1. Implement only my assigned responsibility, follow shared contracts, coordinate changes outside my owned paths, and integrate through Role 4. Work on an existing real website with no application backend. Report working behavior, verification, and specific dependencies.

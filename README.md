@@ -19,6 +19,6 @@ on Mack's extension card and reopen the popup.
 - `extension/popup.css`: popup styles.
 - `docs/`: product requirements and role responsibilities.
 
-This starter does not yet implement page extraction, AI, voice, or navigation.
+This starter does not yet implement page extraction, AI, speech, or navigation. Microphone capture is in `extension/src/voice/`. Open `src/voice/mic-check.html` from the loaded extension to record.
 
 Chrome setup reference: [Hello World extension](https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world).
