@@ -15,6 +15,7 @@ function setup(state: LensUIState) {
     onMicStop: vi.fn(),
     onReplay: vi.fn(),
     onBack: vi.fn(),
+    onPreviousPage: vi.fn(),
     onShowOriginal: vi.fn(),
     onRetry: vi.fn(),
     onExit: vi.fn(),
@@ -93,7 +94,7 @@ describe("MackApp", () => {
     fireEvent.click(screen.getByRole("button", { name: "Original page" }));
     fireEvent.click(screen.getByRole("button", { name: "Exit Mack" }));
     expect(props.onReplay).toHaveBeenCalled();
-    expect(props.onBack).toHaveBeenCalled();
+    expect(props.onPreviousPage).toHaveBeenCalled();
     expect(props.onShowOriginal).toHaveBeenCalled();
     expect(props.onExit).toHaveBeenCalled();
   });
@@ -135,22 +136,17 @@ describe("MackApp", () => {
     act(() => fireEvent.click(screen.getByRole("button", { name: /Move this panel/ })));
     expect(panel.getAttribute("data-dock")).toBe("bottom-left");
     screen.getByLabelText("Ask Mack");
-    expect(screen.queryByRole("button", { name: "Previous page" })).toBeNull();
   });
 
-  it("offers Previous page in both views only through onPreviousPage when provided", () => {
-    const onPreviousPage = vi.fn();
-    const { props } = setup(uiFixtures.original);
-    expect(screen.queryByRole("button", { name: "Previous page" })).toBeNull();
+  it("sends Previous page through onPreviousPage in both views, never onBack", () => {
+    const { props, rerenderWith } = setup(uiFixtures.original);
+    fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
+    expect(props.onPreviousPage).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "Exit Mack" }));
     expect(props.onExit).toHaveBeenCalled();
-    cleanup();
-    const view = render(<MackApp {...props} onPreviousPage={onPreviousPage} />);
+    rerenderWith(uiFixtures.manyGrouped);
     fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
-    expect(onPreviousPage).toHaveBeenCalledTimes(1);
-    view.rerender(<MackApp {...props} onPreviousPage={onPreviousPage} state={uiFixtures.manyGrouped} />);
-    fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
-    expect(onPreviousPage).toHaveBeenCalledTimes(2);
+    expect(props.onPreviousPage).toHaveBeenCalledTimes(2);
     expect(props.onBack).not.toHaveBeenCalled();
   });
 

@@ -37,11 +37,7 @@ Owned path: `extension/src/ui/`. Implements `GenerateScreen` and `MackApp` again
 5. Loading view: commit a screen with `sections: []` and set `busy: true`; the UI shows "Working…".
 6. Guidance additions arrive as a committed section (e.g. heading "For your request"). The UI renders whatever Role 4 commits and does not rename anything.
 
-**Contract proposal — `onPreviousPage`** (implemented as an optional prop until it lands):
-- Old: `LensAppProps.onBack()` was the only back action, so the original-mode panel could not offer both "Full screen" and "Previous page".
-- New: add `onPreviousPage(): void` to `LensAppProps`. `onBack` = return to the full-screen simplified Mack view; `onPreviousPage` = go to the previous website page (Role 4 runs it).
-- Consumers: Role 3 (`MackApp`, exported as `MackAppProps = LensAppProps & { onPreviousPage?() }` meanwhile) and Role 4 (wiring). No effect on Roles 1–2.
-- Reason: users read "Back" as browser-back; each button now names its destination.
+**Contract change — `onPreviousPage`** (landed by Role 4 in `shared/contracts.ts`): `onBack` = return to the full-screen simplified Mack view; `onPreviousPage` = go to the previous website page. Both views render the back arrow through `onPreviousPage`.
 
 ## Deep links: what Role 4's extractor should send
 

@@ -2,8 +2,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import type { LensAppProps, LensUIState, ScreenSection, TaskButton, VoiceState } from "../../../shared/contracts";
 import { isMoreSection } from "./design/validate";
 
-// Pending contract proposal: onPreviousPage joins LensAppProps once Role 4 lands it in shared/contracts.ts.
-export type MackAppProps = LensAppProps & { onPreviousPage?(): void };
+export type MackAppProps = LensAppProps;
 
 type Dock = "bottom-right" | "bottom-left" | "top-left" | "top-right";
 const DOCK_ORDER: Dock[] = ["bottom-right", "bottom-left", "top-left", "top-right"];
@@ -103,7 +102,7 @@ function SimplifiedView(props: MackAppProps) {
     <section className="mack-overlay" aria-label="Mack simplified view">
       <div className="mack-shell">
         <header className="mack-header">
-          <IconButton icon="back" label="Previous page" onClick={onPreviousPage ?? onBack} />
+          <IconButton icon="back" label="Previous page" onClick={onPreviousPage} />
           <h1 className="mack-title">{screen.title}</h1>
           <div className="mack-toolbar" role="toolbar" aria-label="Mack controls">
             <button type="button" className="mack-btn" onClick={onShowOriginal}>Original page</button>
@@ -212,7 +211,7 @@ function OriginalPanel(props: MackAppProps) {
   return (
     <aside className="mack-panel" data-dock={dock} data-collapsed={collapsed || undefined} aria-label="Mack guide">
       <header className="mack-panel-header">
-        {onPreviousPage ? <IconButton icon="back" label="Previous page" onClick={onPreviousPage} /> : <span />}
+        <IconButton icon="back" label="Previous page" onClick={onPreviousPage} />
         <h1 className="mack-title">{state.screen.title}</h1>
         <div className="mack-panel-tools">
           <IconButton
