@@ -23,9 +23,25 @@ contract. No Role 2 files have been edited by Role 4.
 | `model.complete(...)` returning text | `model.generateJSON({ task, system, payload }, signal)` returning parsed JSON |
 
 The resolver should implement `ResolveIntent` (with the model injected through a
-factory). Prompts and grounding remain Role 2's responsibility. A temporary
-Role 4 adapter can preserve current behavior until that migration lands; it is
-not a second contract or model transport.
+factory, e.g. `createResolveIntent(model: ModelClient): ResolveIntent`). Prompts
+and grounding remain Role 2's responsibility.
+
+Until then, `extension/src/platform/guidance-adapter.ts` translates v1 requests
+into your provisional shapes, calls your `resolveIntent` unchanged, and maps the
+outcome back (`clarification` → `needs_clarification`, `missing_target` →
+`not_found`, `instruction`/`question`/`message` → `responseText`). Your
+`model.complete` is served by `generateJSON({ task: "guide", system, payload:
+user })`; string payloads are sent to the model verbatim. It is not a second
+contract or model transport, and it is deleted once you migrate.
+
+Your `node:test` suite now runs in `npm test` through `tsx`
+(`npm run test:guidance`); all 17 tests pass unchanged.
+
+Also on your branch: `extension/popup.*` and `extension/assets/cursor-*` (Mack
+cursor) are in Role 4's extension root but not wired. A `default_popup` would
+stop `chrome.action.onClicked` from firing, which is how Mack activates, and the
+cursor is not in the PRD scope. Please confirm whether to delete them or move
+the idea into a team scope discussion.
 
 ## Request to Role 3 (Alex)
 

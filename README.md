@@ -13,6 +13,8 @@ npm test
 npm run build
 ```
 
+`npm test` runs Vitest and then Role 2's `node:test` suite through `tsx`
+(`npm run test:guidance`). `npm run check` runs typecheck, tests, and build.
 On PowerShell systems that block `npm.ps1`, use `npm.cmd` instead of `npm`.
 The build bundles the content script as a single IIFE and the service worker as
 ESM. It outputs the unpacked extension in `dist/`.
@@ -36,8 +38,14 @@ card, and refresh the website tab.
 - `shared/contracts.ts`: Contract v1 and runtime validation.
 - `docs/`: product requirements and role responsibilities.
 
-The action now injects the content entry point on GOV.UK. At the contexts stage,
-that entry is still empty; subsequent platform wiring mounts Role 3's UI. Voice
-requires Role 1's controller and a tested audio context.
+Clicking the action on GOV.UK injects the content script, which extracts the
+page, mounts Role 3's UI, generates the screen through the service-worker model
+client, and routes typed requests to Role 2's resolver (via a temporary adapter
+in `extension/src/platform/guidance-adapter.ts` until Role 2 migrates to
+Contract v1). Voice requires Role 1's controller and a tested audio context.
+
+`extension/popup.*` and `extension/assets/cursor-*` arrived with Role 2's branch
+and are not wired: the manifest uses action click activation, which a
+`default_popup` would disable. They are not copied into `dist/`.
 
 Chrome setup reference: [Hello World extension](https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world).

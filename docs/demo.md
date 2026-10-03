@@ -29,13 +29,23 @@ This is private demo access, not a production shared-secret distribution scheme.
 1. Run `npm ci`, `npm run build` from the repository root.
 2. Load `dist/` using Chrome's Developer mode / Load unpacked flow.
 3. In Mack's Details, open Extension options and save a temporary key.
-4. Open GOV.UK, then click Mack in the toolbar. After platform integration,
-   wait for the generated screen, type “Find benefits information”, and click
-   the highlighted real action. Check that navigation produces a fresh screen.
+4. Open GOV.UK, then click Mack in the toolbar. Wait for the generated screen,
+   type “Find benefits information”, and click the highlighted real action.
+   Check that navigation produces a fresh screen.
 5. Try the passport information task. Original page restores the source page;
-   Exit restores the previous inert/focus state and cancels work.
+   Back from the original page returns to the same simplified screen if the page
+   has not changed. Exit restores the previous inert/focus state and cancels work.
 6. For code changes: rebuild, reload the extension, refresh the website tab,
    and re-enter the session key.
+
+## Page change behavior
+
+Page mutations are debounced (400 ms) and re-extracted. If headings, labels,
+kinds, links, and disabled states are unchanged, Mack keeps its IDs and rebinds
+them to the live nodes without a model call. If they changed, simplified mode
+regenerates the design. Original mode re-snapshots, clears the stale highlight,
+and stays on the original page, so editing a form never covers it again.
+URL changes always regenerate.
 
 ## Remaining live evidence
 
