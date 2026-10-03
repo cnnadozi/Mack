@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
-import type { LensAppProps, LensUIState, TaskButton, VoiceState } from "../../../shared/contracts";
+import type { LensAppProps, LensUIState, ScreenSection, TaskButton, VoiceState } from "../../../shared/contracts";
+import { isMoreSection } from "./design/validate";
 
 // Pending contract proposal: onPreviousPage joins LensAppProps once Role 4 lands it in shared/contracts.ts.
 export type MackAppProps = LensAppProps & { onPreviousPage?(): void };
@@ -21,6 +22,7 @@ const ICONS = {
   close: "M6 6l12 12M18 6 6 18",
   mic: "M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3ZM5 11a7 7 0 0 0 14 0M12 18v3",
   replay: "M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4",
+  chevron: "M9 6l6 6-6 6",
 } as const;
 
 function Icon({ name }: { name: keyof typeof ICONS }) {
@@ -68,6 +70,16 @@ function SimplifiedView(props: MackAppProps) {
   const badgeId = useId();
   const gridRef = useRef<HTMLDivElement>(null);
   const buttonCount = screen.sections.reduce((n, s) => n + s.buttons.length, 0);
+  const mainSections = screen.sections.filter((section) => !isMoreSection(section));
+  const moreSections = screen.sections.filter(isMoreSection);
+  const moreCount = moreSections.reduce((n, s) => n + s.buttons.length, 0);
+  const [showMore, setShowMore] = useState(false);
+  // A highlighted target must be visible before Role 4 speaks about it, so it opens the collapsed area.
+  const highlightInMore = !!highlightedActionId && moreSections.some((s) => s.buttons.some((b) => b.actionId === highlightedActionId));
+  const moreOpen = showMore || highlightInMore;
+  const sectionProps = { highlightedActionId, badgeId: `${badgeId}-badge`, onAction };
+
+  useEffect(() => setShowMore(false), [screen.snapshotVersion]);
 
   useEffect(() => {
     if (!highlightedActionId) return;
@@ -92,27 +104,30 @@ function SimplifiedView(props: MackAppProps) {
         <Guidance {...props} />
 
         <div ref={gridRef}>
-          {screen.sections.map((section, index) => (
-            <section key={section.id} className="mack-section" aria-labelledby={section.heading ? `${badgeId}-${section.id}` : undefined}>
-              {section.heading ? (
-                <h2 id={`${badgeId}-${section.id}`}>{section.heading}</h2>
-              ) : (
-                index > 0 && <h2 className="mack-visually-hidden">More actions</h2>
-              )}
-              <ul className="mack-grid">
-                {section.buttons.map((button) => (
-                  <li key={button.actionId}>
-                    <TaskButtonView
-                      button={button}
-                      highlighted={button.actionId === highlightedActionId}
-                      badgeId={`${badgeId}-badge`}
-                      onAction={onAction}
-                    />
-                  </li>
-                ))}
-              </ul>
-            </section>
+          {mainSections.map((section, index) => (
+            <SectionView key={section.id} section={section} index={index} idPrefix={badgeId} {...sectionProps} />
           ))}
+          {moreSections.length > 0 && (
+            <div className="mack-more">
+              <button
+                type="button"
+                className="mack-btn mack-more-toggle"
+                aria-expanded={moreOpen}
+                aria-controls={`${badgeId}-more`}
+                onClick={() => setShowMore(!moreOpen)}
+              >
+                <span className="mack-chevron" data-open={moreOpen || undefined}><Icon name="chevron" /></span>
+                {moreOpen ? "Fewer options" : `More options (${moreCount})`}
+              </button>
+              {moreOpen && (
+                <div id={`${badgeId}-more`}>
+                  {moreSections.map((section, index) => (
+                    <SectionView key={section.id} section={section} index={index + 1} idPrefix={badgeId} {...sectionProps} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           {buttonCount === 0 && !state.busy && (
             <p className="mack-empty">No simple actions are ready for this page yet. You can ask below or open the original page.</p>
           )}
@@ -120,6 +135,39 @@ function SimplifiedView(props: MackAppProps) {
 
         <RequestBar {...props} />
       </div>
+    </section>
+  );
+}
+
+function SectionView(props: {
+  section: ScreenSection;
+  index: number;
+  idPrefix: string;
+  highlightedActionId?: string;
+  badgeId: string;
+  onAction(id: string): void;
+}) {
+  const { section, index, idPrefix, highlightedActionId, badgeId, onAction } = props;
+  const headingId = `${idPrefix}-${section.id}`;
+  return (
+    <section className="mack-section" aria-labelledby={section.heading ? headingId : undefined}>
+      {section.heading ? (
+        <h2 id={headingId}>{section.heading}</h2>
+      ) : (
+        index > 0 && <h2 className="mack-visually-hidden">More actions</h2>
+      )}
+      <ul className="mack-grid">
+        {section.buttons.map((button) => (
+          <li key={button.actionId}>
+            <TaskButtonView
+              button={button}
+              highlighted={button.actionId === highlightedActionId}
+              badgeId={badgeId}
+              onAction={onAction}
+            />
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

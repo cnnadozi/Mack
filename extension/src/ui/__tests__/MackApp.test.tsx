@@ -154,6 +154,27 @@ describe("MackApp", () => {
     expect(props.onBack).not.toHaveBeenCalled();
   });
 
+  it("shows the next step first and keeps other options collapsed until asked", () => {
+    const { rerenderWith } = setup(uiFixtures.goalWithMore);
+    expect(document.querySelectorAll("[data-action-id]")).toHaveLength(2);
+    expect(screen.queryByRole("button", { name: "Contact customer support" })).toBeNull();
+    const toggle = screen.getByRole("button", { name: /More options \(3\)/ });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    screen.getByRole("button", { name: "Contact customer support" });
+    expect(document.querySelectorAll("[data-action-id]")).toHaveLength(5);
+    rerenderWith({ ...uiFixtures.goalWithMore, screen: { ...uiFixtures.goalWithMore.screen, snapshotVersion: "next-page", screenVersion: "v2" } });
+    expect(document.querySelectorAll("[data-action-id]")).toHaveLength(2);
+  });
+
+  it("opens the collapsed area when the highlighted target is inside it", () => {
+    setup({ ...uiFixtures.goalWithMore, highlightedActionId: "d5" });
+    const target = screen.getByRole("button", { name: /Contact customer support/ });
+    expect(target.getAttribute("data-highlighted")).toBe("true");
+    expect(screen.getByRole("button", { name: "Fewer options" }).getAttribute("aria-expanded")).toBe("true");
+  });
+
   it("uses native buttons so every control is keyboard reachable", () => {
     setup(uiFixtures.withAddition);
     const controls = document.querySelectorAll("button, input");

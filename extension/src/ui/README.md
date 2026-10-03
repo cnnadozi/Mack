@@ -21,6 +21,7 @@ Owned path: `extension/src/ui/`. Implements `GenerateScreen` and `MackApp` again
 - No button cap and no mandatory buttons. Disabled, `field` and `submit` actions never appear in a simplified view.
 - `onRendered(screenVersion)` fires once per committed version, after the DOM commits.
 - Simplified mode: a full-viewport overlay with title, Previous page / Original page / Exit, one instruction (`aria-live`), status, error with Try again, clarification choices (sent through `onRequest`), all sections, and a sticky request bar.
+- Main vs more: the model marks each section `main` or `more`; grounding encodes it in the section id (`main-N` / `more-N`, see `isMoreSection`). Main sections show first (with a goal: only the 1–3 buttons that continue it); `more-*` sections sit behind a "More options (N)" toggle that resets on each new snapshot and opens itself when the highlighted target is inside it. Sections with any other id (e.g. Role 4's "For your request") always show.
 - Highlight: the `highlightedActionId` button gets a double border, a "Next step" badge (`aria-describedby`), and is scrolled into view. It does not rely on colour alone.
 - Transcript: `state.transcript` fills the input so the user can correct it and resend. Send is disabled when the input is empty.
 - Mic: Speak/Stop (`aria-pressed`) call `onMicStart`/`onMicStop`; disabled while `processing`. In the `error` voice state the UI says typing still works.

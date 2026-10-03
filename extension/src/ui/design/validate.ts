@@ -9,6 +9,10 @@ import type {
   TaskButton,
 } from "../../../../shared/contracts";
 
+export function isMoreSection(section: ScreenSection): boolean {
+  return section.id.startsWith("more-");
+}
+
 export class DesignError extends Error implements LensError {
   constructor(
     readonly code: string,
@@ -89,7 +93,9 @@ export function groundDesign(raw: unknown, snapshot: PageSnapshot, stamp: Stamp)
     }
     if (buttons.length === 0) continue;
     const heading = cleanText(rawSection.heading, MAX_HEADING);
-    sections.push({ id: `s${sections.length + 1}`, ...(heading ? { heading } : {}), buttons });
+    // Section ids carry priority for the renderer: "more-*" sections are collapsed behind "More options".
+    const priority = rawSection.priority === "more" ? "more" : "main";
+    sections.push({ id: `${priority}-${sections.length + 1}`, ...(heading ? { heading } : {}), buttons });
   }
 
   if (sections.length === 0) {
@@ -99,6 +105,8 @@ export function groundDesign(raw: unknown, snapshot: PageSnapshot, stamp: Stamp)
     return { stamp, status: "not_found", design: { title, mode: "original", sections: [] } };
   }
 
+  // Something must always be visible without expanding.
+  if (!sections.some((section) => !isMoreSection(section))) sections[0] = { ...sections[0], id: `main-${sections[0].id.split("-")[1]}` };
   const design: ScreenDesign = { title, mode: "simplified", sections };
   return { stamp, status: "ready", design };
 }

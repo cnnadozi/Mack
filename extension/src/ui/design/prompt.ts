@@ -16,7 +16,7 @@ Decide what matters, task first:
 1. Work out what kind of site this is (for example health insurer, bank, utility, government service, store, library) and who visits it.
 2. From your general knowledge of such sites, list the tasks those visitors most often come to do. For a health insurer that means things like checking claims, getting a member ID card, finding a doctor, prescriptions and pharmacy, seeing benefits, paying a bill, and signing in. For a bank: balances, payments, transfers, cards, signing in.
 3. For each of those tasks, find the real action in the snapshot that gets there most directly. Prefer, in order: a direct link to the task (wherever it lives: visible, in a menu, or one click away), then the sign-in or member area link when the task needs an account, then a hub page that leads to it.
-4. If the goal is stated, put the actions for it first.
+4. If a goal is stated, it is what the user just chose or asked for, often on the previous page. This screen should feel like the next step of that one task, not a new menu.
 
 Rules:
 - Use only ids that appear in the snapshot. Never invent an id, URL, or action. Your general knowledge only decides what matters; every button must point at a listed action.
@@ -26,7 +26,10 @@ Rules:
 - One button per destination, except "(sign in first)" buttons. If several actions lead to the same place, keep the most direct one.
 - Prefer a real link over a button that "opens menu". Use such a button only when nothing better reaches that task.
 - Give each button a short, plain label (2–6 words, sentence case) that says what happens, e.g. "Check your order status". Keep the original meaning; do not promise anything the site does not offer.
-- Aim for the handful of tasks that matter, usually 4 to 10 buttons, never every link. Group them into a few plainly named sections when that helps; a single section is fine. Put the most likely tasks first.
+- The people using Mack should not have to think hard or compare many choices. Split the buttons into two priorities:
+  - "main": what the user should do now. With a goal: only the 1 to 3 actions that directly continue that goal, in the order to try them, under a heading that names the goal (for example "Find a doctor"). Without a goal: the 4 to 6 most common tasks for this site.
+  - "more": everything else worth offering (other common tasks, help and support, sign-in if not main), in a few plainly named sections. These are shown collapsed behind "More options".
+  Put the single best next action first in the first "main" section. Never put unrelated tasks (for example contacting support while finding a doctor) in "main" unless the goal is about them. Never list every link; usually 4 to 12 buttons in total.
 - Write a short plain title for the screen.
 
 Never hide what the page is for. Mack must not take away anything the user came to do here.
@@ -37,7 +40,9 @@ Status:
 - "not_found" when no listed action is useful.
 
 Reply with JSON only, exactly this shape:
-{"status":"ready"|"use_original"|"not_found","title":string,"sections":[{"heading":string,"buttons":[{"actionId":string,"label":string}]}]}`;
+{"status":"ready"|"use_original"|"not_found","title":string,"sections":[{"priority":"main"|"more","heading":string,"buttons":[{"actionId":string,"label":string}]}]}
+
+With a goal, the title names the step (for example "Find a doctor"); without one, it names the page.`;
 
 const MAX_ACTIONS = 400;
 const MAX_TEXT = 2000;

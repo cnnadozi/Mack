@@ -152,6 +152,11 @@ export const MACK_STYLES = `
   color: var(--accent-ink);
 }
 
+.mack-more { margin-top: 28px; display: flex; flex-direction: column; gap: 20px; }
+.mack-more-toggle { align-self: flex-start; min-height: 56px; font-weight: 700; }
+.mack-chevron { display: inline-flex; transition: transform 0.15s ease; }
+.mack-chevron[data-open] { transform: rotate(90deg); }
+
 .mack-empty { margin: 0; font-size: 22px; }
 
 .mack-request {

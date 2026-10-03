@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { DesignRequest, ModelClient } from "../../../../shared/contracts";
 import { createGenerateScreen } from "../design/generateScreen";
 import { buildDesignPayload, DESIGN_SYSTEM_PROMPT } from "../design/prompt";
-import { DesignError, groundDesign } from "../design/validate";
+import { DesignError, groundDesign, isMoreSection } from "../design/validate";
 import { createFixtureModelClient, fixtureModelDesign, fixtureSnapshot } from "../fixtures";
 
 const stamp = { requestId: "r1", snapshotVersion: "snap-fixture-1", screenVersion: "v0" };
@@ -16,16 +16,33 @@ describe("groundDesign", () => {
     expect(proposal.design.mode).toBe("simplified");
     expect(proposal.design.sections).toEqual([
       {
-        id: "s1",
+        id: "main-1",
         heading: "Find something",
         buttons: [
           { actionId: "a1", label: "Search for books and movies" },
           { actionId: "a3", label: "See upcoming events" },
         ],
       },
-      { id: "s2", heading: "Visit", buttons: [{ actionId: "a2", label: "Opening hours and locations" }] },
-      { id: "s3", heading: "Your account", buttons: [{ actionId: "a5", label: "Sign in to my account" }] },
+      { id: "main-2", heading: "Visit", buttons: [{ actionId: "a2", label: "Opening hours and locations" }] },
+      { id: "main-3", heading: "Your account", buttons: [{ actionId: "a5", label: "Sign in to my account" }] },
     ]);
+  });
+
+  it("encodes main and more priorities in section ids and always keeps something visible", () => {
+    const raw = {
+      status: "ready",
+      title: "Find a doctor",
+      sections: [
+        { priority: "main", heading: "Find a doctor", buttons: [{ actionId: "a1", label: "Search for a doctor" }] },
+        { priority: "more", heading: "Help", buttons: [{ actionId: "a10", label: "Contact us" }] },
+      ],
+    };
+    expect(groundDesign(raw, fixtureSnapshot, stamp).design.sections.map((s) => s.id)).toEqual(["main-1", "more-2"]);
+    const allMore = { ...raw, sections: raw.sections.map((s) => ({ ...s, priority: "more" })) };
+    const ids = groundDesign(allMore, fixtureSnapshot, stamp).design.sections.map((s) => s.id);
+    expect(ids).toEqual(["main-1", "more-2"]);
+    expect(isMoreSection({ id: "more-2", buttons: [] })).toBe(true);
+    expect(isMoreSection({ id: "request", buttons: [] })).toBe(false);
   });
 
   it("treats every copy of one destination as a single task", () => {
