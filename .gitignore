@@ -1,3 +1,5 @@
+node_modules/
+.DS_Store
 infra/workflows/.obsidian/plugins/mcp-tools-istefox/data.json
 node_modules/
 dist/
