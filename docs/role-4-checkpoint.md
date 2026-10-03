@@ -23,17 +23,17 @@ merged into main yet (`gh` is not installed on this machine).
      rebind IDs instead of calling the model.
    - Original mode no longer redesigns (and re-covers the page) on page edits.
    - Back in original mode restores the saved simplified screen.
-8. Real-site platform (this round): Gemini transport (replaces Anthropic),
-   uhc.com/libertymutual.com, `onPreviousPage`, menu links, one-page-ahead peek,
-   goal carry, button settle redesign. See `docs/demo.md`.
+8. Real-site platform: Gemini transport (replaces Anthropic), `onPreviousPage`,
+   menu links, one-page-ahead peek, goal carry, button settle redesign.
+9. Any-https activation: `host_permissions` is `https://*/*`. An active tab
+   follows the user onto login domains (e.g. healthsafe-id.com). Peek and
+   deep links stay same-site via `registrableDomain`. See `docs/demo.md`.
 
 ## Verified
 
-`npm test` (70 Vitest + Role 2's 17 node:test) and `npm run build` pass. The
-full `tsc --noEmit` fails only in Role 3's `MackApp.test.tsx`, which lacks the
-now-required `onPreviousPage` (requested from Alex). Model output in tests is
-canned. Extraction and peek were run live on uhc.com and libertymutual.com
-through DevTools. No live Gemini key or loaded-Chrome rehearsal has been run.
+`npm run check` is the gate. Model output in tests is canned. Extraction and
+peek were run live on uhc.com and libertymutual.com through DevTools. No live
+Gemini key or loaded-Chrome rehearsal of the sign-in hop has been run.
 
 On this Windows machine use `npm.cmd`. `gh` is not installed.
 

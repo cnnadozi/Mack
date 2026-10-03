@@ -1,14 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Mack",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "minimum_chrome_version": "120",
   "description": "Simplify real website actions with AI guidance.",
   "permissions": ["activeTab", "scripting", "storage"],
   "host_permissions": [
-    "https://*.uhc.com/*",
-    "https://*.libertymutual.com/*",
-    "https://www.gov.uk/*",
+    "https://*/*",
     "https://generativelanguage.googleapis.com/*"
   ],
   "background": { "service_worker": "service-worker.js", "type": "module" },

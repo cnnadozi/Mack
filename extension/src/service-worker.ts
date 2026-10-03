@@ -60,6 +60,8 @@ chrome.runtime.onMessage.addListener((raw: unknown, sender, respond) => {
   return true;
 });
 
+const CANT_RUN = "Mack can't run on this page. Open a website and click Mack again.";
+
 async function inject(tabId: number): Promise<void> {
   await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
 }
@@ -68,8 +70,8 @@ chrome.action.onClicked.addListener((tab) => {
   void (async () => {
     if (tab.id === undefined) return;
     if (!supportedUrl(tab.url)) {
-      await chrome.action.setBadgeText({ tabId: tab.id, text: "SITE" });
-      await chrome.action.setTitle({ tabId: tab.id, title: "Mack works on uhc.com, libertymutual.com and www.gov.uk" });
+      await chrome.action.setBadgeText({ tabId: tab.id, text: "!" });
+      await chrome.action.setTitle({ tabId: tab.id, title: CANT_RUN });
       return;
     }
     if (!(await credentials()).key) {
@@ -80,6 +82,7 @@ chrome.action.onClicked.addListener((tab) => {
     if (!existing.active) await chrome.storage.session.set({ [tabKey(tab.id)]: { active: true } });
     await inject(tab.id);
     await chrome.action.setBadgeText({ tabId: tab.id, text: "" });
+    await chrome.action.setTitle({ tabId: tab.id, title: "Mack is on in this tab" });
   })().catch(() => {
     if (tab.id !== undefined) void chrome.action.setBadgeText({ tabId: tab.id, text: "ERR" });
   });
@@ -90,7 +93,8 @@ chrome.tabs.onUpdated.addListener((id, change, tab) => {
   void (async () => {
     const stored = await readStored(id);
     if (stored?.active !== true) return;
-    // Without host access Chrome omits tab.url, which also means the tab left the supported sites.
+    // An active tab follows the user to any https site (e.g. a separate sign-in domain) until Exit or tab close.
+    // Chrome omits tab.url without host access, so http and chrome:// pages land here too.
     if (!supportedUrl(tab.url)) {
       if (stored.leftAt === undefined) await chrome.storage.session.set({ [tabKey(id)]: { ...stored, leftAt: Date.now() } });
       return;

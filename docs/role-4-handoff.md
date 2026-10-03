@@ -49,6 +49,11 @@ The real platform now implements everything in your README's "Needs from
 Role 4" and "Deep links" sections (details in `docs/demo.md`). Please re-test
 against it rather than the reference harness.
 
+Mack now activates on any https site the user clicks it on, and stays injected
+across domain hops (uhc.com Sign in → identity.healthsafe-id.com). Peek and
+deep links remain same-site only. Goal carry still crosses domains and still
+drops when the user returns to the page that set the goal.
+
 1. `LensAppProps.onPreviousPage(): void` is now required in
    `shared/contracts.ts`. Add `onPreviousPage: vi.fn()` to the props in
    `__tests__/MackApp.test.tsx` and update the "only when provided" tests; until

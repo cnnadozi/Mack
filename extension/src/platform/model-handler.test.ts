@@ -9,18 +9,19 @@ const sender = { id: "extension", frameId: 0, documentId: "doc", url: "https://w
 const request = { type: "mack:model", requestId: "550e8400-e29b-41d4-a716-446655440000", input: { task: "design", system: "JSON", payload: { actions: [] } } };
 const access = { active: true, key: "test-placeholder", model: "gemini-test" };
 describe("model boundary", () => {
-  it("rejects forged senders, subframes, unsupported sites, malformed payloads and inactive tabs before provider access", async () => {
+  it("rejects forged senders, subframes, non-https or Web Store pages, malformed payloads and inactive tabs before provider access", async () => {
     const generate = vi.fn(async () => ({}));
     const handler = createModelHandler({ extensionId: "extension", readAccess: async () => ({ active: false, model: "m" }), generate });
-    for (const bad of [{ ...sender, id: "other" }, { ...sender, frameId: 1 }, { ...sender, url: "https://evil.example/" }, { ...sender, url: "http://www.uhc.com/" }])
+    for (const bad of [{ ...sender, id: "other" }, { ...sender, frameId: 1 }, { ...sender, url: "https://chromewebstore.google.com/" }, { ...sender, url: "http://www.uhc.com/" }])
       expect(await handler.handle(request, bad)).toEqual({ ok: false, error: "unauthorized" });
     expect(await handler.handle({ ...request, input: { ...request.input, payload: undefined } }, sender)).toEqual({ ok: false, error: "invalid_request" });
     expect(await handler.handle(request, sender)).toEqual({ ok: false, error: "inactive" });
     expect(generate).not.toHaveBeenCalled();
   });
-  it("accepts subdomains of a supported site", async () => {
+  it("accepts any https page in an active tab, including separate sign-in domains", async () => {
     const handler = createModelHandler({ extensionId: "extension", readAccess: async () => access, generate: async () => ({ ok: true }) });
-    expect(await handler.handle(request, { ...sender, url: "https://member.uhc.com/myuhc" })).toEqual({ ok: true, result: { ok: true } });
+    for (const url of ["https://member.uhc.com/myuhc", "https://identity.healthsafe-id.com/login", "https://www.citylibrary.org/"])
+      expect(await handler.handle(request, { ...sender, url })).toEqual({ ok: true, result: { ok: true } });
   });
   it("cancellation is scoped to the sender document and suppresses late results", async () => {
     let release!: (value: Record<string, unknown>) => void;

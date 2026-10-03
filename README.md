@@ -26,8 +26,9 @@ ESM. It outputs the unpacked extension in `dist/`.
 3. Click **Load unpacked** and select this repository's `dist` folder.
 4. Open Mack's **Details → Extension options** and save your Gemini key
    (stored only in `chrome.storage.session`; never put a key in the repo).
-5. Open `https://www.uhc.com/` or `https://www.libertymutual.com/`, then click
-   Mack in the Extensions menu or toolbar.
+5. Open any https website, then click Mack in the Extensions menu or toolbar.
+   Mack stays on in that tab across later https navigations (including
+   separate sign-in domains) until you press Exit or close the tab.
 
 After editing files, run `npm run build`, click **Reload** on Mack's extension
 card, and refresh the website tab.
@@ -40,7 +41,7 @@ card, and refresh the website tab.
 - `shared/contracts.ts`: Contract v1 and runtime validation.
 - `docs/`: product requirements and role responsibilities.
 
-Clicking the action on a supported site injects the content script, which extracts the
+Clicking the action on an https page injects the content script, which extracts the
 page, mounts Role 3's UI, generates the screen through the service-worker model
 client, and routes typed requests to Role 2's resolver (via a temporary adapter
 in `extension/src/platform/guidance-adapter.ts` until Role 2 migrates to

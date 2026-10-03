@@ -3,22 +3,38 @@ export const MODEL_STORAGE = "geminiModel";
 export const DEFAULT_MODEL = "gemini-3.8-flash";
 export const GOAL_TTL_MS = 15 * 60_000;
 
-// Each entry is one site; its subdomains are treated as the same site. Must match manifest host_permissions.
-export const SITES = ["uhc.com", "libertymutual.com", "www.gov.uk"] as const;
-
-export function siteOf(value: string | undefined): string | undefined {
+function httpsUrl(value: string | undefined): URL | undefined {
   try {
     const url = new URL(value ?? "");
-    if (url.protocol !== "https:") return undefined;
-    return SITES.find((site) => url.hostname === site || url.hostname.endsWith(`.${site}`));
+    return url.protocol === "https:" ? url : undefined;
   } catch { return undefined; }
 }
 
-export const supportedUrl = (value: string | undefined): boolean => siteOf(value) !== undefined;
+// Chrome refuses script injection on the Web Store.
+export function supportedUrl(value: string | undefined): boolean {
+  const url = httpsUrl(value);
+  if (!url) return false;
+  if (url.hostname === "chromewebstore.google.com") return false;
+  return !(url.hostname === "chrome.google.com" && url.pathname.startsWith("/webstore"));
+}
+
+const SUFFIX_PARTS = new Set(["co", "com", "gov", "ac", "org", "net", "edu"]);
+
+// Approximates the public suffix list without bundling it: "x.co.uk" and "www.gov.uk" are their own sites.
+export function registrableDomain(hostname: string): string {
+  const host = hostname.toLowerCase().replace(/\.$/, "");
+  if (/^[\d.]+$/.test(host) || host.includes(":")) return host;
+  const labels = host.split(".");
+  if (labels.length <= 2) return host;
+  const [second, last] = labels.slice(-2) as [string, string];
+  const take = SUFFIX_PARTS.has(second) && /^[a-z]{2}$/.test(last) ? 3 : 2;
+  return labels.slice(-take).join(".");
+}
 
 export function sameSite(a: string | undefined, b: string | undefined): boolean {
-  const site = siteOf(a);
-  return site !== undefined && site === siteOf(b);
+  const left = httpsUrl(a);
+  const right = httpsUrl(b);
+  return !!left && !!right && registrableDomain(left.hostname) === registrableDomain(right.hostname);
 }
 
 // Opening these could change something or only fetch a file, so they are never peeked or deep-linked.
@@ -29,7 +45,7 @@ export async function trustedSession(): Promise<void> {
 }
 
 export const tabKey = (id: number) => `mack-tab:${id}`;
-// leftAt: when the tab went to an unsupported site (e.g. a third-party sign-in), so the session survives the hop.
+// leftAt: when the tab went to a page Mack can't run on (http, chrome://, Web Store), so the session survives a short hop.
 export type TabSession = { active: boolean; goal?: string; goalAt?: number; goalFrom?: string; leftAt?: number };
 
 export async function readStored(id: number): Promise<TabSession | undefined> {
