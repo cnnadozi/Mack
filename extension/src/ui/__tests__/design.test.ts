@@ -73,11 +73,15 @@ describe("groundDesign", () => {
 });
 
 describe("buildDesignPayload", () => {
-  it("omits disabled and form actions but reports the form", () => {
+  it("omits disabled and form actions but describes the form by label only", () => {
     const payload = buildDesignPayload(fixtureSnapshot, " find hours ");
     expect(payload.goal).toBe("find hours");
     expect(payload.actions.map((a) => a.id)).toEqual(["a1", "a2", "a3", "a4", "a5", "a9", "a10"]);
     expect(payload.page.formFieldCount).toBe(2);
+    expect(payload.page.formFields).toEqual([
+      { label: "Search", kind: "field", context: "Catalog search box" },
+      { label: "Go", kind: "submit", context: "Catalog search" },
+    ]);
   });
 });
 
@@ -113,11 +117,38 @@ describe("createGenerateScreen", () => {
     expect(proposal.status).toBe("use_original");
   });
 
-  it("wraps transport failures as a retryable design error", async () => {
-    const model: ModelClient = { generateJSON: () => Promise.reject(new Error("network down")) };
+  it("keeps sign-in and payment pages on the original page without asking the model", async () => {
+    const model: ModelClient = { generateJSON: vi.fn() };
+    for (const field of [
+      { label: "Password", context: "form" },
+      { label: "Enter it here", context: "password field; form" },
+      { label: "Card number", context: "checkout" },
+    ]) {
+      const snapshot = {
+        ...fixtureSnapshot,
+        actions: [...fixtureSnapshot.actions, { id: "pw", kind: "field" as const, disabled: false, ...field }],
+      };
+      const proposal = await createGenerateScreen(model)({ stamp, snapshot }, new AbortController().signal);
+      expect(proposal.status).toBe("use_original");
+      expect(proposal.design).toMatchObject({ mode: "original", sections: [] });
+    }
+    expect(model.generateJSON).not.toHaveBeenCalled();
+  });
+
+  it("still asks the model when the only field is a search box", async () => {
+    const model = createFixtureModelClient(fixtureModelDesign, 0);
+    const spy = vi.spyOn(model, "generateJSON");
+    await createGenerateScreen(model)(request, new AbortController().signal);
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it("wraps transport failures as a retryable design error that keeps the cause", async () => {
+    const cause = new Error("network down");
+    const model: ModelClient = { generateJSON: () => Promise.reject(cause) };
     await expect(createGenerateScreen(model)(request, new AbortController().signal)).rejects.toMatchObject({
       code: "design_model_failed",
       retryable: true,
+      cause,
     });
   });
 });

@@ -14,8 +14,9 @@ export class DesignError extends Error implements LensError {
     readonly code: string,
     message: string,
     readonly retryable: boolean,
+    options?: { cause?: unknown },
   ) {
-    super(message);
+    super(message, options);
     this.name = "DesignError";
   }
 }
