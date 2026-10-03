@@ -12,7 +12,7 @@ const errors = {
 export function createModelClient(send: (message: unknown) => Promise<unknown> = (message) => chrome.runtime.sendMessage(message)): ModelClient {
   return {
     generateJSON(input, signal) {
-      const parsed = ModelInputSchema.parse(input);
+      const parsed = ModelInputSchema.parse(JSON.parse(JSON.stringify(input)));
       if (signal.aborted) return Promise.reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
       const requestId = crypto.randomUUID();
       return new Promise((resolve, reject) => {

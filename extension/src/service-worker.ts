@@ -27,6 +27,10 @@ chrome.runtime.onMessage.addListener((raw: unknown, sender, respond) => {
     const id = sender.tab!.id!;
     const session = await readTab(id);
     if (parsed.data.type === "mack:session") return respond(session);
+    if (parsed.data.type === "mack:resume") {
+      if (session.active) await inject(id);
+      return respond({ ok: true });
+    }
     if (parsed.data.type === "mack:exit") {
       model.cancelTab(id);
       await chrome.storage.session.remove(tabKey(id));

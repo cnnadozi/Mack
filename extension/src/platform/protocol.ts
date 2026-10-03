@@ -15,6 +15,7 @@ export const SessionMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("mack:session") }).strict(),
   z.object({ type: z.literal("mack:goal"), goal: z.string().max(2000) }).strict(),
   z.object({ type: z.literal("mack:exit") }).strict(),
+  z.object({ type: z.literal("mack:resume") }).strict(),
 ]);
 export const ModelReplySchema = z.discriminatedUnion("ok", [
   z.object({ ok: z.literal(true), result: z.record(json) }).strict(),

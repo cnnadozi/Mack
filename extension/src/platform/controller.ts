@@ -174,7 +174,7 @@ export function startPlatform(deps: Dependencies) {
     state = { ...state, instruction: "", busy: false, highlightedActionId: undefined, clarificationOptions: undefined, screen: { ...state.screen, mode: "original", sections: [], screenVersion: crypto.randomUUID() } };
     render();
   }
-  function exit() {
+  function exit(preserveSession = false) {
     if (!active) return;
     active = false; invalidate(); observer.disconnect(); clearInterval(urlPoll);
     if (timer) clearTimeout(timer);
@@ -183,7 +183,7 @@ export function startPlatform(deps: Dependencies) {
     currentBody.inert = bodyInert;
     voice?.dispose(); highlightStyle.remove(); deps.mount.unmount();
     if (previousFocus?.isConnected) previousFocus.focus();
-    deps.onExit();
+    if (!preserveSession) deps.onExit();
   }
   function unavailableVoice() {
     state = { ...state, voiceState: "error", error: { code: "voice_unavailable", message: "Voice is not connected yet. You can type your request.", retryable: false } };
