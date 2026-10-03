@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Mack",
+  "version": "0.1.0",
+  "description": "Mack Chrome extension starter.",
+  "action": {
+    "default_title": "Mack",
+    "default_popup": "popup.html"
+  }
+}
