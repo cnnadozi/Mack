@@ -81,15 +81,15 @@ describe("MackApp", () => {
 
   it("routes mic, replay, back, original and exit through callbacks", () => {
     const { props, rerenderWith } = setup(uiFixtures.withAddition);
-    fireEvent.click(screen.getByRole("button", { name: "Speak" }));
+    fireEvent.click(screen.getByRole("button", { name: /Speak/ }));
     expect(props.onMicStart).toHaveBeenCalled();
     rerenderWith({ ...uiFixtures.withAddition, voiceState: "listening" });
-    const stop = screen.getByRole("button", { name: "Stop" });
+    const stop = screen.getByRole("button", { name: /Stop/ });
     expect(stop.getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(stop);
     expect(props.onMicStop).toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Repeat instruction" }));
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    fireEvent.click(screen.getByRole("button", { name: /Repeat instruction/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
     fireEvent.click(screen.getByRole("button", { name: "Original page" }));
     fireEvent.click(screen.getByRole("button", { name: "Exit Mack" }));
     expect(props.onReplay).toHaveBeenCalled();
@@ -125,7 +125,9 @@ describe("MackApp", () => {
   });
 
   it("renders only a compact movable guide in original mode", () => {
-    setup(uiFixtures.original);
+    const { props } = setup(uiFixtures.original);
+    fireEvent.click(screen.getByRole("button", { name: "Full screen" }));
+    expect(props.onBack).toHaveBeenCalled();
     const panel = screen.getByRole("complementary", { name: "Mack guide" });
     expect(document.querySelector(".mack-overlay")).toBeNull();
     expect(document.querySelectorAll("[data-action-id]")).toHaveLength(0);
@@ -133,6 +135,44 @@ describe("MackApp", () => {
     act(() => fireEvent.click(screen.getByRole("button", { name: /Move this panel/ })));
     expect(panel.getAttribute("data-dock")).toBe("bottom-left");
     screen.getByLabelText("Ask Mack");
+    expect(screen.queryByRole("button", { name: "Previous page" })).toBeNull();
+  });
+
+  it("offers Previous page in both views only through onPreviousPage when provided", () => {
+    const onPreviousPage = vi.fn();
+    const { props } = setup(uiFixtures.original);
+    expect(screen.queryByRole("button", { name: "Previous page" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Exit Mack" }));
+    expect(props.onExit).toHaveBeenCalled();
+    cleanup();
+    const view = render(<MackApp {...props} onPreviousPage={onPreviousPage} />);
+    fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
+    expect(onPreviousPage).toHaveBeenCalledTimes(1);
+    view.rerender(<MackApp {...props} onPreviousPage={onPreviousPage} state={uiFixtures.manyGrouped} />);
+    fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
+    expect(onPreviousPage).toHaveBeenCalledTimes(2);
+    expect(props.onBack).not.toHaveBeenCalled();
+  });
+
+  it("shows the next step first and keeps other options collapsed until asked", () => {
+    const { rerenderWith } = setup(uiFixtures.goalWithMore);
+    expect(document.querySelectorAll("[data-action-id]")).toHaveLength(2);
+    expect(screen.queryByRole("button", { name: "Contact customer support" })).toBeNull();
+    const toggle = screen.getByRole("button", { name: /More options \(3\)/ });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    screen.getByRole("button", { name: "Contact customer support" });
+    expect(document.querySelectorAll("[data-action-id]")).toHaveLength(5);
+    rerenderWith({ ...uiFixtures.goalWithMore, screen: { ...uiFixtures.goalWithMore.screen, snapshotVersion: "next-page", screenVersion: "v2" } });
+    expect(document.querySelectorAll("[data-action-id]")).toHaveLength(2);
+  });
+
+  it("opens the collapsed area when the highlighted target is inside it", () => {
+    setup({ ...uiFixtures.goalWithMore, highlightedActionId: "d5" });
+    const target = screen.getByRole("button", { name: /Contact customer support/ });
+    expect(target.getAttribute("data-highlighted")).toBe("true");
+    expect(screen.getByRole("button", { name: "Fewer options" }).getAttribute("aria-expanded")).toBe("true");
   });
 
   it("uses native buttons so every control is keyboard reachable", () => {

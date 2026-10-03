@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { DesignRequest, ModelClient } from "../../../../shared/contracts";
 import { createGenerateScreen } from "../design/generateScreen";
 import { buildDesignPayload, DESIGN_SYSTEM_PROMPT } from "../design/prompt";
-import { DesignError, groundDesign } from "../design/validate";
+import { DesignError, groundDesign, isMoreSection } from "../design/validate";
 import { createFixtureModelClient, fixtureModelDesign, fixtureSnapshot } from "../fixtures";
 
 const stamp = { requestId: "r1", snapshotVersion: "snap-fixture-1", screenVersion: "v0" };
@@ -16,16 +16,64 @@ describe("groundDesign", () => {
     expect(proposal.design.mode).toBe("simplified");
     expect(proposal.design.sections).toEqual([
       {
-        id: "s1",
+        id: "main-1",
         heading: "Find something",
         buttons: [
           { actionId: "a1", label: "Search for books and movies" },
           { actionId: "a3", label: "See upcoming events" },
         ],
       },
-      { id: "s2", heading: "Visit", buttons: [{ actionId: "a2", label: "Opening hours and locations" }] },
-      { id: "s3", heading: "Your account", buttons: [{ actionId: "a5", label: "Sign in to my account" }] },
+      { id: "main-2", heading: "Visit", buttons: [{ actionId: "a2", label: "Opening hours and locations" }] },
+      { id: "main-3", heading: "Your account", buttons: [{ actionId: "a5", label: "Sign in to my account" }] },
     ]);
+  });
+
+  it("encodes main and more priorities in section ids and always keeps something visible", () => {
+    const raw = {
+      status: "ready",
+      title: "Find a doctor",
+      sections: [
+        { priority: "main", heading: "Find a doctor", buttons: [{ actionId: "a1", label: "Search for a doctor" }] },
+        { priority: "more", heading: "Help", buttons: [{ actionId: "a10", label: "Contact us" }] },
+      ],
+    };
+    expect(groundDesign(raw, fixtureSnapshot, stamp).design.sections.map((s) => s.id)).toEqual(["main-1", "more-2"]);
+    const allMore = { ...raw, sections: raw.sections.map((s) => ({ ...s, priority: "more" })) };
+    const ids = groundDesign(allMore, fixtureSnapshot, stamp).design.sections.map((s) => s.id);
+    expect(ids).toEqual(["main-1", "more-2"]);
+    expect(isMoreSection({ id: "more-2", buttons: [] })).toBe(true);
+    expect(isMoreSection({ id: "request", buttons: [] })).toBe(false);
+  });
+
+  it("treats every copy of one destination as a single task", () => {
+    const actions = [
+      { id: "v", label: "Find a doctor", kind: "navigate" as const, context: "main", disabled: false, href: "https://e.org/find" },
+      { id: "m", label: "Find a doctorFind a doctor", kind: "navigate" as const, context: "menu: Members", disabled: false, href: "https://e.org/find" },
+    ];
+    const raw = { status: "ready", title: "T", sections: [{ buttons: [{ actionId: "m", label: "Find a doctor" }, { actionId: "v", label: "Find a doctor near you" }] }] };
+    const proposal = groundDesign(raw, { ...fixtureSnapshot, actions }, stamp);
+    expect(proposal.design.sections[0].buttons).toEqual([{ actionId: "m", label: "Find a doctor" }]);
+  });
+
+  it("lets sign-in-first task buttons share the sign-in destination but never an id", () => {
+    const signIn = (id: string, label: string) => ({ id, label, kind: "navigate" as const, context: "header", disabled: false, href: "https://e.org/login" });
+    const actions = [signIn("s1", "Member sign in"), signIn("s2", "Sign in to your account"), signIn("s3", "Sign in or register")];
+    const raw = {
+      status: "ready",
+      title: "T",
+      sections: [
+        {
+          buttons: [
+            { actionId: "s1", label: "Check claims (sign in first)" },
+            { actionId: "s2", label: "Get your ID card (sign in first)" },
+            { actionId: "s2", label: "Reused id (sign in first)" },
+            { actionId: "s3", label: "Sign in" },
+          ],
+        },
+      ],
+    };
+    const labels = groundDesign(raw, { ...fixtureSnapshot, actions }, stamp).design.sections[0].buttons.map((b) => b.label);
+    expect(labels).toEqual(["Check claims (sign in first)", "Get your ID card (sign in first)", "Sign in"]);
   });
 
   it("does not cap the number of buttons", () => {
@@ -73,11 +121,15 @@ describe("groundDesign", () => {
 });
 
 describe("buildDesignPayload", () => {
-  it("omits disabled and form actions but reports the form", () => {
+  it("omits disabled and form actions but describes the form by label only", () => {
     const payload = buildDesignPayload(fixtureSnapshot, " find hours ");
     expect(payload.goal).toBe("find hours");
     expect(payload.actions.map((a) => a.id)).toEqual(["a1", "a2", "a3", "a4", "a5", "a9", "a10"]);
     expect(payload.page.formFieldCount).toBe(2);
+    expect(payload.page.formFields).toEqual([
+      { label: "Search", kind: "field", context: "Catalog search box" },
+      { label: "Go", kind: "submit", context: "Catalog search" },
+    ]);
   });
 });
 
@@ -113,11 +165,38 @@ describe("createGenerateScreen", () => {
     expect(proposal.status).toBe("use_original");
   });
 
-  it("wraps transport failures as a retryable design error", async () => {
-    const model: ModelClient = { generateJSON: () => Promise.reject(new Error("network down")) };
+  it("keeps sign-in and payment pages on the original page without asking the model", async () => {
+    const model: ModelClient = { generateJSON: vi.fn() };
+    for (const field of [
+      { label: "Password", context: "form" },
+      { label: "Enter it here", context: "password field; form" },
+      { label: "Card number", context: "checkout" },
+    ]) {
+      const snapshot = {
+        ...fixtureSnapshot,
+        actions: [...fixtureSnapshot.actions, { id: "pw", kind: "field" as const, disabled: false, ...field }],
+      };
+      const proposal = await createGenerateScreen(model)({ stamp, snapshot }, new AbortController().signal);
+      expect(proposal.status).toBe("use_original");
+      expect(proposal.design).toMatchObject({ mode: "original", sections: [] });
+    }
+    expect(model.generateJSON).not.toHaveBeenCalled();
+  });
+
+  it("still asks the model when the only field is a search box", async () => {
+    const model = createFixtureModelClient(fixtureModelDesign, 0);
+    const spy = vi.spyOn(model, "generateJSON");
+    await createGenerateScreen(model)(request, new AbortController().signal);
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it("wraps transport failures as a retryable design error that keeps the cause", async () => {
+    const cause = new Error("network down");
+    const model: ModelClient = { generateJSON: () => Promise.reject(cause) };
     await expect(createGenerateScreen(model)(request, new AbortController().signal)).rejects.toMatchObject({
       code: "design_model_failed",
       retryable: true,
+      cause,
     });
   });
 });

@@ -127,6 +127,14 @@ export const uiFixtures: Record<string, LensUIState> = {
     voiceState: "error",
   }),
   empty: base(screen("v-empty", "Library home", [])),
+  goalWithMore: base(
+    screen("v-goal", "Find a doctor", [
+      { id: "main-1", heading: "Find a doctor", buttons: [{ actionId: "d1", label: "Search for a doctor near you" }, { actionId: "d2", label: "Find a doctor in your plan" }] },
+      { id: "more-2", heading: "Other tasks", buttons: [{ actionId: "d3", label: "Check claims (sign in first)" }, { actionId: "d4", label: "Get your ID card" }] },
+      { id: "more-3", heading: "Help", buttons: [{ actionId: "d5", label: "Contact customer support" }] },
+    ]),
+    { instruction: "Continuing: “Find a doctor”. Choose the next step." },
+  ),
   original: base(screen("v-orig", "Fill in the sign-up form", [], "original"), {
     instruction: "Type your email address in the highlighted box on the page.",
   }),

@@ -20,11 +20,12 @@ Owned path: `extension/src/ui/`. Implements `GenerateScreen` and `MackApp` again
 - Design status: `ready` → `mode: "simplified"`; `use_original` / `not_found` → `mode: "original"` with no sections. Pages with only form fields skip the model and return `use_original`.
 - No button cap and no mandatory buttons. Disabled, `field` and `submit` actions never appear in a simplified view.
 - `onRendered(screenVersion)` fires once per committed version, after the DOM commits.
-- Simplified mode: a full-viewport overlay with title, Back / Original page / Exit, one instruction (`aria-live`), status, error with Try again, clarification choices (sent through `onRequest`), all sections, and a sticky request bar.
+- Simplified mode: a full-viewport overlay with title, Previous page / Original page / Exit, one instruction (`aria-live`), status, error with Try again, clarification choices (sent through `onRequest`), all sections, and a sticky request bar.
+- Main vs more: the model marks each section `main` or `more`; grounding encodes it in the section id (`main-N` / `more-N`, see `isMoreSection`). Main sections show first (with a goal: only the 1–3 buttons that continue it); `more-*` sections sit behind a "More options (N)" toggle that resets on each new snapshot and opens itself when the highlighted target is inside it. Sections with any other id (e.g. Role 4's "For your request") always show.
 - Highlight: the `highlightedActionId` button gets a double border, a "Next step" badge (`aria-describedby`), and is scrolled into view. It does not rely on colour alone.
 - Transcript: `state.transcript` fills the input so the user can correct it and resend. Send is disabled when the input is empty.
 - Mic: Speak/Stop (`aria-pressed`) call `onMicStart`/`onMicStop`; disabled while `processing`. In the `error` voice state the UI says typing still works.
-- Original mode: only a compact guide panel. A "Move" button cycles it between the four corners so it can be moved off the source target.
+- Original mode: only a compact guide panel: back arrow (`onPreviousPage`), title, full-screen icon (`onBack`: Role 4 returns to the committed simplified screen, or explains there is none) and ✕ (`onExit`) on top, with tooltips and spoken labels; instruction and request bar; a "Move panel" button that cycles the panel between the four corners so it can be moved off the source target.
 - Accessibility: task buttons ≥64px tall with 24px labels, other controls ≥44px, essential text ≥20px, visible focus ring, native buttons and labelled input, at most two columns, `prefers-reduced-motion` and `forced-colors` support.
 
 ## Needs from Role 4
@@ -35,6 +36,32 @@ Owned path: `extension/src/ui/`. Implements `GenerateScreen` and `MackApp` again
 4. Call `mountMackApp()` from the content script. Exclude `mack-root[data-mack]` from extraction and from the mutation observer, make covered page content inert while in simplified mode, and restore it on exit or in original mode.
 5. Loading view: commit a screen with `sections: []` and set `busy: true`; the UI shows "Working…".
 6. Guidance additions arrive as a committed section (e.g. heading "For your request"). The UI renders whatever Role 4 commits and does not rename anything.
+
+**Contract proposal — `onPreviousPage`** (implemented as an optional prop until it lands):
+- Old: `LensAppProps.onBack()` was the only back action, so the original-mode panel could not offer both "Full screen" and "Previous page".
+- New: add `onPreviousPage(): void` to `LensAppProps`. `onBack` = return to the full-screen simplified Mack view; `onPreviousPage` = go to the previous website page (Role 4 runs it).
+- Consumers: Role 3 (`MackApp`, exported as `MackAppProps = LensAppProps & { onPreviousPage?() }` meanwhile) and Role 4 (wiring). No effect on Roles 1–2.
+- Reason: users read "Back" as browser-back; each button now names its destination.
+
+## Deep links: what Role 4's extractor should send
+
+The design prompt ranks tasks by what visitors of that kind of site come to do, and can pick links the user would otherwise need several clicks to reach. It reads where an action lives from the start of `SourceAction.context` (no contract change needed):
+
+| Context prefix | Meaning | How Role 4 executes it |
+| --- | --- | --- |
+| *(none)* | Visible on the page | Recheck the live element, then `click()` |
+| `menu: <menu name>` | Real link inside a hidden dropdown/menu | Navigate to the element's own extracted `href` (hidden elements often ignore clicks) |
+| `one click away via "<label>"` | Real link found on the page that `<label>` opens | Navigate to the extracted `href` |
+| `opens menu; …` | Button that only opens a menu/panel | `click()`, then re-extract after the page changes |
+| `<type> field; …` | Form field, e.g. `password field;` | Never executed; a password/PIN/card field keeps the page in original mode |
+
+Peeking one page ahead (prototyped in Role 3's local test harness, verified on uhc.com: 85 menu links + 24 links one page ahead):
+- Pick at most ~8 same-site links, preferring menu/nav links and support/account/billing-type labels, skipping anything that could act when opened (log out, unsubscribe, delete, cart, checkout, downloads).
+- Fetch them from the service worker in parallel with `credentials: "omit"` and a ~3.5 s timeout, so pages are seen signed-out: no personal data, no account side effects. Parse with `DOMParser` in the content script and add only new same-site link labels/hrefs (max ~30 per page). Never send page text.
+- Skip peeking on pages with a password field.
+- Known limits: pages rendered by JavaScript show few links when fetched; content behind sign-in is not visible.
+
+Labels ending in `(sign in first)` (e.g. "Check claims (sign in first)") point at a real sign-in link. Role 4 should carry the button label (without the suffix) as the goal across page loads, so after sign-in the portal's design puts that task first.
 
 Possible contract proposal (not implemented): an optional panel-placement hint in `LensUIState`, so Role 4 can open the original-mode panel away from the highlighted source element. Today the user moves it.
 
