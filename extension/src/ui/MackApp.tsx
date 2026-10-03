@@ -151,15 +151,14 @@ function OriginalPanel(props: MackAppProps) {
       <header className="mack-panel-header">
         {onPreviousPage ? <IconButton icon="back" label="Previous page" onClick={onPreviousPage} /> : <span />}
         <h1 className="mack-title">{state.screen.title}</h1>
-        <IconButton icon="close" label="Exit Mack" onClick={onExit} />
+        <div className="mack-panel-tools">
+          <IconButton icon="expand" label="Full screen" onClick={onBack} />
+          <IconButton icon="close" label="Exit Mack" onClick={onExit} />
+        </div>
       </header>
       <Guidance {...props} />
       <RequestBar {...props} compact />
       <footer className="mack-panel-footer">
-        <button type="button" className="mack-btn mack-btn--block" onClick={onBack}>
-          <Icon name="expand" />
-          Full screen
-        </button>
         <button
           type="button"
           className="mack-btn"
@@ -167,7 +166,7 @@ function OriginalPanel(props: MackAppProps) {
           aria-label={`Move this panel to the ${nextDock.replace("-", " ")}`}
           title={`Move this panel to the ${nextDock.replace("-", " ")}`}
         >
-          Move
+          Move panel
         </button>
       </footer>
     </aside>

@@ -126,7 +126,7 @@ describe("MackApp", () => {
 
   it("renders only a compact movable guide in original mode", () => {
     const { props } = setup(uiFixtures.original);
-    fireEvent.click(screen.getByRole("button", { name: /Full screen/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Full screen" }));
     expect(props.onBack).toHaveBeenCalled();
     const panel = screen.getByRole("complementary", { name: "Mack guide" });
     expect(document.querySelector(".mack-overlay")).toBeNull();
