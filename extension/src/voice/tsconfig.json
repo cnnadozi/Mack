@@ -8,8 +8,8 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "noEmitOnError": true,
-    "sourceMap": false,
-    "types": []
+    "outDir": "dist",
+    "rootDir": "."
   },
-  "include": ["capture.ts", "mic-check.ts"]
+  "include": ["*.ts"]
 }
