@@ -28,6 +28,37 @@ describe("groundDesign", () => {
     ]);
   });
 
+  it("treats every copy of one destination as a single task", () => {
+    const actions = [
+      { id: "v", label: "Find a doctor", kind: "navigate" as const, context: "main", disabled: false, href: "https://e.org/find" },
+      { id: "m", label: "Find a doctorFind a doctor", kind: "navigate" as const, context: "menu: Members", disabled: false, href: "https://e.org/find" },
+    ];
+    const raw = { status: "ready", title: "T", sections: [{ buttons: [{ actionId: "m", label: "Find a doctor" }, { actionId: "v", label: "Find a doctor near you" }] }] };
+    const proposal = groundDesign(raw, { ...fixtureSnapshot, actions }, stamp);
+    expect(proposal.design.sections[0].buttons).toEqual([{ actionId: "m", label: "Find a doctor" }]);
+  });
+
+  it("lets sign-in-first task buttons share the sign-in destination but never an id", () => {
+    const signIn = (id: string, label: string) => ({ id, label, kind: "navigate" as const, context: "header", disabled: false, href: "https://e.org/login" });
+    const actions = [signIn("s1", "Member sign in"), signIn("s2", "Sign in to your account"), signIn("s3", "Sign in or register")];
+    const raw = {
+      status: "ready",
+      title: "T",
+      sections: [
+        {
+          buttons: [
+            { actionId: "s1", label: "Check claims (sign in first)" },
+            { actionId: "s2", label: "Get your ID card (sign in first)" },
+            { actionId: "s2", label: "Reused id (sign in first)" },
+            { actionId: "s3", label: "Sign in" },
+          ],
+        },
+      ],
+    };
+    const labels = groundDesign(raw, { ...fixtureSnapshot, actions }, stamp).design.sections[0].buttons.map((b) => b.label);
+    expect(labels).toEqual(["Check claims (sign in first)", "Get your ID card (sign in first)", "Sign in"]);
+  });
+
   it("does not cap the number of buttons", () => {
     const actions = Array.from({ length: 9 }, (_, i) => ({
       id: `x${i}`, label: `Thing ${i}`, kind: "navigate" as const, context: "", disabled: false, href: `https://e.org/${i}`,

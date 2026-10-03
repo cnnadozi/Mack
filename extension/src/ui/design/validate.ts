@@ -25,6 +25,7 @@ const STATUSES = ["ready", "use_original", "not_found"] as const;
 type Status = (typeof STATUSES)[number];
 
 const MAX_LABEL = 60;
+const SIGN_IN_FIRST = /\(sign in first\)$/i;
 const MAX_TITLE = 80;
 const MAX_HEADING = 60;
 
@@ -39,9 +40,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function duplicateKey(action: SourceAction): string | undefined {
-  // Distinct ids pointing at the same link with the same text (header + footer copies) are one task.
-  if (!action.href) return undefined;
-  return `${action.href}\u0000${action.label.trim().toLowerCase()}`;
+  // Distinct ids pointing at the same destination (header, menu and footer copies) are one task.
+  return action.href || undefined;
 }
 
 /**
@@ -78,10 +78,11 @@ export function groundDesign(raw: unknown, snapshot: PageSnapshot, stamp: Stamp)
       const action = typeof rawButton.actionId === "string" ? byId.get(rawButton.actionId) : undefined;
       if (!action || action.disabled || (action.kind !== "navigate" && action.kind !== "button")) continue;
       if (seenIds.has(action.id)) continue;
-      const dup = duplicateKey(action);
-      if (dup && seenDuplicates.has(dup)) continue;
       const label = cleanText(rawButton.label, MAX_LABEL) || cleanText(action.label, MAX_LABEL);
       if (!label) continue;
+      // "Check claims (sign in first)" deliberately shares the sign-in destination with other buttons.
+      const dup = SIGN_IN_FIRST.test(label) ? undefined : duplicateKey(action);
+      if (dup && seenDuplicates.has(dup)) continue;
       seenIds.add(action.id);
       if (dup) seenDuplicates.add(dup);
       buttons.push({ actionId: action.id, label });
