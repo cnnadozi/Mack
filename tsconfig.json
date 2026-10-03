@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "types": ["chrome", "node", "vitest/globals"]
+  },
+  "include": ["shared/**/*.ts", "extension/src/**/*.ts", "extension/src/**/*.tsx", "vitest.config.ts", "test/**/*.ts"]
+}

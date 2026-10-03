@@ -1,1 +1,6 @@
 infra/workflows/.obsidian/plugins/mcp-tools-istefox/data.json
+node_modules/
+dist/
+.env
+.env.*
+*.local
