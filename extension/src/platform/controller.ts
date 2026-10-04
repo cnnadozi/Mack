@@ -21,6 +21,31 @@ type Dependencies = {
 
 const BUTTON_SETTLE_MS = 900;
 const SEARCH_BUTTON_MS = 700;
+// Page changes alone may trigger at most one redesign in this window.
+const AUTO_REFRESH_MIN_MS = 10_000;
+
+const actionKey = (a: { label: string; kind: string; href?: string }) => `${a.kind}\u0000${a.label}\u0000${a.href ?? ""}`;
+
+/**
+ * Keeps the current snapshot and IDs, pointing each action at its re-rendered node in the new extraction.
+ * Returns undefined when any shown target is gone, which is the only page change worth a redesign.
+ */
+function relink(current: Extraction, next: Extraction, shown: string[]): Extraction | undefined {
+  const fresh = new Map<string, HTMLElement>();
+  for (const action of next.snapshot.actions) {
+    const element = next.registry.get(action.id);
+    if (element && !fresh.has(actionKey(action))) fresh.set(actionKey(action), element);
+  }
+  const registry = new Map(current.registry);
+  for (const action of current.snapshot.actions) {
+    if (current.deep.has(action.id)) continue;
+    const element = fresh.get(actionKey(action));
+    if (element) registry.set(action.id, element);
+    else registry.delete(action.id);
+  }
+  const missing = shown.some((id) => !current.deep.has(id) && !registry.has(id));
+  return missing ? undefined : { ...current, registry, fingerprint: next.fingerprint };
+}
 
 function searchButtonNear(input: HTMLInputElement): HTMLElement | undefined {
   for (let node = input.parentElement, depth = 0; node && depth < 4; node = node.parentElement, depth++) {
@@ -73,6 +98,7 @@ export function startPlatform(deps: Dependencies) {
   let actionPending = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let mutationTimer: ReturnType<typeof setTimeout> | undefined;
+  let lastAutoRefresh = 0;
   let simplifiedScreen: CommittedScreen | undefined;
   let clickTimer: ReturnType<typeof setTimeout> | undefined;
   let searchTimer: ReturnType<typeof setTimeout> | undefined;
@@ -329,8 +355,26 @@ export function startPlatform(deps: Dependencies) {
       extraction = { ...extraction, registry };
       return;
     }
-    if (state.screen.mode === "original" && !designPending) adoptOriginal(next);
-    else void refresh(next);
+    if (state.screen.mode === "original" && !designPending) { adoptOriginal(next); return; }
+    if (!designPending && !actionPending) {
+      const known = new Set(extraction.snapshot.actions.map(actionKey));
+      const newFields = next.snapshot.actions.filter((a) => a.kind === "field" && !known.has(actionKey(a)));
+      // A sign-in form rendering late must switch Mack to the original page right away.
+      const newPassword = newFields.some((a) => /password/i.test(`${a.label} ${a.context}`));
+      if (!newPassword) {
+        // Busy pages (carousels, ads, live prices) change all the time. While what Mack shows is still on the page,
+        // keep the design and just point it at the live nodes; asking the model again would loop forever.
+        const relinked = newFields.length ? undefined : relink(extraction, next, shownTargets());
+        if (relinked) { extraction = relinked; return; }
+        if (Date.now() - lastAutoRefresh < AUTO_REFRESH_MIN_MS) return;
+      }
+    }
+    lastAutoRefresh = Date.now();
+    void refresh(next);
+  }
+  function shownTargets(): string[] {
+    const ids = state.screen.sections.flatMap((section) => section.buttons.map((button) => button.actionId));
+    return state.screen.search ? [...ids, state.screen.search.actionId] : ids;
   }
   function exit(preserveSession = false) {
     if (!active) return;
