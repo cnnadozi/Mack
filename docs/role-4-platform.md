@@ -30,6 +30,10 @@ Implement the shared proposal/commit sequence exactly. Queue latest input while 
 
 In original mode, restore the original website, scroll/mark the actual control, and coordinate non-obscuring panel placement. On exit, restore original focus/accessibility state and stop all jobs/audio.
 
+## Logo
+
+The full-size Mack logo is `docs/assets/mack-logo.png`. The extension icons (`extension/public/icons/icon{16,32,48,128}.png`, mirrored in `extension/icons/`) are made from it, cropped closer and with rounded corners so the M stays readable at small sizes. Mack's bar shows `icon48.png`. Remake all four from the full-size file when the logo changes.
+
 ## Integration boundaries
 
 Role 1 implements audio/provider-specific voice behavior. Role 2 writes guidance prompt/proposals. Role 3 writes design prompt/renderer. Mount their modules and own wiring; don't rewrite them in platform code. Use explicit messages for cross-context work and validate senders/payloads; do not expose credentials to content scripts/page scripts. Check current official Chrome APIs and permissions when choosing contexts.
