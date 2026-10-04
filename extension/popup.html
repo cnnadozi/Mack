@@ -4,16 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Mack</title>
-    <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
-    <main>
-      <h1>Mack</h1>
-      <button id="cursor-toggle" type="button" aria-pressed="false">Turn on Mack cursor</button>
-      <p id="status" role="status"></p>
-      <button id="open-speech-check" type="button">Speak a test sentence</button>
-    </main>
-    <script src="popup.js"></script>
-    <script type="module" src="src/voice/dist/open-speech-check.js"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/ui/popup/main.tsx"></script>
   </body>
 </html>

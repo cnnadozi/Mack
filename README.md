@@ -10,19 +10,58 @@ Mack is a Chrome extension that turns confusing websites into simple interfaces 
 
 Mack works on top of an existing real website. There is no separate backend: all application logic runs inside the extension.
 
-## Load locally
+## Run it locally
 
-1. Open `chrome://extensions` in Chrome.
-2. Enable **Developer mode**.
-3. Click **Load unpacked** and select this repository's `extension` folder.
-4. Open Mack from the browser's Extensions menu to see the popup.
-5. On a normal website, press **Turn on Mack cursor** to swap the mouse cursor on that page.
-6. Choose **Speak a test sentence**, paste an ElevenLabs API key, and choose **Speak the sentence**. The key stays in memory for this browser session. The page speaks: "Mack is speaking this sentence."
-7. Open `src/voice/mic-check.html` from the loaded extension to record from the microphone.
+1. Put your keys in `.env.local` at the repo root (git ignores it):
 
-No install step is required to load the extension. After editing the TypeScript in `extension/src/voice/`, compile it with `npx --yes typescript@5.9.2 tsc -p extension/src/voice`, then click **Reload** on Mack's extension card.
+   ```
+   ELEVENLABS_API_KEY=...
+   GEMINI_API_KEY=...
+   ```
 
-Chrome setup reference: [Hello World extension](https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world).
+2. Install and build:
+
+   ```bash
+   npm install
+   npm run build
+   ```
+
+   This writes the extension to `dist/`. Use `npm run dev` to rebuild automatically while editing.
+
+3. Open `chrome://extensions`, enable **Developer mode**, click **Load unpacked** and select the `dist` folder. After each rebuild, click **Reload** on Mack's card.
+
+The build copies the keys into `dist/`, so never commit, zip or share that folder. This is a local developer setup, not a way to ship keys.
+
+## Using it
+
+1. Open a normal website and click the Mack icon in the toolbar. There is no popup: the icon turns Mack on, and clicking it again turns Mack off. The icon shows **ON** while Mack is running.
+2. A short rising chime plays when Mack turns on and a falling one when it turns off. The Mack panel appears at the bottom centre of the page; its sliders button opens the settings. The first time, a tab opens once so Chrome can ask for the microphone.
+3. Ask out loud, for example "Where is the contact page?". Mack answers by voice and puts a ring around the element it means. Keep talking for a back-and-forth conversation; click the Mack icon again, or the X on the Mack panel, to end it.
+4. **Type instead.** While Mack is on, a Mack panel sits at the bottom centre of the page with a box for typing a question. Typing works even when the microphone is blocked or missing. A new question cuts off the answer Mack is still speaking.
+5. **Push to talk** (in the settings) stops Mack from listening all the time. The panel then shows a **Hold to talk** button: hold it (mouse, touch, or Space/Enter) while you speak and let go to send.
+6. **Ask Mack to do a task**, for example "Search for a good car" or "Open the contact page". Mack does it for you step by step: it rings an element, acts on it, looks at the page that results, and carries on until the task is done, then tells you what it did. Each step appears as text in the panel. Asking *where* something is ("Where is the search box?") still only highlights it. Mack can click, type into fields and rich text editors, pick dropdown options, tick boxes, hover to open menus, press keys (Enter, Escape, Tab, Backspace, Space, arrows), scroll, go back and forward, and open a web address you name. A task stops after 15 steps, or as soon as you ask something new or turn Mack off.
+7. **What Mack leaves to you.** It will not press anything that looks like paying, buying, placing an order, donating, subscribing, deleting or transferring, will not type into password or card fields, and will not submit a form that contains one. It goes as far as that step, highlights it, and asks you to do it yourself. It only types words you gave it.
+8. **The Mack panel** on the page is a chat window: your words, Mack's replies, and the steps of a task in smaller text. The arrow minimises it to a small button; the X turns Mack off. Drag the panel by its top bar to move it, and drag any corner to resize it; it stays where you put it on the next page. Double-click the top bar to send it back to the bottom centre. **Show conversation** hides or shows the text in it. **My words** and **Mack's replies** choose which side is shown.
+9. **Mack's voice** picks which ElevenLabs voice speaks. The list comes from your own ElevenLabs account and is loaded the first time Mack starts, so start Mack once before choosing. Changing it while Mack is on plays a short sample in the new voice.
+
+How it works: the microphone is heard in a hidden extension page. Gemini (`gemini-3.5-flash-lite`) turns each sentence into text, then Gemini (`gemini-3.5-flash`) answers using a screenshot of the tab, the page's real links, buttons and fields, and the readable text of the whole page (including parts you have not scrolled to). Text you typed into fields or editors is never sent. ElevenLabs speaks the answer. For a task, that second step repeats once per click or typing action, each time with a fresh reading of the page.
+
+Caching: asking the same question again on a page that has not changed is answered from memory, without another Gemini call, for up to five minutes. Tasks are never cached, because they change the page. Sentences Mack has already spoken in the current voice (the greeting, a repeated answer) reuse the audio instead of calling ElevenLabs again. Both caches are in memory only and are emptied when Mack is turned off.
+
+Checks: `npm run typecheck` and `npm test`.
+
+## Debugging
+
+Mack logs each step of a conversation with a `[Mack:<where>]` prefix. Each part of the extension has its own console:
+
+| Prefix | Where to look |
+| --- | --- |
+| `[Mack:background]` | `chrome://extensions` → Mack → **service worker** |
+| `[Mack:offscreen]`, `[Mack:gemini]` | `chrome://extensions` → Mack → **offscreen.html** (only listed while Mack is talking) |
+| `[Mack:content]` | the website's own DevTools console |
+| `[Mack:permission]` | DevTools on the microphone permission tab |
+
+The logs never include API keys, audio, screenshots or text typed into fields. Set `ENABLED` to `false` in `extension/src/platform/debug.ts` to turn them all off.
 
 ## How the project is organized
 
@@ -35,16 +74,6 @@ The work is split into four roles:
 | 3 | UI: AI-generated screen design and rendering |
 | 4 | Platform: Chrome extension shell, page extraction, integration |
 
-## Files
-
-- `extension/manifest.json`: extension metadata and popup entry point.
-- `extension/popup.html`: starter popup with the cursor toggle.
-- `extension/popup.js`: turns the custom Mack cursor on and off for the current tab.
-- `extension/assets/`: Mack cursor images. The purple arrow is the normal cursor; the orange arrow is for links and buttons.
-- `extension/popup.css`: popup styles.
-- `extension/src/guidance/`: Role 2's guidance module (not yet wired into the extension).
-- `extension/src/voice/`: Role 1's microphone capture check and ElevenLabs speech check.
-- `docs/`: product requirements and role responsibilities.
 
 ## Documentation
 
@@ -55,4 +84,4 @@ The work is split into four roles:
 
 ## Status
 
-Early stage. The extension is a starter popup with a custom cursor toggle. It does not yet implement page extraction, AI guidance, or navigation. Microphone capture and one fixed spoken sentence are in `extension/src/voice/`.
+Early stage. Voice and typed conversation about the current page, push to talk, element highlighting, tasks carried out on the page (clicking and typing) work as described above. The AI-redesigned simple screen (Role 3) and Role 2's guidance module in `extension/src/guidance/` are not wired into the extension yet.

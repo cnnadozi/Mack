@@ -1,3 +1,10 @@
 infra/workflows/.obsidian/plugins/mcp-tools-istefox/data.json
 .env
 .env.*
+
+# Local-only developer credentials. Never commit.
+extension/local-env.js
+
+node_modules/
+# Build output. It contains the keys from .env.local, so never commit or share it.
+dist/

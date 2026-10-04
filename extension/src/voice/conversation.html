@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Talk with Mack</title>
+    <link rel="stylesheet" href="conversation.css" />
+  </head>
+  <body data-conversation-state="idle">
+    <main>
+      <h1>Talk with Mack</h1>
+      <p>Start the conversation, then speak. Mack answers out loud through ElevenLabs, and you can keep talking back and forth.</p>
+      <button id="toggle" type="button" aria-pressed="false">Start conversation</button>
+      <p id="status" role="status">Not started.</p>
+      <label class="switch">
+        <input id="show-text" type="checkbox" role="switch" />
+        Show conversation text
+      </label>
+      <ol id="transcript" aria-label="Conversation text" aria-live="polite" hidden></ol>
+    </main>
+    <script type="module" src="dist/conversation.js"></script>
+  </body>
+</html>

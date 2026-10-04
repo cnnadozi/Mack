@@ -27,6 +27,12 @@ let active: ActivePlayback | null = null;
 let requestAbort: AbortController | null = null;
 let cancelWait: (() => void) | null = null;
 
+// Audio ElevenLabs has already made, by voice and text, so a repeated sentence
+// (the greeting, a repeated answer) plays at once and costs nothing. Kept in
+// memory only, and the oldest is dropped when it is full.
+const MAX_SPOKEN_BEFORE = 40;
+const spokenBefore = new Map<string, { blob: Blob; peak: number }>();
+
 export class SpeechStopped extends Error {
   constructor() {
     super("Speech was stopped.");
@@ -107,26 +113,41 @@ export async function speakText(input: {
   requestAbort = abort;
   const request = buildSpeechRequest(input.voiceId, input.text, input.apiKey);
   request.init.signal = abort.signal;
+  const cacheKey = `${input.voiceId.trim()}\n${input.text.trim()}`;
 
   try {
-    const response = await fetch(request.url, request.init);
+    let audio = spokenBefore.get(cacheKey);
+    if (!audio) {
+      const response = await fetch(request.url, request.init);
+      if (abort.signal.aborted) {
+        throw new SpeechStopped();
+      }
+      if (!response.ok) {
+        throw new Error(await errorMessage(response));
+      }
+      const blob = await response.blob();
+      if (blob.size < 1000) {
+        throw new Error("ElevenLabs returned an audio file that is too small to be speech.");
+      }
+      const peak = await decodedPeak(blob);
+      if (peak < 0.02) {
+        throw new Error("The speech audio was silent.");
+      }
+      audio = { blob, peak };
+      spokenBefore.set(cacheKey, audio);
+      if (spokenBefore.size > MAX_SPOKEN_BEFORE) {
+        const oldest = spokenBefore.keys().next().value;
+        if (oldest !== undefined) {
+          spokenBefore.delete(oldest);
+        }
+      }
+    }
     if (abort.signal.aborted) {
       throw new SpeechStopped();
     }
-    if (!response.ok) {
-      throw new Error(await errorMessage(response));
-    }
-    const blob = await response.blob();
-    if (blob.size < 1000) {
-      throw new Error("ElevenLabs returned an audio file that is too small to be speech.");
-    }
-    const filePeak = await decodedPeak(blob);
-    if (filePeak < 0.02) {
-      throw new Error("The speech audio was silent.");
-    }
     input.onPlaybackStart?.();
-    const played = await playAudioBlob(blob);
-    return { text: input.text.trim(), ...played, peak: Math.max(played.peak, filePeak) };
+    const played = await playAudioBlob(audio.blob);
+    return { text: input.text.trim(), ...played, peak: Math.max(played.peak, audio.peak) };
   } catch (error) {
     if (abort.signal.aborted || (error instanceof DOMException && error.name === "AbortError")) {
       throw new SpeechStopped();

@@ -1,9 +1,6 @@
 import { DEFAULT_VOICE_ID, FIXED_SENTENCE } from "./fixed-sentence.js";
 import { speakText, SpeechStopped, stopSpeech } from "./elevenlabs-speech.js";
-import {
-  readSessionCredentials,
-  saveSessionCredentials,
-} from "./session-credentials.js";
+import { readCredentials, saveVoiceId } from "./session-credentials.js";
 
 interface SpeechCheckStatus {
   state: "idle" | "requesting" | "playing" | "spoken" | "error";
@@ -21,9 +18,7 @@ declare global {
 
 const sentence = document.querySelector("#sentence");
 const status = document.querySelector("#status");
-const apiKeyInput = document.querySelector<HTMLInputElement>("#api-key");
 const voiceIdInput = document.querySelector<HTMLInputElement>("#voice-id");
-const saveButton = document.querySelector<HTMLButtonElement>("#save-key");
 const speakButton = document.querySelector<HTMLButtonElement>("#speak");
 
 if (sentence) {
@@ -33,11 +28,7 @@ if (voiceIdInput && !voiceIdInput.value) {
   voiceIdInput.value = DEFAULT_VOICE_ID;
 }
 
-publish("idle", "Enter an API key, then speak the sentence.", null, null);
-
-saveButton?.addEventListener("click", () => {
-  void storeKey();
-});
+publish("idle", "Ready. Choose Speak the sentence.", null, null);
 
 speakButton?.addEventListener("click", () => {
   void speakFixedSentence();
@@ -47,31 +38,13 @@ window.addEventListener("pagehide", () => {
   stopSpeech();
 });
 
-async function storeKey(): Promise<void> {
-  try {
-    await saveSessionCredentials(apiKeyInput?.value ?? "", voiceIdInput?.value ?? "");
-    if (apiKeyInput) {
-      apiKeyInput.value = "";
-    }
-    publish("idle", "Saved for this browser session.", null, null);
-  } catch (error) {
-    publish("error", messageFrom(error), null, null);
-  }
-}
-
 async function speakFixedSentence(): Promise<void> {
   if (speakButton) {
     speakButton.disabled = true;
   }
   try {
-    if (apiKeyInput?.value.trim()) {
-      await saveSessionCredentials(apiKeyInput.value, voiceIdInput?.value ?? "");
-      apiKeyInput.value = "";
-    }
-    const credentials = await readSessionCredentials();
-    if (!credentials) {
-      throw new Error("Enter an ElevenLabs API key. It stays in this browser session only.");
-    }
+    await saveVoiceId(voiceIdInput?.value ?? "");
+    const credentials = await readCredentials();
     publish("requesting", "Asking ElevenLabs to speak.", null, null);
     const spoken = await speakText({
       text: FIXED_SENTENCE,
