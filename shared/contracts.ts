@@ -109,7 +109,8 @@ export type LensUIState = {
   siteLogo?: SiteLogo;
 };
 // The source site's own logo, as an https image or an inert SVG data URL, with the color it sits on.
-export type SiteLogo = { src: string; alt: string; background: string };
+// kind "icon" is a small square site icon (no wordmark), so the UI shows the site name beside it.
+export type SiteLogo = { src: string; alt: string; background: string; kind?: "logo" | "icon" };
 export type LensAppProps = {
   state: LensUIState;
   onAction(id: ActionId): void;
@@ -173,6 +174,7 @@ export const SiteLogoSchema = z.object({
   src: z.string().max(200_000).regex(/^(https:\/\/|data:image\/(svg\+xml|png|jpeg|webp|gif)[;,])/),
   alt: z.string().max(160),
   background: z.string().regex(/^#[0-9a-f]{6}$/i),
+  kind: z.enum(["logo", "icon"]).optional(),
 }).strict();
 
 export const parseDesignRequest = (value: unknown): DesignRequest => DesignRequestSchema.parse(value);

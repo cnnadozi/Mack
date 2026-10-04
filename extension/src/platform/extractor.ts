@@ -243,13 +243,20 @@ export function brandColor(): string | undefined {
 }
 
 const LOGO_WORDS = /logo|brand/i;
+// Cookie banners and alert bars often push the real header well down the page.
+const LOGO_MAX_TOP = 600;
 const MAX_LOGO_BYTES = 150_000;
 const SVG_PAINT = ["fill", "stroke", "stroke-width", "opacity", "fill-opacity", "stroke-opacity", "fill-rule", "clip-rule"] as const;
 
+// Labels that describe the link, not the site ("Home", "Logo") are useless as the logo's name.
+const GENERIC_LABEL = /^(go to |back to |return to )?(the )?(home|homepage|home page|main page|logo|link|site logo|image)$/i;
+
 function logoLabel(element: Element): string {
   for (let node: Element | null = element, depth = 0; node && depth < 4; node = node.parentElement, depth++) {
-    const label = node.getAttribute("alt") || node.getAttribute("aria-label") || node.querySelector(":scope > title")?.textContent;
-    if (label?.trim()) return clean(label.replace(/\s*logo\s*$/i, ""), 120);
+    for (const raw of [node.getAttribute("alt"), node.getAttribute("aria-label"), node.querySelector(":scope > title")?.textContent]) {
+      const label = clean((raw ?? "").replace(/(\s+(logo|home ?page|home|header|banner|image|icon))+\s*$/i, "").replace(/^\s*(logo of|go to|back to)\s+/i, ""), 120);
+      if (label && !GENERIC_LABEL.test(label)) return label;
+    }
   }
   return "";
 }
@@ -313,7 +320,7 @@ export function siteLogo(): SiteLogo | undefined {
     if (seen++ > 400) break;
     if (isMack(element) || (element instanceof SVGSVGElement && element.parentElement?.closest("svg"))) continue;
     const box = element.getBoundingClientRect();
-    if (box.top + scrollY > 220 || box.width < 16 || box.height < 12 || box.width > 420 || box.height > 160) continue;
+    if (box.top + scrollY > LOGO_MAX_TOP || box.width < 16 || box.height < 12 || box.width > 420 || box.height > 160) continue;
     if (element instanceof HTMLElement && !visible(element)) continue;
     let score = 0;
     for (let node: Element | null = element, depth = 0; node && depth < 4; node = node.parentElement, depth++) {
@@ -325,14 +332,70 @@ export function siteLogo(): SiteLogo | undefined {
     if (box.left < 400) score += 1;
     if (score >= 5 && (!best || score > best.score)) best = { element: element as HTMLImageElement | SVGSVGElement, score };
   }
-  if (!best) return undefined;
-  const { element } = best;
-  const alt = logoLabel(element) || clean(document.querySelector('meta[property="og:site_name"]')?.getAttribute("content") ?? location.hostname.replace(/^www\./, ""), 120);
-  const background = backgroundBehind(element);
-  if (element instanceof SVGSVGElement) {
-    const src = svgDataUrl(element);
-    return src ? { src, alt, background } : undefined;
+  if (best) {
+    const { element } = best;
+    const alt = logoLabel(element) || siteName();
+    const background = backgroundBehind(element);
+    const src = element instanceof SVGSVGElement ? svgDataUrl(element) : httpsUrl(element.currentSrc || element.src);
+    if (src) return { src, alt, background, kind: "logo" };
   }
-  const src = element.currentSrc || element.src;
-  return /^https:\/\//.test(src) && src.length <= 2000 ? { src, alt, background } : undefined;
+  return backgroundLogo() ?? siteIcon();
+}
+
+function httpsUrl(value: string | null | undefined): string | undefined {
+  // An empty value would otherwise resolve to the current page.
+  if (!value?.trim()) return undefined;
+  try {
+    const url = new URL(value ?? "", location.href);
+    return url.protocol === "https:" && url.href.length <= 2000 ? url.href : undefined;
+  } catch { return undefined; }
+}
+
+/** The site's own name: og:site_name, application-name, the brand part of the title, or the hostname. */
+export function siteName(): string {
+  const meta = document.querySelector('meta[property="og:site_name"]')?.getAttribute("content")
+    || document.querySelector('meta[name="application-name"]')?.getAttribute("content");
+  if (meta?.trim()) return clean(meta, 120);
+  const parts = document.title.split(/\s+[|–—·:-]\s+/).map((part) => part.trim()).filter(Boolean);
+  // "Health insurance plans | UnitedHealthcare", "Internal Revenue Service | An official website of…":
+  // the brand is usually the shortest part; ties go to the last.
+  if (parts.length > 1) {
+    const host = location.hostname.replace(/^www\./, "").split(".").slice(0, -1).join("").toLowerCase();
+    const matchesHost = (part: string) => {
+      const squashed = part.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const initials = part.split(/\s+/).map((word) => word[0] ?? "").join("").toLowerCase();
+      return (host.length > 2 && (squashed.includes(host) || host.includes(squashed))) || initials === host;
+    };
+    const named = parts.find(matchesHost);
+    return clean(named ?? parts.reduce((best, part) => (part.length <= best.length ? part : best)), 120);
+  }
+  return location.hostname.replace(/^www\./, "");
+}
+
+// Some sites draw the header logo as a CSS background on the home link.
+function backgroundLogo(): SiteLogo | undefined {
+  for (const anchor of document.body.querySelectorAll<HTMLAnchorElement>("a[href]")) {
+    if (!isHomeLink(anchor) || isMack(anchor) || !visible(anchor)) continue;
+    const box = anchor.getBoundingClientRect();
+    if (box.top + scrollY > LOGO_MAX_TOP || box.width < 16 || box.height < 12) continue;
+    for (const node of [anchor, ...Array.from(anchor.querySelectorAll<HTMLElement>("*")).slice(0, 5)]) {
+      const match = /url\(["']?([^"')]+)["']?\)/.exec(getComputedStyle(node).backgroundImage);
+      const src = httpsUrl(match?.[1]);
+      if (src) return { src, alt: clean(anchor.getAttribute("aria-label") || anchor.textContent, 120) || siteName(), background: backgroundBehind(anchor), kind: "logo" };
+    }
+  }
+  return undefined;
+}
+
+// Nearly every site has an app or tab icon; shown with the site's name it still identifies the site.
+function siteIcon(): SiteLogo | undefined {
+  const links = Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel~="apple-touch-icon"], link[rel~="icon"], link[rel="shortcut icon"]'));
+  const size = (link: HTMLLinkElement) => {
+    if (/apple-touch-icon/i.test(link.rel)) return 180;
+    if (/svg/i.test(link.type) || /\.svg(\?|$)/i.test(link.href)) return 512;
+    return Math.max(0, ...(link.getAttribute("sizes") ?? "").split(/\s+/).map((s) => parseInt(s, 10) || 0));
+  };
+  const best = links.sort((a, b) => size(b) - size(a))[0];
+  const src = httpsUrl(best?.href) ?? httpsUrl(`${location.origin}/favicon.ico`);
+  return src ? { src, alt: siteName(), background: "#ffffff", kind: "icon" } : undefined;
 }
