@@ -100,21 +100,8 @@ function messageFrom(error: unknown): string {
 }
 
 // Between turns: hands-free listens for speech, push to talk waits for the button.
-// After Mack asks the user something, the microphone opens by itself as if the
-// talk button had been pressed. Hands-free listening already hears the answer.
-function isQuestion(text: string): boolean {
-  return /[?？؟]\s*["'”’»)]*\s*$/.test(text);
-}
-
-function restAfter(spoken: string, problem?: string): void {
-  if (!problem && pushToTalk && listener && isQuestion(spoken)) {
-    debug("offscreen", "Mack asked a question, listening for the answer");
-    startTap();
-    return;
-  }
-  rest(problem);
-}
-
+// After every reply, hands-free listening picks up again, so an answer to Mack's
+// question is heard. With push to talk the microphone waits for the user.
 function rest(problem?: string): void {
   resting = true;
   const handsFree = listener !== null && !pushToTalk;
@@ -331,7 +318,7 @@ async function answer(asked: Asked): Promise<void> {
     if (actingTurn === id) actingTurn = 0;
     if (id === turnId) {
       debug("offscreen", `answer: turn finished in ${since(started)}`);
-      restAfter(spoken, problem);
+      rest(problem);
     } else {
       debug("offscreen", "answer: turn was interrupted by a newer question");
     }
@@ -389,7 +376,7 @@ async function speakGuidance(text: string): Promise<void> {
     debug("offscreen", "speakGuidance: failed", error);
     problem = messageFrom(error);
   }
-  if (id === turnId) restAfter(text, problem);
+  if (id === turnId) rest(problem);
 }
 
 // The voice setting changed: say a short sample so the user hears the new voice.
