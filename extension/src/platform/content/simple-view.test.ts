@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { DesignProposal } from "../../../../shared/contracts";
 import { STORAGE } from "../messages";
 import { rememberToContinue } from "./continue";
 
@@ -133,31 +132,5 @@ describe("simple view on a page", () => {
     await set({ [STORAGE.session]: { active: false, state: "idle" } });
     expect(stopSimple).toHaveBeenCalledTimes(1);
     expect(view.simpleViewShowing()).toBe(false);
-  });
-});
-
-describe("the simple view's size", () => {
-  it("is kept to three main buttons and nothing else", async () => {
-    const buttons = (prefix: string, count: number) =>
-      Array.from({ length: count }, (_, index) => ({
-        actionId: `${prefix}${index}`,
-        label: `${prefix} ${index}`,
-      }));
-    const proposal: DesignProposal = {
-      stamp: { requestId: "r", snapshotVersion: "s", screenVersion: "v" },
-      status: "ready",
-      design: {
-        title: "Shop",
-        mode: "simplified",
-        sections: [
-          { id: "main-1", heading: "Start here", buttons: buttons("a", 2) },
-          { id: "more-1", heading: "Other", buttons: buttons("c", 10) },
-          { id: "main-2", heading: "Also", buttons: buttons("b", 4) },
-        ],
-      },
-    };
-    const { limitDesign } = await import("./platform-host");
-    const { sections } = limitDesign(proposal).design;
-    expect(sections.flatMap((s) => s.buttons.map((b) => b.actionId))).toEqual(["a0", "a1", "b0"]);
   });
 });

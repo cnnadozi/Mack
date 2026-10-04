@@ -26,6 +26,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { isMoreSection } from "./design/validate";
+import type { ScreenDetails } from "./details";
+import { RichView } from "./RichView";
 
 export type MackAppProps = LensAppProps & {
   /**
@@ -35,6 +37,11 @@ export type MackAppProps = LensAppProps & {
   embedded?: boolean;
   /** One wide column of buttons, for the simplest screen. */
   singleColumn?: boolean;
+  /**
+   * Detail from the extension that turns the screen into a redesign of the page
+   * (see details.ts and RichView.tsx). Without it the plain list of buttons is shown.
+   */
+  details?: ScreenDetails;
 };
 
 type Dock = "bottom-right" | "bottom-left" | "top-left" | "top-right";
@@ -107,7 +114,13 @@ export function MackApp(props: MackAppProps) {
       data-mode={state.screen.mode}
       aria-busy={state.busy || undefined}
     >
-      {state.screen.mode === "original" ? original : <SimplifiedView {...props} />}
+      {state.screen.mode === "original" ? (
+        original
+      ) : props.details ? (
+        <RichView {...props} details={props.details} guidance={<Guidance {...props} />} />
+      ) : (
+        <SimplifiedView {...props} />
+      )}
     </div>
   );
 }

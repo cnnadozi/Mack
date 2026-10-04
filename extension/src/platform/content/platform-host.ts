@@ -4,21 +4,23 @@
 
 import { z } from "zod";
 
-import type {
-  DesignProposal,
-  GenerateScreen,
-  LensAppProps,
-  ModelClient,
-  VoiceController,
-} from "../../../../shared/contracts";
-import { createGenerateScreen, isMoreSection, mountMackApp } from "../../ui";
+import type { LensAppProps, ModelClient, VoiceController } from "../../../../shared/contracts";
+import {
+  createGenerateScreen,
+  ICON_NAMES,
+  mountMackApp,
+  readDetails,
+  type ScreenDetails,
+} from "../../ui";
 import { startPlatform } from "../controller";
 import { debug } from "../debug";
 import { createResolveIntent } from "../guidance-adapter";
 import type { GuideReply, RuntimeMessage } from "../messages";
 import { createModelClient } from "../model-client";
 import { PeekReplySchema } from "../protocol";
+import { typeAndSubmit } from "./act";
 import { rememberToContinue } from "./continue";
+import { pictureFor, searchField, siteLook } from "./page-look";
 import { followTheme } from "./theme";
 
 const SessionSchema = z.object({
@@ -30,17 +32,23 @@ const SessionSchema = z.object({
 // Longer than the background worker's own limit for one model request.
 const GUIDE_WAIT_MS = 30_000;
 
-// The simple view is kept very simple: one column of a few big buttons. The model
-// is told so, and the limit is applied in code as well so it never shows more.
-const MAX_BUTTONS = 3;
-const KEEP_IT_SIMPLE = `The user wants the SIMPLEST possible screen. Return exactly one section with priority "main" and at most ${MAX_BUTTONS} buttons: only the things most people come to this page to do. Return no "more" sections. Labels must be very short and plain, one to three words.`;
+// Added to Role 3's design prompt. The simple view is a redesign of the whole
+// page, so it asks for more than Role 3's short menu: everything the page offers,
+// organised the way this page is, with the detail to present it well.
+const RICH_DESIGN = `This screen is a full, well-organised redesign of the page, not a short menu. This overrides the limits above on how many buttons to show:
+- Cover everything a visitor can do or reach from this page. Put the main things in "main" sections and the rest in "more" sections. Group related actions under clear headings that reflect how THIS page is organised, for example its own product categories, departments or topics. Up to 40 buttons in total.
+- Add "summary": one or two plain sentences saying what this page is and what the visitor can do here.
+- Add "highlights": up to 6 key facts that the page itself states and a visitor would look for, such as opening hours, a price, a phone number, a deadline or a delivery time. Each is {"title","text"}. Use only facts present in the snapshot; use an empty list when there are none.
+- Give each section a "description": one short sentence about what is in it.
+- Give each button a "description": one short sentence saying what the visitor will find there or what happens, based on the snapshot, and an "icon": the one of ${ICON_NAMES.join(", ")} that fits it best.
+- Prefer status "ready". Use "use_original" only when the page's main purpose is filling in a form that asks for private details.`;
 
 // What is added to Role 3's design prompt and Role 2's guidance prompt.
 function extraInstructions(task: "design" | "guide", language: string): string {
-  const parts = task === "design" ? [KEEP_IT_SIMPLE] : [];
+  const parts = task === "design" ? [RICH_DESIGN] : [];
   if (language && task === "design") {
     parts.push(
-      `Write the title, every heading and every button label in ${language}, translating the website's own wording faithfully.`,
+      `Write the title, summary, highlights, and every heading, label and description in ${language}, translating the website's own wording faithfully.`,
     );
   }
   if (language && task === "guide") {
@@ -51,30 +59,24 @@ function extraInstructions(task: "design" | "guide", language: string): string {
   return parts.join("\n\n");
 }
 
-function tunedModel(model: ModelClient, language: string): ModelClient {
+// Adds those instructions, and hands the model's raw design to onDesign: Role 3's
+// grounding keeps only the contract's fields, and the detail is in the rest.
+function tunedModel(
+  model: ModelClient,
+  language: string,
+  onDesign: (raw: unknown) => void,
+): ModelClient {
   return {
-    generateJSON: (input, signal) => {
+    generateJSON: async (input, signal) => {
       const extra = extraInstructions(input.task, language);
-      return model.generateJSON(
+      const result = await model.generateJSON(
         extra ? { ...input, system: `${input.system}\n\n${extra}` } : input,
         signal,
       );
+      if (input.task === "design") onDesign(result);
+      return result;
     },
   };
-}
-
-export function limitDesign(proposal: DesignProposal): DesignProposal {
-  let left = MAX_BUTTONS;
-  const sections = proposal.design.sections.flatMap((section) => {
-    const buttons = isMoreSection(section) ? [] : section.buttons.slice(0, left);
-    left -= buttons.length;
-    return buttons.length > 0 ? [{ ...section, buttons }] : [];
-  });
-  return { ...proposal, design: { ...proposal.design, sections } };
-}
-
-function limited(generate: GenerateScreen): GenerateScreen {
-  return async (request, signal) => limitDesign(await generate(request, signal));
 }
 
 export interface SimpleView {
@@ -128,11 +130,52 @@ export async function startSimpleView(options: {
   };
   if (returned) saveGoal("");
 
-  const model = tunedModel(createModelClient(), options.language);
+  // The site's own look is read once; the model's detail arrives with each design.
+  const site = siteLook();
+  let fromModel: ScreenDetails = {};
+  const model = tunedModel(createModelClient(), options.language, (raw) => {
+    fromModel = readDetails(raw);
+  });
+  let platform: ReturnType<typeof startPlatform> | undefined;
+
+  // Joins the model's detail with what the page itself provides for the buttons on screen.
+  const detailsFor = (props: LensAppProps): ScreenDetails => {
+    const extraction = platform?.getExtraction();
+    const actions: NonNullable<ScreenDetails["actions"]> = {};
+    for (const section of props.state.screen.sections) {
+      for (const button of section.buttons) {
+        const image = pictureFor(extraction?.registry.get(button.actionId));
+        actions[button.actionId] = {
+          ...fromModel.actions?.[button.actionId],
+          ...(image ? { image } : {}),
+        };
+      }
+    }
+    const search = extraction ? searchField(extraction) : undefined;
+    return {
+      ...fromModel,
+      site,
+      actions,
+      ...(search
+        ? {
+            search: {
+              label: search.label,
+              onSearch: (text) => {
+                // The results page continues in the simple view, like any button.
+                rememberToContinue();
+                const result = typeAndSubmit(search.element, text);
+                debug("content", "simple view: searched the page's own search box ->", result);
+              },
+            },
+          }
+        : {}),
+    };
+  };
+
   const inner = mountMackApp();
   const stopTheme = followTheme(inner.host);
   let running = true;
-  const platform = startPlatform({
+  platform = startPlatform({
     mount: {
       host: inner.host,
       render: (props: LensAppProps) => {
@@ -140,7 +183,7 @@ export async function startSimpleView(options: {
         inner.render({
           ...props,
           embedded: true,
-          singleColumn: true,
+          details: detailsFor(props),
           onShowOriginal: options.onShowOriginal,
           onAction: (id) => {
             rememberToContinue();
@@ -153,7 +196,7 @@ export async function startSimpleView(options: {
         inner.unmount();
       },
     },
-    generateScreen: limited(createGenerateScreen(model)),
+    generateScreen: createGenerateScreen(model),
     // The simple view is made when the user asks for it, not whenever the page changes.
     redesignOnPageChange: false,
     onOutdated: options.onShowOriginal,
@@ -173,13 +216,13 @@ export async function startSimpleView(options: {
 
   return {
     async guide(text) {
-      if (!running || platform.getState().screen.mode !== "simplified") return { ok: false };
-      platform.request(text);
+      if (!running || platform!.getState().screen.mode !== "simplified") return { ok: false };
+      platform!.request(text);
       const deadline = Date.now() + GUIDE_WAIT_MS;
-      while (running && platform.getState().busy && Date.now() < deadline) {
+      while (running && platform!.getState().busy && Date.now() < deadline) {
         await new Promise((resolve) => window.setTimeout(resolve, 100));
       }
-      const state = platform.getState();
+      const state = platform!.getState();
       // When ok, the controller speaks the instruction itself through createVoice.
       return { ok: running && !state.busy && !state.error && state.instruction !== "" };
     },
@@ -187,7 +230,7 @@ export async function startSimpleView(options: {
       if (!running) return;
       running = false;
       // "true" keeps the session: this page is going away, not Mack.
-      platform.exit(true);
+      platform!.exit(true);
       options.onModeChange(false);
     },
   };
