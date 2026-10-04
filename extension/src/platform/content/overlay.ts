@@ -34,6 +34,9 @@ let panelRequested = false;
 // Built on first use so pages where Mack is never used get no extra DOM.
 function mount(): ShadowRoot {
   if (shadow) return shadow;
+  // Left behind by an earlier version of the extension that was reloaded while
+  // this page was open; its script is dead, so its bar would sit there frozen.
+  for (const stale of document.querySelectorAll("[data-mack-root], mack-root")) stale.remove();
   const host = document.createElement("div");
   host.setAttribute("data-mack-root", "");
   // Role 4's extractor and page observer skip anything carrying this attribute.
@@ -46,6 +49,23 @@ function mount(): ShadowRoot {
   ring.setAttribute("aria-hidden", "true");
   shadow.append(style, ring);
   document.documentElement.appendChild(host);
+  // Some pages rebuild the document while they load (document.write, frameworks
+  // that replace <html>'s children), which throws the host away with the rest.
+  // Without this Mack would be running but invisible.
+  let watched: Element | null = null;
+  const keepAttached = new MutationObserver(() => {
+    const root = document.documentElement;
+    if (!root) return;
+    if (!host.isConnected) root.appendChild(host);
+    // A rebuilt page has a new <html>, whose children need watching in turn.
+    if (root !== watched) {
+      watched = root;
+      keepAttached.observe(root, { childList: true });
+    }
+  });
+  keepAttached.observe(document, { childList: true });
+  watched = document.documentElement;
+  keepAttached.observe(watched, { childList: true });
   return shadow;
 }
 

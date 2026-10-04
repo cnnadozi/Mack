@@ -249,14 +249,42 @@ async function startOrReport(typingOnly = false): Promise<void> {
 
 // There is no popup: the toolbar icon turns Mack on and off, and everything else
 // is in the panel on the page.
-chrome.action.onClicked.addListener(() => {
+// Chrome only runs the manifest's content script when a page loads. A tab that
+// was already open when Mack was installed or reloaded has none (or a dead one
+// from the old version), so Mack's bar could not appear there until a refresh.
+// This puts the content script into such a tab.
+async function ensureContentScript(tab: chrome.tabs.Tab | undefined): Promise<void> {
+  if (tab?.id === undefined || !/^https?:/.test(tab.url ?? "")) return;
+  if ((await sendToTab<boolean>(tab.id, { type: "mack:ping" })) === true) return;
+  const files = chrome.runtime.getManifest().content_scripts?.[0]?.js ?? [];
+  try {
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files });
+    debug("background", `content script added to tab ${tab.id}, which had none`);
+  } catch (error) {
+    // Chrome's own pages and the Web Store refuse scripts.
+    debug("background", `could not add the content script to tab ${tab.id}`, error);
+  }
+}
+
+chrome.action.onClicked.addListener((tab) => {
   void (async () => {
     const stored = await chrome.storage.local.get(STORAGE.session);
     const session = stored[STORAGE.session] as MackSession | undefined;
     // An "active" session without its document is left over from a crash.
-    if (session?.active && (await hasOffscreen())) await stop();
-    else await startOrReport();
+    if (session?.active && (await hasOffscreen())) {
+      await stop();
+      return;
+    }
+    await ensureContentScript(tab);
+    await startOrReport();
   })();
+});
+
+// While Mack is on, a tab the user switches to must be able to show the bar too.
+chrome.tabs.onActivated.addListener(({ tabId }) => {
+  void (async () => {
+    if (await isActive()) await ensureContentScript(await chrome.tabs.get(tabId));
+  })().catch(() => undefined);
 });
 
 // The icon is the only sign of Mack on pages where it cannot draw its panel.
@@ -356,4 +384,11 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
 // The offscreen document does not survive a browser restart or an extension reload.
 chrome.runtime.onStartup.addListener(() => void setSession(IDLE_SESSION));
-chrome.runtime.onInstalled.addListener(() => void setSession(IDLE_SESSION));
+chrome.runtime.onInstalled.addListener(() => {
+  void setSession(IDLE_SESSION);
+  // Tabs that are already open would otherwise need a refresh before Mack works in them.
+  void chrome.tabs
+    .query({ url: ["http://*/*", "https://*/*"] })
+    .then((tabs) => Promise.all(tabs.map(ensureContentScript)))
+    .catch(() => undefined);
+});

@@ -222,6 +222,8 @@ export type RuntimeMessage =
   | { type: "mack:voices"; voices: VoiceOption[] };
 
 export type TabMessage =
+  /** Answered with true by a content script that is alive. */
+  | { type: "mack:ping" }
   | { type: "mack:extract" }
   | { type: "mack:highlight"; elementId: string | null }
   | { type: "mack:act"; step: ContentAction }

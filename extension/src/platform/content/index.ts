@@ -9,13 +9,20 @@ import { extractPage } from "./extract";
 import { highlight, initOverlay } from "./overlay";
 import { guideInSimpleView, initSimpleView, simpleViewShowing } from "./simple-view";
 
-if (window.top === window) {
+// The background worker adds this script to tabs that have none; the flag stops a
+// second copy from starting if it is ever added to a tab that already has one.
+const scope = globalThis as typeof globalThis & { __mackContentScript?: boolean };
+
+if (window.top === window && !scope.__mackContentScript) {
+  scope.__mackContentScript = true;
   debug("content", "ready on", location.href);
   void initOverlay();
   void initSimpleView();
 
   chrome.runtime.onMessage.addListener((message: TabMessage, _sender, sendResponse) => {
-    if (message.type === "mack:extract") {
+    if (message.type === "mack:ping") {
+      sendResponse(true);
+    } else if (message.type === "mack:extract") {
       const reply: ExtractReply = { page: extractPage(), simple: simpleViewShowing() };
       debug(
         "content",
