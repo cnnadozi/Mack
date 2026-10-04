@@ -1,5 +1,38 @@
 import { build } from "esbuild";
-import { cp, mkdir, readFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { cp, mkdir, readFile, rm } from "node:fs/promises";
+import { promisify } from "node:util";
+
+// Tailwind's @property registrations do not apply inside a shadow root, and its fallback defaults sit behind an
+// @supports that Chrome skips, so shadows/rings would break in Mack's shadow DOM. Unwrap the defaults instead.
+export function shadowSafe(css) {
+  const start = css.indexOf("@layer properties{@supports");
+  if (start === -1) return css;
+  const open = css.indexOf("{", css.indexOf("@supports", start));
+  let depth = 0, end = open;
+  for (; end < css.length; end++) {
+    if (css[end] === "{") depth++;
+    else if (css[end] === "}" && --depth === 0) break;
+  }
+  return css.slice(0, start) + "@layer properties{" + css.slice(open + 1, end) + css.slice(end + 1);
+}
+
+async function tailwindCss() {
+  const out = "dist/.mack-tailwind.css";
+  await promisify(execFile)("node_modules/.bin/tailwindcss", ["-i", "extension/src/ui/mack.css", "-o", out, "--minify"]);
+  const css = shadowSafe(await readFile(out, "utf8"));
+  await rm(out);
+  return css;
+}
+
+const css = await tailwindCss();
+const mackTailwind = {
+  name: "mack-tailwind",
+  setup(b) {
+    b.onResolve({ filter: /^virtual:mack-tailwind$/ }, () => ({ path: "mack-tailwind", namespace: "mack" }));
+    b.onLoad({ filter: /.*/, namespace: "mack" }, () => ({ contents: `export default ${JSON.stringify(css)};`, loader: "js" }));
+  },
+};
 
 await mkdir("dist", { recursive: true });
 const common = {
@@ -9,6 +42,7 @@ const common = {
   sourcemap: false,
   define: { "process.env.NODE_ENV": '"production"' },
   metafile: true,
+  plugins: [mackTailwind],
 };
 const content = await build({ ...common, entryPoints: ["extension/src/content.ts"], outfile: "dist/content.js", format: "iife" });
 await build({ ...common, entryPoints: ["extension/src/service-worker.ts"], outfile: "dist/service-worker.js", format: "esm" });
