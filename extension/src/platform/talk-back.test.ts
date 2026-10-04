@@ -53,3 +53,29 @@ describe("Mack talks back", () => {
     h.platform.exit();
   });
 });
+
+describe("offer of more help", () => {
+  it("is added only to a finished answer, never after a question", async () => {
+    document.body.innerHTML = '<a href="/doctor">Find a doctor</a><a href="/book">Book a visit</a>';
+    let reply = "";
+    let props!: LensAppProps;
+    const host = document.createElement("mack-root"); host.dataset.mack = ""; host.attachShadow({ mode: "open" }); document.documentElement.append(host);
+    const platform = startPlatform({
+      mount: { host, render: (p) => { props = p; }, unmount: () => host.remove() },
+      generateScreen: async (request) => {
+        const links = request.snapshot.actions.filter((a) => a.kind === "navigate");
+        return { stamp: request.stamp, status: "ready", design: { title: "T", mode: "simplified", sections: [{ id: "main-1", buttons: links.map((a) => ({ actionId: a.id, label: a.label })) }] } };
+      },
+      resolveIntent: async (r) => ({ stamp: r.stamp, status: "ready", mode: "simplified", additions: [], responseText: reply, targetActionId: r.screen.sections[0]!.buttons[0]!.actionId }),
+      saveGoal: vi.fn(), onExit: vi.fn(), navigate: vi.fn(), announce: vi.fn(),
+    });
+    await vi.waitFor(() => expect(platform.getState().busy).toBe(false));
+    reply = 'Press "Find a doctor". Would you like me to book a visit after that?';
+    props.onRequest("find a doctor");
+    await vi.waitFor(() => expect(platform.getState().instruction).toBe(reply));
+    reply = 'Press "Find a doctor".';
+    props.onRequest("where is the doctor search");
+    await vi.waitFor(() => expect(platform.getState().instruction).toBe('Press "Find a doctor". Let me know if you need anything else.'));
+    platform.exit();
+  });
+});

@@ -137,9 +137,11 @@ export function startPlatform(deps: Dependencies) {
     if (deps.announce) { deps.announce(text); return; }
     if (voice) void voice.speak(SpeechJobSchema.parse({ jobId: crypto.randomUUID(), snapshotVersion: state.screen.snapshotVersion, screenVersion: state.screen.screenVersion, text })).catch(() => undefined);
   }
-  // A finished answer ends with an offer of more help; a question back to the user does not.
+  // A finished answer ends with an offer of more help. An answer that already asks the
+  // user something (in any script's question mark) gets no second question.
   function withOffer(proposal: { status: string; responseText: string }) {
-    return proposal.status === "ready" ? `${proposal.responseText} ${t("anythingElse")}` : proposal.responseText;
+    const asks = /[?？؟]/.test(proposal.responseText);
+    return proposal.status === "ready" && !asks ? `${proposal.responseText} ${t("anythingElse")}` : proposal.responseText;
   }
   function invalidate() {
     designAbort?.abort(); guideAbort?.abort(); designStamp = undefined; guideStamp = undefined;
