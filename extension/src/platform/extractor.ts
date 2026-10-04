@@ -189,3 +189,55 @@ export function deepLink(extraction: Extraction, id: string): string {
   }
   return href;
 }
+
+type Rgb = [number, number, number];
+
+function parseColor(value: string | null | undefined): { rgb: Rgb; alpha: number } | undefined {
+  const v = (value ?? "").trim().toLowerCase();
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/.exec(v);
+  if (hex) {
+    const h = hex[1]!.length === 3 ? hex[1]!.split("").map((c) => c + c).join("") : hex[1]!;
+    return { rgb: [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)) as Rgb, alpha: 1 };
+  }
+  const fn = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:[\s,/]+([\d.]+%?))?\s*\)$/.exec(v);
+  if (!fn) return undefined;
+  const a = fn[4] === undefined ? 1 : fn[4].endsWith("%") ? parseFloat(fn[4]) / 100 : parseFloat(fn[4]);
+  return { rgb: [fn[1], fn[2], fn[3]].map((n) => Math.round(Number(n))) as Rgb, alpha: a };
+}
+
+// Grays, near-white and near-black say nothing about a brand.
+function chroma([r, g, b]: Rgb): number {
+  return (Math.max(r, g, b) - Math.min(r, g, b)) / 255;
+}
+
+// Unstyled link colors are the browser's, not the site's.
+const BROWSER_DEFAULTS = new Set(["#0000ee", "#0000ff", "#551a8b", "#ff0000"]);
+
+const toHex = (rgb: Rgb) => `#${rgb.map((n) => n.toString(16).padStart(2, "0")).join("")}`;
+
+/** The site's brand color: its theme-color, else the dominant saturated color of its header, buttons and links. */
+export function brandColor(): string | undefined {
+  const meta = parseColor(document.querySelector('meta[name="theme-color"]')?.getAttribute("content"));
+  if (meta && meta.alpha > 0.5 && chroma(meta.rgb) >= 0.25) return toHex(meta.rgb);
+  const weights = new Map<string, number>();
+  const add = (value: string, weight: number) => {
+    const color = parseColor(value);
+    if (!color || color.alpha < 0.5 || chroma(color.rgb) < 0.25) return;
+    const key = toHex(color.rgb);
+    if (BROWSER_DEFAULTS.has(key)) return;
+    weights.set(key, (weights.get(key) ?? 0) + weight);
+  };
+  const candidates = document.body.querySelectorAll<HTMLElement>("header, nav, header *, nav *, button, [role=button], a[href]");
+  let seen = 0;
+  for (const element of candidates) {
+    if (seen++ > 600) break;
+    if (isMack(element) || !visible(element)) continue;
+    const style = getComputedStyle(element);
+    const inChrome = !!element.closest("header, nav");
+    add(style.backgroundColor, inChrome || element.matches("button, [role=button]") ? 3 : 1);
+    if (element.matches("a[href]")) add(style.color, 1);
+  }
+  let best: string | undefined;
+  for (const [color, weight] of weights) if (!best || weight > weights.get(best)!) best = color;
+  return best;
+}

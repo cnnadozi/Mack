@@ -105,6 +105,7 @@ export type LensUIState = {
   busy: boolean;
   error?: LensError;
   clarificationOptions?: string[];
+  accentColor?: string; // "#rrggbb" brand color of the source site; the UI adjusts it for contrast
 };
 export type LensAppProps = {
   state: LensUIState;
@@ -162,6 +163,7 @@ export const LensUIStateSchema = z.object({
   screen: CommittedScreenSchema, instruction: z.string(), highlightedActionId: ActionIdSchema.optional(),
   transcript: z.string(), voiceState: VoiceStateSchema, busy: z.boolean(), error: LensErrorSchema.optional(),
   clarificationOptions: z.array(text).optional(),
+  accentColor: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
 }).strict();
 
 export const parseDesignRequest = (value: unknown): DesignRequest => DesignRequestSchema.parse(value);

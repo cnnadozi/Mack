@@ -3,7 +3,7 @@ import {
   type CommittedScreen, type GenerateScreen, type LensAppProps, type LensUIState, type ResolveIntent, type Stamp,
   type VoiceCallbacks, type VoiceController,
 } from "../../../shared/contracts";
-import { deepLink, extractPage, isMack, liveTarget, sourceKind, type Extraction } from "./extractor";
+import { brandColor, deepLink, extractPage, isMack, liveTarget, sourceKind, type Extraction } from "./extractor";
 import { addPeekedLinks, hasPasswordField, peekCandidates, type Peek } from "./peek";
 import { mergeGuidance } from "./state";
 
@@ -13,6 +13,7 @@ type Dependencies = {
   createVoice?: (callbacks: VoiceCallbacks) => VoiceController;
   initialGoal?: string; saveGoal(goal: string, fromUrl?: string): void; onExit(): void;
   extract?: () => Extraction;
+  brandColor?: () => string | undefined;
   peek?: Peek;
   navigate?: (url: string) => void;
 };
@@ -30,6 +31,8 @@ export const goalFromLabel = (label: string) => label.replace(/\s*\(sign in firs
 
 export function startPlatform(deps: Dependencies) {
   const extract = deps.extract ?? extractPage;
+  const readAccent = deps.brandColor ?? brandColor;
+  const withAccent = (accentColor: string | undefined) => (accentColor ? { accentColor } : {});
   const navigate = deps.navigate ?? ((url: string) => location.assign(url));
   const previousBody = document.body;
   const previousInert = previousBody.inert;
@@ -136,6 +139,7 @@ export function startPlatform(deps: Dependencies) {
       state = {
         screen: { title: extraction.snapshot.title || "This page", mode: "simplified", sections: [], snapshotVersion: extraction.snapshot.version, screenVersion: crypto.randomUUID() },
         instruction: "", transcript: state?.transcript ?? "", voiceState: voice ? "idle" : "error", busy: true,
+        ...withAccent(readAccent()),
       };
       render();
       const expected = designStamp = stamp();
