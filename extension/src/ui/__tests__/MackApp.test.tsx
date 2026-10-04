@@ -190,6 +190,23 @@ describe("MackApp", () => {
     expect(screen.getByRole("button", { name: "Fewer options" }).getAttribute("aria-expanded")).toBe("true");
   });
 
+  it("leads with one primary next step, then cards, with other options as quieter rows", () => {
+    setup(uiFixtures.goalWithMore);
+    const primary = screen.getByRole("button", { name: "Search for a doctor near you" });
+    expect(primary.getAttribute("data-variant")).toBe("primary");
+    expect(screen.getByRole("button", { name: "Find a doctor in your plan" }).getAttribute("data-variant")).toBe("card");
+    expect(document.querySelectorAll('[data-variant="primary"]')).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: /More options/ }));
+    expect(screen.getByRole("button", { name: "Contact customer support" }).getAttribute("data-variant")).toBe("row");
+  });
+
+  it("themes itself from the site's brand color", () => {
+    setup({ ...uiFixtures.manyGrouped, accentColor: "#ffd000" });
+    const root = document.querySelector<HTMLElement>(".mack")!;
+    expect(root.style.getPropertyValue("--accent")).toMatch(/^#[0-9a-f]{6}$/);
+    expect(root.style.getPropertyValue("--accent")).not.toBe("#ffd000");
+  });
+
   it("uses native buttons so every control is keyboard reachable", () => {
     setup(uiFixtures.withAddition);
     const controls = document.querySelectorAll("button, input");

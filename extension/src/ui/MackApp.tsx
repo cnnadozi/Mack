@@ -1,6 +1,9 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { ArrowLeft, ArrowRight, ChevronDown, ChevronRight, ChevronUp, Maximize2, Mic, RotateCcw, Sparkles, X, type LucideIcon } from "lucide-react";
 import type { LensAppProps, LensUIState, ScreenSection, TaskButton, VoiceState } from "../../../shared/contracts";
 import { isMoreSection } from "./design/validate";
+import { taskIcon } from "./taskIcon";
+import { themeStyle } from "./theme";
 
 export type MackAppProps = LensAppProps;
 
@@ -15,26 +18,8 @@ const VOICE_STATUS: Record<VoiceState, string> = {
   error: "The microphone is not available. You can type instead.",
 };
 
-const ICONS = {
-  back: "M15 5 8 12l7 7",
-  expand: "M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5",
-  close: "M6 6l12 12M18 6 6 18",
-  mic: "M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3ZM5 11a7 7 0 0 0 14 0M12 18v3",
-  replay: "M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4",
-  chevron: "M9 6l6 6-6 6",
-  chevronDown: "M6 9l6 6 6-6",
-  chevronUp: "M6 15l6-6 6 6",
-} as const;
-
-function Icon({ name }: { name: keyof typeof ICONS }) {
-  return (
-    <svg className="mack-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
-      <path d={ICONS[name]} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function IconButton(props: { icon: keyof typeof ICONS; label: string; onClick(): void; expanded?: boolean; controls?: string }) {
+function IconButton(props: { icon: LucideIcon; label: string; onClick(): void; expanded?: boolean; controls?: string }) {
+  const Glyph = props.icon;
   return (
     <button
       type="button"
@@ -45,8 +30,17 @@ function IconButton(props: { icon: keyof typeof ICONS; label: string; onClick():
       aria-controls={props.controls}
       onClick={props.onClick}
     >
-      <Icon name={props.icon} />
+      <Glyph size={24} strokeWidth={2.4} aria-hidden="true" />
     </button>
+  );
+}
+
+function Brand() {
+  return (
+    <p className="mack-brand">
+      <Sparkles size={16} strokeWidth={2.4} aria-hidden="true" />
+      Mack
+    </p>
   );
 }
 
@@ -67,7 +61,7 @@ export function MackApp(props: MackAppProps) {
   }, [screenVersion, onRendered]);
 
   return (
-    <div className="mack" data-mode={state.screen.mode} aria-busy={state.busy || undefined}>
+    <div className="mack" data-mode={state.screen.mode} aria-busy={state.busy || undefined} style={themeStyle(state.accentColor)}>
       {state.screen.mode === "original" ? <OriginalPanel {...props} /> : <SimplifiedView {...props} />}
     </div>
   );
@@ -102,8 +96,11 @@ function SimplifiedView(props: MackAppProps) {
     <section className="mack-overlay" aria-label="Mack simplified view">
       <div className="mack-shell">
         <header className="mack-header">
-          <IconButton icon="back" label="Previous page" onClick={onPreviousPage} />
-          <h1 className="mack-title">{screen.title}</h1>
+          <IconButton icon={ArrowLeft} label="Previous page" onClick={onPreviousPage} />
+          <div className="mack-heading">
+            <Brand />
+            <h1 className="mack-title">{screen.title}</h1>
+          </div>
           <div className="mack-toolbar" role="toolbar" aria-label="Mack controls">
             <button type="button" className="mack-btn" onClick={onShowOriginal}>Original page</button>
             <button type="button" className="mack-btn" onClick={onExit}>Exit Mack</button>
@@ -112,9 +109,17 @@ function SimplifiedView(props: MackAppProps) {
 
         <Guidance {...props} />
 
-        <div ref={gridRef}>
+        <div ref={gridRef} className="mack-tasks" key={screen.snapshotVersion}>
           {mainSections.map((section, index) => (
-            <SectionView key={section.id} section={section} index={index} idPrefix={badgeId} {...sectionProps} />
+            <SectionView
+              key={section.id}
+              section={section}
+              index={index}
+              idPrefix={badgeId}
+              variant="main"
+              withPrimary={index === 0}
+              {...sectionProps}
+            />
           ))}
           {moreSections.length > 0 && (
             <div className="mack-more">
@@ -125,13 +130,15 @@ function SimplifiedView(props: MackAppProps) {
                 aria-controls={`${badgeId}-more`}
                 onClick={() => setShowMore(!moreOpen)}
               >
-                <span className="mack-chevron" data-open={moreOpen || undefined}><Icon name="chevron" /></span>
+                <span className="mack-chevron" data-open={moreOpen || undefined}>
+                  <ChevronRight size={22} strokeWidth={2.6} aria-hidden="true" />
+                </span>
                 {moreOpen ? "Fewer options" : `More options (${moreCount})`}
               </button>
               {moreOpen && (
-                <div id={`${badgeId}-more`}>
+                <div id={`${badgeId}-more`} className="mack-more-list">
                   {moreSections.map((section, index) => (
-                    <SectionView key={section.id} section={section} index={index + 1} idPrefix={badgeId} {...sectionProps} />
+                    <SectionView key={section.id} section={section} index={index + 1} idPrefix={badgeId} variant="more" {...sectionProps} />
                   ))}
                 </div>
               )}
@@ -148,52 +155,81 @@ function SimplifiedView(props: MackAppProps) {
   );
 }
 
+type Variant = "primary" | "card" | "row";
+
 function SectionView(props: {
   section: ScreenSection;
   index: number;
   idPrefix: string;
+  variant: "main" | "more";
+  withPrimary?: boolean;
   highlightedActionId?: string;
   badgeId: string;
   onAction(id: string): void;
 }) {
-  const { section, index, idPrefix, highlightedActionId, badgeId, onAction } = props;
+  const { section, index, idPrefix, variant, withPrimary, highlightedActionId, badgeId, onAction } = props;
   const headingId = `${idPrefix}-${section.id}`;
+  // The first button of the first main section is the single most likely next step, so it leads visually.
+  const [primary, ...rest] = withPrimary ? section.buttons : [undefined, ...section.buttons];
+  const restVariant: Variant = variant === "more" ? "row" : "card";
+  const task = (button: TaskButton, kind: Variant, order: number) => (
+    <TaskButtonView
+      button={button}
+      variant={kind}
+      order={order}
+      highlighted={button.actionId === highlightedActionId}
+      badgeId={badgeId}
+      onAction={onAction}
+    />
+  );
   return (
-    <section className="mack-section" aria-labelledby={section.heading ? headingId : undefined}>
+    <section className="mack-section" data-variant={variant} aria-labelledby={section.heading ? headingId : undefined}>
       {section.heading ? (
         <h2 id={headingId}>{section.heading}</h2>
       ) : (
         index > 0 && <h2 className="mack-visually-hidden">More actions</h2>
       )}
-      <ul className="mack-grid">
-        {section.buttons.map((button) => (
-          <li key={button.actionId}>
-            <TaskButtonView
-              button={button}
-              highlighted={button.actionId === highlightedActionId}
-              badgeId={badgeId}
-              onAction={onAction}
-            />
-          </li>
-        ))}
-      </ul>
+      {primary && <div className="mack-primary-slot">{task(primary, "primary", 0)}</div>}
+      {rest.length > 0 && (
+        <ul className={restVariant === "row" ? "mack-list" : "mack-grid"}>
+          {rest.map((button, i) => button && <li key={button.actionId}>{task(button, restVariant, i + 1)}</li>)}
+        </ul>
+      )}
     </section>
   );
 }
 
-function TaskButtonView(props: { button: TaskButton; highlighted: boolean; badgeId: string; onAction(id: string): void }) {
-  const { button, highlighted, badgeId, onAction } = props;
+function TaskButtonView(props: {
+  button: TaskButton;
+  variant: Variant;
+  order: number;
+  highlighted: boolean;
+  badgeId: string;
+  onAction(id: string): void;
+}) {
+  const { button, variant, order, highlighted, badgeId, onAction } = props;
+  const Glyph = taskIcon(button.label);
+  const Trail = variant === "row" ? ChevronRight : ArrowRight;
   return (
     <button
       type="button"
       className="mack-task"
+      data-variant={variant}
       data-action-id={button.actionId}
       data-highlighted={highlighted || undefined}
       aria-describedby={highlighted ? badgeId : undefined}
+      style={{ "--order": order } as CSSProperties}
       onClick={() => onAction(button.actionId)}
     >
-      <span>{button.label}</span>
-      {highlighted && <span className="mack-badge" id={badgeId}>Next step</span>}
+      <span className="mack-task-icon" aria-hidden="true">
+        <Glyph size={variant === "primary" ? 30 : 26} strokeWidth={2.2} />
+      </span>
+      <span className="mack-task-label">{button.label}</span>
+      {highlighted ? (
+        <span className="mack-badge" id={badgeId}>Next step</span>
+      ) : (
+        variant !== "card" && <Trail className="mack-task-trail" size={26} strokeWidth={2.4} aria-hidden="true" />
+      )}
     </button>
   );
 }
@@ -211,18 +247,21 @@ function OriginalPanel(props: MackAppProps) {
   return (
     <aside className="mack-panel" data-dock={dock} data-collapsed={collapsed || undefined} aria-label="Mack guide">
       <header className="mack-panel-header">
-        <IconButton icon="back" label="Previous page" onClick={onPreviousPage} />
-        <h1 className="mack-title">{state.screen.title}</h1>
+        <IconButton icon={ArrowLeft} label="Previous page" onClick={onPreviousPage} />
+        <div className="mack-heading">
+          <Brand />
+          <h1 className="mack-title">{state.screen.title}</h1>
+        </div>
         <div className="mack-panel-tools">
           <IconButton
-            icon={collapsed ? "chevronUp" : "chevronDown"}
+            icon={collapsed ? ChevronUp : ChevronDown}
             label={collapsed ? "Expand" : "Minimize"}
             expanded={!collapsed}
             controls={bodyId}
             onClick={() => setCollapsed(!collapsed)}
           />
-          <IconButton icon="expand" label="Full screen" onClick={onBack} />
-          <IconButton icon="close" label="Exit Mack" onClick={onExit} />
+          <IconButton icon={Maximize2} label="Full screen" onClick={onBack} />
+          <IconButton icon={X} label="Exit Mack" onClick={onExit} />
         </div>
       </header>
       {!collapsed && (
@@ -328,11 +367,11 @@ function RequestBar(props: LensAppProps & { compact?: boolean }) {
           disabled={state.voiceState === "processing"}
           onClick={listening ? onMicStop : onMicStart}
         >
-          <Icon name="mic" />
+          <Mic size={22} strokeWidth={2.4} aria-hidden="true" />
           {listening ? "Stop" : "Speak"}
         </button>
         <button type="button" className="mack-btn" onClick={onReplay} disabled={!state.instruction}>
-          <Icon name="replay" />
+          <RotateCcw size={22} strokeWidth={2.4} aria-hidden="true" />
           Repeat instruction
         </button>
       </div>
