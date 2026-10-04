@@ -218,6 +218,12 @@ describe("MackApp", () => {
     screen.getByText("Liberty Mutual Insurance");
   });
 
+  it("writes the site name beside a bare site icon", () => {
+    setup({ ...uiFixtures.manyGrouped, siteLogo: { src: "https://example.com/touch.png", alt: "Example Library", background: "#ffffff", kind: "icon" } });
+    screen.getByText("Example Library");
+    expect(document.querySelector(".mack-logo img")!.getAttribute("alt")).toBe("");
+  });
+
   it("uses native buttons so every control is keyboard reachable", () => {
     setup(uiFixtures.withAddition);
     const controls = document.querySelectorAll("button, input");

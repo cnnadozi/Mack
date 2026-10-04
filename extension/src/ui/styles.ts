@@ -84,6 +84,8 @@ export const MACK_STYLES = `
 }
 .mack-logo img { display: block; height: 100%; max-width: 200px; width: auto; object-fit: contain; }
 .mack-logo-text { font-size: 17px; font-weight: 800; color: var(--ink); }
+.mack-logo[data-kind="icon"] { gap: 8px; }
+.mack-logo[data-kind="icon"] img { height: 28px; width: 28px; border-radius: 6px; }
 .mack-title { margin: 0; font-size: 30px; line-height: 1.15; font-weight: 800; overflow-wrap: anywhere; }
 .mack-toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
 
