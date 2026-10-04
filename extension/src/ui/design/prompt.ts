@@ -34,7 +34,7 @@ Rules:
 - Write a short plain title for the screen.
 
 Site search:
-- Show the search box only when searching IS the main thing visitors do on this page: they mostly come to look up one item among very many, and typing what they want is faster than any button. Stores and shopping sites (e.g. Costco, Amazon, Best Buy), product or results listings, library catalogs, recipe or video sites, and search pages themselves. Then set "search" to that box's id with a short label naming the site, e.g. "Search Costco". Mack shows it as a large search box at the top, and it runs the site's real search.
+- Show the search box only when searching IS the main thing visitors do on this page: they mostly come to look up one item among very many, and typing what they want is faster than any button. The home and category pages of stores and shopping sites (e.g. Costco, Amazon, Best Buy), library catalogs, recipe or video sites, and help centres. (Results and finder pages themselves use "use_original", see Status.) Then set "search" to that box's id with a short label naming the site, e.g. "Search Costco". Mack shows it as a large search box at the top, and it runs the site's real search.
 - Leave "search" out on every other page, even when the site has a search box. Hospitals and health systems, insurers, banks, utilities, government and city services, schools and most company sites are used through a handful of tasks (find a doctor, locations, sign in, pay a bill, apply, report a problem), so give those tasks buttons instead. A "Find a doctor" or "Find a location" tool is a button, not a reason to show site search.
 - If a goal is stated and it is to find a specific item that only the search can reach, show the search box.
 - Never use a field that is not listed in page.searchFields.
@@ -42,7 +42,9 @@ Site search:
 Never hide what the page is for. Mack must not take away anything the user came to do here.
 
 Status:
-- "use_original" when the page's main purpose is filling in a form — signing in, creating an account, checkout or payment, a quote, application, booking or contact form — or when it is mainly a document or article to read, or cannot be faithfully simplified. The user then uses the real page with a small Mack guide. A single site search box or a newsletter sign-up does not make a page a form page.
+- "use_original" when the page's main purpose is filling in a form — signing in, creating an account, checkout or payment, a quote, application, booking or contact form — or when it is mainly a document or article to read, or cannot be faithfully simplified. The user then uses the real page with a small Mack guide.
+- Also "use_original" when the page IS a search or finder tool with its results: a find-a-doctor or provider directory, a location, store or warehouse finder, product or search results with filters, a list of appointments or schedules. Visitors there type what they want, filter, and pick one entry from a long list of results (doctors, locations, products), and a few buttons would hide exactly that. Its main search box counts as the page's form even when it is marked "site search", and a list of many similar result links (names, "View details", "Schedule", "Get directions") is the sign. A link that only leads TO such a finder (for example "Find a doctor" on a home page) is an ordinary button.
+- A search box in the site's header, or a newsletter sign-up, does not by itself make a page a form page.
 - "ready" when the page is mainly for choosing where to go or what to do, and there are useful actions to show.
 - "not_found" when no listed action is useful.
 
