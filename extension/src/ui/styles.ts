@@ -298,6 +298,18 @@ export const MACK_STYLES = `
 
 .mack-empty { margin: 0; font-size: 22px; }
 
+.mack-loading { display: flex; flex-direction: column; gap: 12px; }
+.mack-skeleton {
+  display: block;
+  height: 72px;
+  border-radius: var(--radius);
+  background: linear-gradient(90deg, var(--accent-tint) 0%, var(--paper) 50%, var(--accent-tint) 100%);
+  background-size: 200% 100%;
+  animation: mack-shimmer 1.2s ease-in-out infinite;
+}
+.mack-skeleton--primary { height: 88px; border-radius: 20px; }
+@keyframes mack-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+
 /* Request bar */
 .mack-request {
   position: sticky;

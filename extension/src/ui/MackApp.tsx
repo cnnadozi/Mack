@@ -167,6 +167,7 @@ function SimplifiedView(props: MackAppProps) {
           {buttonCount === 0 && !state.busy && (
             <p className="mack-empty">No simple actions are ready for this page yet. You can ask below or open the original page.</p>
           )}
+          {buttonCount === 0 && state.busy && <LoadingCards />}
         </div>
 
         <RequestBar {...props} />
@@ -206,6 +207,21 @@ function SearchBox(props: { search: SiteSearch; disabled: boolean; onSearch(acti
         </button>
       </div>
     </form>
+  );
+}
+
+// Placeholder shapes in the final layout make the wait feel shorter; screen readers get the "Working…" status instead.
+function LoadingCards() {
+  return (
+    <div className="mack-loading" aria-hidden="true" data-testid="mack-loading">
+      <span className="mack-skeleton mack-skeleton--primary" />
+      <div className="mack-grid">
+        <span className="mack-skeleton" />
+        <span className="mack-skeleton" />
+        <span className="mack-skeleton" />
+        <span className="mack-skeleton" />
+      </div>
+    </div>
   );
 }
 
