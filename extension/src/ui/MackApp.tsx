@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, ChevronDown, ChevronRight, ChevronUp, Maximize2, Mic, RotateCcw, Sparkles, X, type LucideIcon } from "lucide-react";
-import type { LensAppProps, LensUIState, ScreenSection, TaskButton, VoiceState } from "../../../shared/contracts";
+import type { LensAppProps, LensUIState, ScreenSection, SiteLogo, TaskButton, VoiceState } from "../../../shared/contracts";
 import { isMoreSection } from "./design/validate";
 import { taskIcon } from "./taskIcon";
 import { themeStyle } from "./theme";
@@ -35,11 +35,25 @@ function IconButton(props: { icon: LucideIcon; label: string; onClick(): void; e
   );
 }
 
-function Brand() {
+// The site's own logo keeps users sure they are still on that site; Mack is credited beside it.
+function Brand({ logo }: { logo?: SiteLogo }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [logo?.src]);
   return (
     <p className="mack-brand">
-      <Sparkles size={16} strokeWidth={2.4} aria-hidden="true" />
-      Mack
+      {logo && (
+        <span className="mack-logo" style={{ background: logo.background }}>
+          {failed ? (
+            <span className="mack-logo-text">{logo.alt}</span>
+          ) : (
+            <img src={logo.src} alt={logo.alt} onError={() => setFailed(true)} />
+          )}
+        </span>
+      )}
+      <span className="mack-brand-mack">
+        <Sparkles size={15} strokeWidth={2.4} aria-hidden="true" />
+        {logo ? "Simplified by Mack" : "Mack"}
+      </span>
     </p>
   );
 }
@@ -98,7 +112,7 @@ function SimplifiedView(props: MackAppProps) {
         <header className="mack-header">
           <IconButton icon={ArrowLeft} label="Previous page" onClick={onPreviousPage} />
           <div className="mack-heading">
-            <Brand />
+            <Brand logo={state.siteLogo} />
             <h1 className="mack-title">{screen.title}</h1>
           </div>
           <div className="mack-toolbar" role="toolbar" aria-label="Mack controls">
@@ -249,7 +263,7 @@ function OriginalPanel(props: MackAppProps) {
       <header className="mack-panel-header">
         <IconButton icon={ArrowLeft} label="Previous page" onClick={onPreviousPage} />
         <div className="mack-heading">
-          <Brand />
+          <Brand logo={state.siteLogo} />
           <h1 className="mack-title">{state.screen.title}</h1>
         </div>
         <div className="mack-panel-tools">
