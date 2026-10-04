@@ -1,5 +1,7 @@
 import { createRoot } from "react-dom/client";
 import { MackApp, type MackAppProps } from "./MackApp";
+import tailwindCss from "virtual:mack-tailwind";
+import { PortalContainerContext, TooltipProvider } from "./components/ui/tooltip";
 import { MACK_STYLES } from "./styles";
 
 export type MackMount = {
@@ -14,7 +16,8 @@ export function mountMackApp(parent: HTMLElement = document.documentElement): Ma
   host.setAttribute("data-mack", "");
   const shadow = host.attachShadow({ mode: "open" });
   const style = document.createElement("style");
-  style.textContent = MACK_STYLES;
+  // Tailwind/shadcn first; Mack's own rules are unlayered, so they win where both apply.
+  style.textContent = tailwindCss + MACK_STYLES;
   const container = document.createElement("div");
   shadow.append(style, container);
   parent.append(host);

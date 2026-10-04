@@ -234,13 +234,25 @@ describe("MackApp", () => {
     const go = within(box).getByRole("button", { name: "Search" });
     expect((go as HTMLButtonElement).disabled).toBe(true);
     fireEvent.change(input, { target: { value: "  paper towels " } });
-    fireEvent.submit(box);
+    fireEvent.submit(input.closest("form")!);
     expect(props.onSearch).toHaveBeenCalledWith("a6", "paper towels");
   });
 
   it("shows no search box when the design has none", () => {
     setup(uiFixtures.manyGrouped);
     expect(screen.queryByRole("search")).toBeNull();
+  });
+
+  it("switches to dark mode with an accessible accent and remembers nothing outside the extension", () => {
+    setup({ ...uiFixtures.manyGrouped, accentColor: "#002677" });
+    const root = document.querySelector<HTMLElement>(".mack")!;
+    const lightAccent = root.style.getPropertyValue("--accent");
+    fireEvent.click(screen.getByRole("button", { name: "Dark mode" }));
+    expect(root.getAttribute("data-theme")).toBe("dark");
+    expect(root.classList.contains("dark")).toBe(true);
+    expect(root.style.getPropertyValue("--accent")).not.toBe(lightAccent);
+    fireEvent.click(screen.getByRole("button", { name: "Light mode" }));
+    expect(root.getAttribute("data-theme")).toBe("light");
   });
 
   it("uses native buttons so every control is keyboard reachable", () => {
