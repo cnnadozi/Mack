@@ -1,7 +1,11 @@
 import { DEFAULT_MODEL, GOAL_TTL_MS, KEY_STORAGE, MODEL_STORAGE, readStored, readTab, sameSite, supportedUrl, tabKey, trustedSession, UNSAFE_LINK } from "./platform/settings";
 import { authorizedSender, createModelHandler } from "./platform/model-handler";
 import { generateJSON } from "./platform/provider";
-import { SessionMessageSchema } from "./platform/protocol";
+import { SessionMessageSchema, type CachedDesign } from "./platform/protocol";
+
+// Revisiting a page (e.g. Back) reuses its design instead of asking the model again.
+const DESIGN_TTL_MS = 30 * 60_000;
+const designKey = (url: string) => `design:${url.split("#")[0]}`;
 
 async function credentials(): Promise<{ key?: string; model: string }> {
   await trustedSession();
@@ -43,6 +47,17 @@ chrome.runtime.onMessage.addListener((raw: unknown, sender, respond) => {
     const message = parsed.data;
     if (message.type === "mack:session") return respond(session);
     if (message.type === "mack:peek") return respond({ pages: session.active ? await peek(message.urls, sender.url!) : [] });
+    if (message.type === "mack:design-get" || message.type === "mack:design-put") {
+      const key = designKey(sender.url!);
+      if (message.type === "mack:design-put") {
+        if (session.active) await chrome.storage.session.set({ [key]: { ...message.entry, at: Date.now() } });
+        return respond({ ok: true });
+      }
+      const stored = (await chrome.storage.session.get(key))[key] as (CachedDesign & { at?: number }) | undefined;
+      if (!stored || Date.now() - (stored.at ?? 0) > DESIGN_TTL_MS) return respond({});
+      const { at: _, ...entry } = stored;
+      return respond({ entry });
+    }
     if (message.type === "mack:resume") {
       if (session.active) await inject(id);
       return respond({ ok: true });

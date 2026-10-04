@@ -1,11 +1,12 @@
 import {
   DesignProposalSchema, LensUIStateSchema, SiteLogoSchema, SpeechJobSchema, parseDesignRequest, parseGuidanceRequest, sameStamp, validateDesign,
-  type CommittedScreen, type GenerateScreen, type SiteLogo, type LensAppProps, type LensUIState, type ResolveIntent, type Stamp,
+  type CommittedScreen, type GenerateScreen, type ScreenDesign, type SiteLogo, type LensAppProps, type LensUIState, type ResolveIntent, type Stamp,
   type VoiceCallbacks, type VoiceController,
 } from "../../../shared/contracts";
 import { brandColor, deepLink, isSiteSearch, siteLogo, extractPage, isMack, liveTarget, sourceKind, type Extraction } from "./extractor";
 import { addPeekedLinks, hasPasswordField, peekCandidates, type Peek } from "./peek";
 import { mergeGuidance } from "./state";
+import type { CachedDesign } from "./protocol";
 
 type Mount = { host: HTMLElement; render(props: LensAppProps): void; unmount(): void };
 type Dependencies = {
@@ -16,11 +17,15 @@ type Dependencies = {
   brandColor?: () => string | undefined;
   siteLogo?: () => SiteLogo | undefined;
   peek?: Peek;
+  designCache?: { get(): Promise<CachedDesign | undefined>; put(entry: CachedDesign): void };
   navigate?: (url: string) => void;
 };
 
 const BUTTON_SETTLE_MS = 900;
 const SEARCH_BUTTON_MS = 700;
+// Slow sites must not hold up the first design; links from pages that arrive later are skipped.
+const PEEK_WAIT_MS = 1500;
+const CACHE_WAIT_MS = 300;
 // Page changes alone may trigger at most one redesign in this window.
 const AUTO_REFRESH_MIN_MS = 10_000;
 
@@ -169,8 +174,34 @@ export function startPlatform(deps: Dependencies) {
   async function peekAhead(target: Extraction, signal: AbortSignal) {
     const candidates = deps.peek && !hasPasswordField(target) ? peekCandidates(target) : [];
     if (!deps.peek || !candidates.length) return;
-    const pages = await deps.peek(candidates.map((c) => c.url)).catch(() => []);
+    const pages = await Promise.race([
+      deps.peek(candidates.map((c) => c.url)).catch(() => []),
+      new Promise<[]>((resolve) => setTimeout(() => resolve([]), PEEK_WAIT_MS)),
+    ]);
     if (!signal.aborted) addPeekedLinks(target, candidates, pages);
+  }
+  async function rememberedDesign(target: Extraction): Promise<ScreenDesign | undefined> {
+    if (!deps.designCache) return undefined;
+    const entry = await Promise.race([
+      deps.designCache.get().catch(() => undefined),
+      new Promise<undefined>((resolve) => setTimeout(resolve, CACHE_WAIT_MS)),
+    ]);
+    if (!entry || (entry.goal ?? "") !== (goal ?? "")) return undefined;
+    const ids = new Map<string, string>();
+    for (const action of target.snapshot.actions) if (!ids.has(actionKey(action))) ids.set(actionKey(action), action.id);
+    // Only reuse it if every remembered button (and the search box) is on this page now.
+    const sections = entry.sections.map((section) => ({ ...section, buttons: section.buttons.map((b) => ({ actionId: ids.get(b.key) ?? "", label: b.label })) }));
+    const search = entry.search ? { actionId: ids.get(entry.search.key) ?? "", label: entry.search.label } : undefined;
+    if (sections.some((section) => section.buttons.some((b) => !b.actionId)) || (search && !search.actionId)) return undefined;
+    const design: ScreenDesign = { title: entry.title, mode: "simplified", sections, ...(search ? { search } : {}) };
+    try { validateDesign(design, target.snapshot); return design; } catch { return undefined; }
+  }
+  function rememberDesign(design: ScreenDesign, source: Extraction) {
+    const keys = new Map(source.snapshot.actions.map((action) => [action.id, actionKey(action)]));
+    const sections = design.sections.map((section) => ({ ...section, buttons: section.buttons.map((b) => ({ key: keys.get(b.actionId) ?? "", label: b.label })) }));
+    const searchKey = design.search && keys.get(design.search.actionId);
+    if (sections.some((section) => section.buttons.some((b) => !b.key))) return;
+    deps.designCache?.put({ title: design.title, ...(goal ? { goal } : {}), sections, ...(design.search && searchKey ? { search: { key: searchKey, label: design.search.label } } : {}) });
   }
   async function refresh(next?: Extraction) {
     if (!active) return;
@@ -187,13 +218,18 @@ export function startPlatform(deps: Dependencies) {
       };
       render();
       const expected = designStamp = stamp();
-      if (deps.peek) {
+      const remembered = deps.designCache ? await rememberedDesign(extraction) : undefined;
+      if (controller.signal.aborted) return;
+      if (!remembered && deps.peek) {
         await peekAhead(extraction, controller.signal);
         if (controller.signal.aborted) return;
       }
-      const proposal = DesignProposalSchema.parse(await deps.generateScreen(parseDesignRequest({ stamp: expected, snapshot: extraction.snapshot, ...(goal ? { goal } : {}) }), controller.signal));
+      const proposal = remembered
+        ? { stamp: expected, status: "ready" as const, design: remembered }
+        : DesignProposalSchema.parse(await deps.generateScreen(parseDesignRequest({ stamp: expected, snapshot: extraction.snapshot, ...(goal ? { goal } : {}) }), controller.signal));
       if (!current(expected, proposal.stamp, designStamp) || controller.signal.aborted) return;
       validateDesign(proposal.design, extraction.snapshot);
+      if (!remembered && proposal.status === "ready") rememberDesign(proposal.design, extraction);
       if ((proposal.status === "ready") !== (proposal.design.mode === "simplified")) throw new Error("Design status does not match its mode");
       designPending = false;
       commit({ busy: false, instruction: DESIGN_INSTRUCTION[proposal.status] }, { ...proposal.design, snapshotVersion: extraction.snapshot.version });
