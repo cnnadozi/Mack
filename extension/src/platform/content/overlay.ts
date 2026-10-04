@@ -6,26 +6,52 @@
 
 import { debug } from "../debug";
 import { IDLE_SESSION, STORAGE, type MackSession } from "../messages";
+import { translator } from "../../ui/i18n-text";
 import { elementFor } from "./extract";
 
 const HIGHLIGHT_SECONDS = 30;
 
-// Dark with a white edge, so the ring stands out on light and dark pages alike.
+// Bright yellow with a black edge reads on light and dark pages alike; the rest of the
+// page is dimmed a little and a tag says what to do, so the target is impossible to miss.
 const STYLES = `
 .ring {
   position: fixed; z-index: 2147483647; display: none; box-sizing: border-box; pointer-events: none;
-  border: 3px solid #18181b; border-radius: 10px;
-  box-shadow: 0 0 0 3px #ffffff, 0 0 0 6px rgba(24, 24, 27, 0.3);
-  animation: mack-ring 1.4s ease-in-out infinite;
+  border: 5px solid #ffd60a; border-radius: 12px;
+  box-shadow: 0 0 0 3px #111111, 0 0 28px 10px rgba(255, 214, 10, 0.85), 0 0 0 9999px rgba(0, 0, 0, 0.35);
+  animation: mack-ring 1.2s ease-in-out infinite;
 }
 @keyframes mack-ring {
-  50% { box-shadow: 0 0 0 3px #ffffff, 0 0 0 12px rgba(24, 24, 27, 0.1); }
+  50% { box-shadow: 0 0 0 3px #111111, 0 0 44px 18px rgba(255, 214, 10, 1), 0 0 0 9999px rgba(0, 0, 0, 0.35); }
+}
+.tag {
+  position: fixed; z-index: 2147483647; display: none; pointer-events: none;
+  padding: 8px 16px; border-radius: 999px; border: 3px solid #111111;
+  background: #ffd60a; color: #111111;
+  font: 800 20px/1.2 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); white-space: nowrap;
 }
 @media (prefers-reduced-motion: reduce) { .ring { animation: none; } }
+@media (forced-colors: active) { .ring { border-color: Highlight; } .tag { forced-color-adjust: none; } }
 `;
+
+// Puts Mack in the browser's top layer: above anything the site shows (sticky headers,
+// banners, chat widgets, however high their z-index) and unaffected by the site's
+// transforms, so the bar stays where it is while the page scrolls.
+function raise(host: HTMLElement): void {
+  if (typeof host.showPopover !== "function") return;
+  try {
+    if (host.matches(":popover-open")) host.hidePopover();
+    host.showPopover();
+  } catch (error) {
+    debug("content", "could not lift Mack into the top layer", error);
+  }
+}
+
+let language = "";
 
 let shadow: ShadowRoot | null = null;
 let ring: HTMLElement | null = null;
+let tag: HTMLElement | null = null;
 let target: Element | null = null;
 let highlightTimer = 0;
 let ringAllowed = true;
@@ -41,14 +67,22 @@ function mount(): ShadowRoot {
   host.setAttribute("data-mack-root", "");
   // Role 4's extractor and page observer skip anything carrying this attribute.
   host.setAttribute("data-mack-platform", "");
+  host.setAttribute("popover", "manual");
+  // A see-through, click-through layer over the whole window; only Mack's own pieces take clicks.
+  host.style.cssText =
+    "position:fixed;inset:0;width:100vw;height:100vh;max-width:none;max-height:none;margin:0;padding:0;border:0;background:transparent;overflow:visible;pointer-events:none;color:inherit;";
   shadow = host.attachShadow({ mode: "open" });
   const style = document.createElement("style");
   style.textContent = STYLES;
   ring = document.createElement("div");
   ring.className = "ring";
   ring.setAttribute("aria-hidden", "true");
-  shadow.append(style, ring);
+  tag = document.createElement("div");
+  tag.className = "tag";
+  tag.setAttribute("aria-hidden", "true");
+  shadow.append(style, ring, tag);
   document.documentElement.appendChild(host);
+  raise(host);
   // Some pages rebuild the document while they load (document.write, frameworks
   // that replace <html>'s children), which throws the host away with the rest.
   // Without this Mack would be running but invisible.
@@ -56,7 +90,10 @@ function mount(): ShadowRoot {
   const keepAttached = new MutationObserver(() => {
     const root = document.documentElement;
     if (!root) return;
-    if (!host.isConnected) root.appendChild(host);
+    if (!host.isConnected) {
+      root.appendChild(host);
+      raise(host);
+    }
     // A rebuilt page has a new <html>, whose children need watching in turn.
     if (root !== watched) {
       watched = root;
@@ -80,6 +117,12 @@ function trackTarget(): void {
   ring.style.top = `${rect.top - 8}px`;
   ring.style.width = `${rect.width + 16}px`;
   ring.style.height = `${rect.height + 16}px`;
+  if (tag) {
+    // Above the target, or below it when there is no room at the top of the window.
+    const above = rect.top - 8 - tag.offsetHeight - 12;
+    tag.style.top = `${above >= 8 ? above : rect.bottom + 20}px`;
+    tag.style.left = `${Math.min(Math.max(rect.left + rect.width / 2 - tag.offsetWidth / 2, 8), window.innerWidth - tag.offsetWidth - 8)}px`;
+  }
   requestAnimationFrame(trackTarget);
 }
 
@@ -98,6 +141,7 @@ export function highlight(elementId: string | null): void {
       debug("content", `highlight: no element on the page for "${elementId}"`);
     }
     if (ring) ring.style.display = "none";
+    if (tag) tag.style.display = "none";
     return;
   }
   debug("content", `highlight: pointing at "${elementId}"`, target);
@@ -106,6 +150,10 @@ export function highlight(elementId: string | null): void {
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   target.scrollIntoView({ block: "center", behavior: reduceMotion ? "auto" : "smooth" });
   ring.style.display = "block";
+  if (tag) {
+    tag.textContent = `👆 ${translator(language).t("clickHere")}`;
+    tag.style.display = "block";
+  }
   trackTarget();
   highlightTimer = window.setTimeout(() => highlight(null), HIGHLIGHT_SECONDS * 1000);
 }
@@ -125,10 +173,12 @@ async function showPanel(): Promise<void> {
 export async function initOverlay(): Promise<void> {
   const isOn = (value: unknown): boolean =>
     ((value as MackSession | undefined) ?? IDLE_SESSION).active;
-  const stored = await chrome.storage.local.get(STORAGE.session);
+  const stored = await chrome.storage.local.get([STORAGE.session, STORAGE.language]);
+  language = String(stored[STORAGE.language] ?? "");
   if (isOn(stored[STORAGE.session])) void showPanel();
 
   chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes[STORAGE.language]) language = String(changes[STORAGE.language].newValue ?? "");
     if (area !== "local" || !changes[STORAGE.session]) return;
     const session = (changes[STORAGE.session].newValue as MackSession | undefined) ?? IDLE_SESSION;
     debug("content", "session changed:", session);

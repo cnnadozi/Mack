@@ -16,9 +16,10 @@ export const MACK_STYLES = `
   --focus: #b45309;
   --danger: #b42318;
   --danger-bg: #fef3f2;
-  --highlight: #b45309;
-  --highlight-ink: #ffffff;
-  --highlight-fill: #fff7e6;
+  --highlight: #ffd60a;
+  --highlight-edge: #111111;
+  --highlight-ink: #111111;
+  --highlight-fill: #fff3a3;
   --radius: 16px;
   --shadow: 0 1px 2px rgba(17, 24, 39, 0.06), 0 2px 8px rgba(17, 24, 39, 0.06);
   --shadow-lift: 0 4px 10px rgba(17, 24, 39, 0.08), 0 12px 28px rgba(17, 24, 39, 0.10);
@@ -38,9 +39,10 @@ export const MACK_STYLES = `
   --focus: #fbbf24;
   --danger: #f87171;
   --danger-bg: #3b1416;
-  --highlight: #f59e0b;
-  --highlight-ink: #0f1115;
-  --highlight-fill: #3a2a08;
+  --highlight: #ffd60a;
+  --highlight-edge: #ffffff;
+  --highlight-ink: #111111;
+  --highlight-fill: #4a3d00;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.35);
   --shadow-lift: 0 4px 10px rgba(0, 0, 0, 0.45), 0 12px 28px rgba(0, 0, 0, 0.5);
   color-scheme: dark;
@@ -190,21 +192,23 @@ export const MACK_STYLES = `
 .mack-task[data-variant="row"] .mack-task-icon { color: var(--brand); }
 .mack-task[data-variant="row"] .mack-task-trail { color: var(--ink-muted); }
 
-/* "Next step" never relies on color alone: ring, fill and a text badge. */
+/* "Next step" never relies on color alone: a thick bright ring with a contrasting edge, a glow and a text badge. */
 .mack-task[data-highlighted="true"] {
-  border: 3px solid var(--highlight);
-  box-shadow: 0 0 0 4px var(--highlight-fill), 0 0 0 7px var(--highlight);
-  animation: mack-in 0.35s ease both, mack-glow 1.8s ease-in-out 0.4s infinite;
+  border: 4px solid var(--highlight);
+  box-shadow: 0 0 0 3px var(--highlight-edge), 0 0 0 8px var(--highlight), 0 0 30px 10px color-mix(in srgb, var(--highlight) 80%, transparent);
+  animation: mack-in 0.35s ease both, mack-glow 1.2s ease-in-out 0.4s infinite;
+  position: relative;
+  z-index: 1;
 }
 .mack-task[data-variant="card"][data-highlighted="true"],
-.mack-task[data-variant="row"][data-highlighted="true"] { background: var(--highlight-fill); }
-.mack-badge { background: var(--highlight); color: var(--highlight-ink); }
-.mack-task[data-variant="primary"] .mack-badge { background: var(--on-brand); color: var(--brand); }
+.mack-task[data-variant="row"][data-highlighted="true"] { background: var(--highlight-fill); color: var(--ink); }
+.mack-badge { background: var(--highlight); color: var(--highlight-ink); border: 2px solid var(--highlight-edge); }
+.mack-task[data-variant="primary"] .mack-badge { background: var(--highlight); color: var(--highlight-ink); }
 
 @keyframes mack-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @keyframes mack-glow {
-  0%, 100% { box-shadow: 0 0 0 4px var(--highlight-fill), 0 0 0 7px var(--highlight); }
-  50% { box-shadow: 0 0 0 6px var(--highlight-fill), 0 0 0 10px var(--highlight), 0 0 24px color-mix(in srgb, var(--highlight) 40%, transparent); }
+  0%, 100% { box-shadow: 0 0 0 3px var(--highlight-edge), 0 0 0 8px var(--highlight), 0 0 30px 10px color-mix(in srgb, var(--highlight) 80%, transparent); }
+  50% { box-shadow: 0 0 0 3px var(--highlight-edge), 0 0 0 12px var(--highlight), 0 0 48px 20px var(--highlight); }
 }
 
 .mack-more { display: flex; flex-direction: column; gap: 16px; }

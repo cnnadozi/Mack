@@ -5,6 +5,7 @@ import {
 } from "../../../shared/contracts";
 import { brandColor, deepLink, isSiteSearch, siteLogo, extractPage, isMack, liveTarget, sourceKind, type Extraction } from "./extractor";
 import { addPeekedLinks, hasPasswordField, peekCandidates, type Peek } from "./peek";
+import { translator } from "../ui/i18n-text";
 import { mergeGuidance } from "./state";
 
 type Mount = { host: HTMLElement; render(props: LensAppProps): void; unmount(): void };
@@ -24,6 +25,13 @@ type Dependencies = {
    * still get a new design.
    */
   redesignOnPageChange?: boolean;
+  /** The language from Mack's settings ("" is English) for the platform's own messages. */
+  language?: string;
+  /**
+   * Says a short line out loud that a page change must not cut off, such as "Opening …"
+   * before a navigation. Without it, lines go through the voice controller.
+   */
+  announce?(text: string): void;
   onOutdated?(): void;
 };
 
@@ -64,17 +72,14 @@ function searchButtonNear(input: HTMLInputElement): HTMLElement | undefined {
   return undefined;
 }
 const NAVIGATE_CONFIRM_MS = 1800;
-export const NO_SIMPLE_VIEW = "This page has no simple view, so you can use it as it is. Press Exit to close Mack.";
-const DESIGN_INSTRUCTION = {
-  ready: "Choose what you want to do.",
-  use_original: "This page works best as it is. Use the page normally, or ask Mack below.",
-  not_found: "Mack found nothing to simplify here. Use the page as it is, or ask Mack below.",
-} as const;
+export const NO_SIMPLE_VIEW = translator("").t("noSimpleView");
+const DESIGN_INSTRUCTION = { ready: "designReady", use_original: "designOriginal", not_found: "designNotFound" } as const;
 
 export const goalFromLabel = (label: string) => label.replace(/\s*\(sign in first\)\s*$/i, "").trim();
 
 export function startPlatform(deps: Dependencies) {
   const extract = deps.extract ?? extractPage;
+  const { t } = translator(deps.language ?? "");
   const readAccent = deps.brandColor ?? brandColor;
   const readLogo = deps.siteLogo ?? siteLogo;
   const withAccent = (accentColor: string | undefined) => (accentColor ? { accentColor } : {});
@@ -122,10 +127,20 @@ export function startPlatform(deps: Dependencies) {
   function clearHighlight() { highlight?.removeAttribute("data-mack-highlight"); highlight = undefined; }
   const highlightStyle = document.createElement("style");
   highlightStyle.dataset.mackPlatform = "";
-  highlightStyle.textContent = "[data-mack-highlight] { outline: 4px double #1264bd !important; outline-offset: 5px !important; }";
+  // Bright yellow with a black edge and a glow, so the control Mack means stands out on any page.
+  highlightStyle.textContent = "[data-mack-highlight] { outline: 5px solid #ffd60a !important; outline-offset: 4px !important; box-shadow: 0 0 0 9px #111111, 0 0 32px 14px rgba(255, 214, 10, 0.9) !important; border-radius: 6px !important; }";
   document.documentElement.append(highlightStyle);
 
   function cancelSpeech() { speechVersion = undefined; voice?.cancelSpeech(); }
+  function say(text: string) {
+    if (!text || !active) return;
+    if (deps.announce) { deps.announce(text); return; }
+    if (voice) void voice.speak(SpeechJobSchema.parse({ jobId: crypto.randomUUID(), snapshotVersion: state.screen.snapshotVersion, screenVersion: state.screen.screenVersion, text })).catch(() => undefined);
+  }
+  // A finished answer ends with an offer of more help; a question back to the user does not.
+  function withOffer(proposal: { status: string; responseText: string }) {
+    return proposal.status === "ready" ? `${proposal.responseText} ${t("anythingElse")}` : proposal.responseText;
+  }
   function invalidate() {
     designAbort?.abort(); guideAbort?.abort(); designStamp = undefined; guideStamp = undefined;
     cancelSpeech(); clearHighlight();
@@ -205,8 +220,10 @@ export function startPlatform(deps: Dependencies) {
       validateDesign(proposal.design, extraction.snapshot);
       if ((proposal.status === "ready") !== (proposal.design.mode === "simplified")) throw new Error("Design status does not match its mode");
       designPending = false;
-      commit({ busy: false, instruction: DESIGN_INSTRUCTION[proposal.status] }, { ...proposal.design, snapshotVersion: extraction.snapshot.version });
+      commit({ busy: false, instruction: t(DESIGN_INSTRUCTION[proposal.status]) }, { ...proposal.design, snapshotVersion: extraction.snapshot.version });
+      // Mack always says where things stand; with a goal, the guidance that follows does.
       if (goal) void guide(goal);
+      else say(state.instruction);
     } catch (error) {
       if (!active || controller.signal.aborted || designAbort !== controller) return;
       designPending = false; fail(error);
@@ -225,7 +242,7 @@ export function startPlatform(deps: Dependencies) {
       if (target && accepted.screen.mode === "original") liveTarget(extraction, target);
       if (state.screen.mode === "simplified" && accepted.screen.mode === "original") simplifiedScreen = state.screen;
       state = {
-        ...state, screen: { ...accepted.screen, screenVersion: crypto.randomUUID() }, instruction: accepted.proposal.responseText,
+        ...state, screen: { ...accepted.screen, screenVersion: crypto.randomUUID() }, instruction: withOffer(accepted.proposal),
         highlightedActionId: target, clarificationOptions: accepted.proposal.clarificationOptions,
         busy: false, error: undefined,
       };
@@ -270,7 +287,8 @@ export function startPlatform(deps: Dependencies) {
         const href = deepLink(extraction, id);
         setGoal(goalFromLabel(label));
         actionPending = true; invalidate();
-        commit({ busy: true, instruction: `Opening “${label}”…`, highlightedActionId: undefined, error: undefined });
+        commit({ busy: true, instruction: t("opening", { label }), highlightedActionId: undefined, error: undefined });
+        say(state.instruction);
         navigate(href);
         clickTimer = setTimeout(() => { if (active && actionPending) { actionPending = false; fail(new Error("Mack could not open that page. Check your connection or retry.")); } }, NAVIGATE_CONFIRM_MS * 3);
         return;
@@ -284,7 +302,8 @@ export function startPlatform(deps: Dependencies) {
       currentBody.inert = bodyInert;
       try { element.click(); } finally { if (active) applyMode(); }
       if (kind === "button") {
-        commit({ busy: true, instruction: `Opening “${label}”…`, highlightedActionId: undefined, error: undefined });
+        commit({ busy: true, instruction: t("opening", { label }), highlightedActionId: undefined, error: undefined });
+        say(state.instruction);
         // A button that doesn't navigate probably opened a menu or panel behind the overlay; re-read the page.
         clickTimer = setTimeout(() => { if (active && location.href === before) void refresh(); }, BUTTON_SETTLE_MS);
       } else {
@@ -306,7 +325,8 @@ export function startPlatform(deps: Dependencies) {
       setGoal(`Find ${text}`);
       actionPending = true; invalidate();
       const before = location.href;
-      commit({ busy: true, instruction: `Searching for “${text}”…`, highlightedActionId: undefined, error: undefined });
+      commit({ busy: true, instruction: t("searching", { text }), highlightedActionId: undefined, error: undefined });
+      say(state.instruction);
       currentBody.inert = bodyInert;
       try {
         // Sites often use framework-controlled inputs, which only notice the native setter plus input/change events.
@@ -331,7 +351,7 @@ export function startPlatform(deps: Dependencies) {
   function back() {
     if (!active || state.screen.mode === "simplified") return;
     const saved = simplifiedScreen;
-    if (!saved) { commit({ instruction: NO_SIMPLE_VIEW, busy: false, error: undefined }); return; }
+    if (!saved) { commit({ instruction: t("noSimpleView"), busy: false, error: undefined }); return; }
     if (saved.snapshotVersion !== extraction.snapshot.version) { void refresh(); return; }
     invalidate(); simplifiedScreen = undefined;
     commit({ instruction: DESIGN_INSTRUCTION.ready, busy: false, error: undefined, highlightedActionId: undefined, clarificationOptions: undefined }, { ...saved });

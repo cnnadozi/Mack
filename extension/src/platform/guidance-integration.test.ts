@@ -43,7 +43,8 @@ describe("Role 2 guidance through the platform adapter", () => {
     });
     await vi.waitFor(() => expect(h.platform.getState().busy).toBe(false));
     h.platform.request("I need help");
-    await vi.waitFor(() => expect(h.platform.getState().instruction).toBe('Press "Get help".'));
+    // A finished answer ends with Mack's offer of more help, shown and spoken alike.
+    await vi.waitFor(() => expect(h.platform.getState().instruction).toBe('Press "Get help". Let me know if you need anything else.'));
     const state = h.platform.getState();
     expect(h.model.generateJSON).toHaveBeenCalledWith(expect.objectContaining({ task: "guide" }), expect.any(AbortSignal));
     expect(state.screen.sections.map((s) => s.heading)).toEqual([undefined, "For your request"]);

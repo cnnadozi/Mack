@@ -150,6 +150,9 @@ export async function startSimpleView(options: {
       },
     },
     generateScreen: createGenerateScreen(model),
+    language: options.language,
+    // Straight to the offscreen voice, so a navigation that follows does not cut it off.
+    announce: (text) => void send({ type: "mack:say", text }),
     // The simple view is made when the user asks for it, not whenever the page changes.
     redesignOnPageChange: false,
     onOutdated: options.onShowOriginal,
