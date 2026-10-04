@@ -1,9 +1,20 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from "react";
-import { ArrowLeft, ArrowRight, ChevronDown, ChevronRight, ChevronUp, Maximize2, Mic, RotateCcw, Search, Sparkles, X, type LucideIcon } from "lucide-react";
+import {
+  ArrowLeft, ArrowRight, ChevronDown, ChevronRight, ChevronUp, Maximize2, Mic, Moon, RotateCcw, Search, Sparkles, Sun, X,
+  type LucideIcon,
+} from "lucide-react";
 import type { LensAppProps, LensUIState, ScreenSection, SiteLogo, SiteSearch, TaskButton, VoiceState } from "../../../shared/contracts";
+import { Badge } from "./components/ui/badge";
+import { Button } from "./components/ui/button";
+import { Card } from "./components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./components/ui/collapsible";
+import { Input } from "./components/ui/input";
+import { PortalContainerContext, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./components/ui/tooltip";
 import { isMoreSection } from "./design/validate";
+import { cn } from "./lib/utils";
+import { loadTheme, saveTheme, systemTheme } from "./preferences";
 import { taskIcon } from "./taskIcon";
-import { themeStyle } from "./theme";
+import { themeStyle, type ThemeMode } from "./theme";
 
 export type MackAppProps = LensAppProps;
 
@@ -18,21 +29,35 @@ const VOICE_STATUS: Record<VoiceState, string> = {
   error: "The microphone is not available. You can type instead.",
 };
 
+// Sizes stay large for older users: 48px icon targets, 19-24px labels (shadcn's defaults are smaller).
+const CONTROL = "h-12 px-4 text-[19px] font-semibold rounded-xl [&_svg]:size-[22px]";
+const FIELD = "h-14 rounded-xl border-2 px-4 text-[22px] md:text-[22px] bg-card";
+
 function IconButton(props: { icon: LucideIcon; label: string; onClick(): void; expanded?: boolean; controls?: string }) {
   const Glyph = props.icon;
   return (
-    <button
-      type="button"
-      className="mack-icon-btn"
-      aria-label={props.label}
-      title={props.label}
-      aria-expanded={props.expanded}
-      aria-controls={props.controls}
-      onClick={props.onClick}
-    >
-      <Glyph size={24} strokeWidth={2.4} aria-hidden="true" />
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="size-12 shrink-0 rounded-xl border-2 [&_svg]:size-6"
+          aria-label={props.label}
+          aria-expanded={props.expanded}
+          aria-controls={props.controls}
+          onClick={props.onClick}
+        >
+          <Glyph strokeWidth={2.4} aria-hidden="true" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{props.label}</TooltipContent>
+    </Tooltip>
   );
+}
+
+function ThemeToggle({ mode, onToggle }: { mode: ThemeMode; onToggle(): void }) {
+  return <IconButton icon={mode === "dark" ? Sun : Moon} label={mode === "dark" ? "Light mode" : "Dark mode"} onClick={onToggle} />;
 }
 
 // The site's own logo keeps users sure they are still on that site; Mack is credited beside it.
@@ -66,10 +91,28 @@ function prefersReducedMotion() {
   return typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 }
 
+function useTheme(): [ThemeMode, () => void] {
+  const [mode, setMode] = useState<ThemeMode>(systemTheme);
+  useEffect(() => {
+    let live = true;
+    void loadTheme().then((saved) => { if (live && saved) setMode(saved); });
+    return () => { live = false; };
+  }, []);
+  const toggle = () => setMode((current) => {
+    const next = current === "dark" ? "light" : "dark";
+    saveTheme(next);
+    return next;
+  });
+  return [mode, toggle];
+}
+
 export function MackApp(props: MackAppProps) {
   const { state, onRendered } = props;
   const { screenVersion } = state.screen;
   const lastAcked = useRef<string | undefined>(undefined);
+  const [mode, toggleMode] = useTheme();
+  // Tooltips portal here, inside the themed root, so they get Mack's styles and stay usable while the page is inert.
+  const [portal, setPortal] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     // Role 4 treats this as a one-time acknowledgement per committed version, not a render signal.
@@ -79,14 +122,29 @@ export function MackApp(props: MackAppProps) {
   }, [screenVersion, onRendered]);
 
   return (
-    <div className="mack" data-mode={state.screen.mode} aria-busy={state.busy || undefined} style={themeStyle(state.accentColor)}>
-      {state.screen.mode === "original" ? <OriginalPanel {...props} /> : <SimplifiedView {...props} />}
+    <div
+      className={cn("mack", mode === "dark" && "dark")}
+      data-theme={mode}
+      data-mode={state.screen.mode}
+      aria-busy={state.busy || undefined}
+      style={themeStyle(state.accentColor, mode)}
+    >
+      <PortalContainerContext.Provider value={portal}>
+        <TooltipProvider>
+          {state.screen.mode === "original"
+            ? <OriginalPanel {...props} mode={mode} onToggleMode={toggleMode} />
+            : <SimplifiedView {...props} mode={mode} onToggleMode={toggleMode} />}
+        </TooltipProvider>
+      </PortalContainerContext.Provider>
+      <div ref={setPortal} className="mack-portal" />
     </div>
   );
 }
 
-function SimplifiedView(props: MackAppProps) {
-  const { state, onAction, onBack, onPreviousPage, onShowOriginal, onExit } = props;
+type ViewProps = MackAppProps & { mode: ThemeMode; onToggleMode(): void };
+
+function SimplifiedView(props: ViewProps) {
+  const { state, onAction, onPreviousPage, onShowOriginal, onExit, mode, onToggleMode } = props;
   const { screen, highlightedActionId } = state;
   const badgeId = useId();
   const gridRef = useRef<HTMLDivElement>(null);
@@ -113,17 +171,18 @@ function SimplifiedView(props: MackAppProps) {
   return (
     <section className="mack-overlay" aria-label="Mack simplified view">
       <div className="mack-shell">
-        <header className="mack-header">
+        <Card className="mack-header">
           <IconButton icon={ArrowLeft} label="Previous page" onClick={onPreviousPage} />
           <div className="mack-heading">
             <Brand logo={state.siteLogo} />
             <h1 className="mack-title">{screen.title}</h1>
           </div>
           <div className="mack-toolbar" role="toolbar" aria-label="Mack controls">
-            <button type="button" className="mack-btn" onClick={onShowOriginal}>Original page</button>
-            <button type="button" className="mack-btn" onClick={onExit}>Exit Mack</button>
+            <ThemeToggle mode={mode} onToggle={onToggleMode} />
+            <Button type="button" variant="outline" className={cn(CONTROL, "border-2")} onClick={onShowOriginal}>Original page</Button>
+            <Button type="button" variant="outline" className={cn(CONTROL, "border-2")} onClick={onExit}>Exit Mack</Button>
           </div>
-        </header>
+        </Card>
 
         <Guidance {...props} />
 
@@ -142,27 +201,21 @@ function SimplifiedView(props: MackAppProps) {
             />
           ))}
           {moreSections.length > 0 && (
-            <div className="mack-more">
-              <button
-                type="button"
-                className="mack-btn mack-more-toggle"
-                aria-expanded={moreOpen}
-                aria-controls={`${badgeId}-more`}
-                onClick={() => setShowMore(!moreOpen)}
-              >
-                <span className="mack-chevron" data-open={moreOpen || undefined}>
-                  <ChevronRight size={22} strokeWidth={2.6} aria-hidden="true" />
-                </span>
-                {moreOpen ? "Fewer options" : `More options (${moreCount})`}
-              </button>
-              {moreOpen && (
-                <div id={`${badgeId}-more`} className="mack-more-list">
-                  {moreSections.map((section, index) => (
-                    <SectionView key={section.id} section={section} index={index + 1} idPrefix={badgeId} variant="more" {...sectionProps} />
-                  ))}
-                </div>
-              )}
-            </div>
+            <Collapsible open={moreOpen} onOpenChange={setShowMore} className="mack-more">
+              <CollapsibleTrigger asChild>
+                <Button type="button" variant="ghost" className={cn(CONTROL, "mack-more-toggle h-14 self-start px-3 text-[20px] font-bold text-primary hover:text-primary")}>
+                  <span className="mack-chevron" data-open={moreOpen || undefined}>
+                    <ChevronRight strokeWidth={2.6} aria-hidden="true" />
+                  </span>
+                  {moreOpen ? "Fewer options" : `More options (${moreCount})`}
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mack-more-list">
+                {moreSections.map((section, index) => (
+                  <SectionView key={section.id} section={section} index={index + 1} idPrefix={badgeId} variant="more" {...sectionProps} />
+                ))}
+              </CollapsibleContent>
+            </Collapsible>
           )}
           {buttonCount === 0 && !state.busy && (
             <p className="mack-empty">No simple actions are ready for this page yet. You can ask below or open the original page.</p>
@@ -186,27 +239,29 @@ function SearchBox(props: { search: SiteSearch; disabled: boolean; onSearch(acti
     if (text.trim()) onSearch(search.actionId, text.trim());
   };
   return (
-    <form className="mack-search" role="search" onSubmit={submit}>
-      <label htmlFor={inputId}>{search.label}</label>
-      <div className="mack-search-row">
-        <span className="mack-search-field">
-          <Search className="mack-search-icon" size={26} strokeWidth={2.4} aria-hidden="true" />
-          <input
-            id={inputId}
-            className="mack-input"
-            type="search"
-            autoComplete="off"
-            enterKeyHint="search"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Type what you are looking for"
-          />
-        </span>
-        <button type="submit" className="mack-btn mack-btn--primary mack-search-go" disabled={disabled || !text.trim()}>
-          Search
-        </button>
-      </div>
-    </form>
+    <Card className="mack-search" role="search" aria-labelledby={`${inputId}-label`}>
+      <form onSubmit={submit} className="mack-search-form">
+        <label id={`${inputId}-label`} htmlFor={inputId}>{search.label}</label>
+        <div className="mack-search-row">
+          <span className="mack-search-field">
+            <Search className="mack-search-icon size-[26px]" strokeWidth={2.4} aria-hidden="true" />
+            <Input
+              id={inputId}
+              type="search"
+              autoComplete="off"
+              enterKeyHint="search"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Type what you are looking for"
+              className={cn(FIELD, "h-16 pl-14 text-2xl md:text-2xl")}
+            />
+          </span>
+          <Button type="submit" className="h-16 rounded-xl px-7 text-[22px] font-bold" disabled={disabled || !text.trim()}>
+            Search
+          </Button>
+        </div>
+      </form>
+    </Card>
   );
 }
 
@@ -269,6 +324,22 @@ function SectionView(props: {
   );
 }
 
+// Three tiers on shadcn's Button: the filled primary next step, outlined cards, and quiet ghost rows.
+const TASK_STYLE: Record<Variant, { variant: "default" | "outline" | "ghost"; className: string }> = {
+  primary: {
+    variant: "default",
+    className: "min-h-[88px] gap-4 rounded-2xl px-6 py-4 text-[26px] font-bold shadow-lg hover:bg-primary hover:brightness-95",
+  },
+  card: {
+    variant: "outline",
+    className: "min-h-[72px] gap-3.5 rounded-2xl border-2 bg-card px-5 py-3.5 text-2xl font-semibold shadow-sm hover:border-primary hover:bg-card hover:shadow-md",
+  },
+  row: {
+    variant: "ghost",
+    className: "min-h-16 gap-3.5 rounded-none px-5 py-2.5 text-[22px] font-semibold hover:bg-accent hover:text-foreground",
+  },
+};
+
 function TaskButtonView(props: {
   button: TaskButton;
   variant: Variant;
@@ -280,10 +351,12 @@ function TaskButtonView(props: {
   const { button, variant, order, highlighted, badgeId, onAction } = props;
   const Glyph = taskIcon(button.label);
   const Trail = variant === "row" ? ChevronRight : ArrowRight;
+  const look = TASK_STYLE[variant];
   return (
-    <button
+    <Button
       type="button"
-      className="mack-task"
+      variant={look.variant}
+      className={cn("mack-task h-auto w-full justify-start text-left whitespace-normal", look.className)}
       data-variant={variant}
       data-action-id={button.actionId}
       data-highlighted={highlighted || undefined}
@@ -292,20 +365,20 @@ function TaskButtonView(props: {
       onClick={() => onAction(button.actionId)}
     >
       <span className="mack-task-icon" aria-hidden="true">
-        <Glyph size={variant === "primary" ? 30 : 26} strokeWidth={2.2} />
+        <Glyph className={variant === "primary" ? "size-[30px]" : "size-[26px]"} strokeWidth={2.2} />
       </span>
       <span className="mack-task-label">{button.label}</span>
       {highlighted ? (
-        <span className="mack-badge" id={badgeId}>Next step</span>
+        <Badge id={badgeId} className="mack-badge h-auto rounded-full px-3 py-1 text-[17px] font-extrabold">Next step</Badge>
       ) : (
-        variant !== "card" && <Trail className="mack-task-trail" size={26} strokeWidth={2.4} aria-hidden="true" />
+        variant !== "card" && <Trail className="mack-task-trail size-[26px]" strokeWidth={2.4} aria-hidden="true" />
       )}
-    </button>
+    </Button>
   );
 }
 
-function OriginalPanel(props: MackAppProps) {
-  const { state, onBack, onPreviousPage, onExit } = props;
+function OriginalPanel(props: ViewProps) {
+  const { state, onBack, onPreviousPage, onExit, mode, onToggleMode } = props;
   const [dock, setDock] = useState<Dock>("bottom-right");
   const [collapsed, setCollapsed] = useState(false);
   const bodyId = useId();
@@ -315,7 +388,7 @@ function OriginalPanel(props: MackAppProps) {
   useEffect(() => setCollapsed(false), [state.instruction, state.error, state.clarificationOptions]);
 
   return (
-    <aside className="mack-panel" data-dock={dock} data-collapsed={collapsed || undefined} aria-label="Mack guide">
+    <Card className="mack-panel" data-dock={dock} data-collapsed={collapsed || undefined} role="complementary" aria-label="Mack guide">
       <header className="mack-panel-header">
         <IconButton icon={ArrowLeft} label="Previous page" onClick={onPreviousPage} />
         <div className="mack-heading">
@@ -339,19 +412,20 @@ function OriginalPanel(props: MackAppProps) {
           <Guidance {...props} />
           <RequestBar {...props} compact />
           <footer className="mack-panel-footer">
-            <button
+            <ThemeToggle mode={mode} onToggle={onToggleMode} />
+            <Button
               type="button"
-              className="mack-btn"
+              variant="outline"
+              className={cn(CONTROL, "border-2")}
               onClick={() => setDock(nextDock)}
               aria-label={`Move this panel to the ${nextDock.replace("-", " ")}`}
-              title={`Move this panel to the ${nextDock.replace("-", " ")}`}
             >
               Move panel
-            </button>
+            </Button>
           </footer>
         </div>
       )}
-    </aside>
+    </Card>
   );
 }
 
@@ -374,7 +448,7 @@ function Guidance(props: LensAppProps) {
           <ul>
             {state.clarificationOptions.map((option) => (
               <li key={option}>
-                <button type="button" className="mack-btn" onClick={() => onRequest(option)}>{option}</button>
+                <Button type="button" variant="outline" className={cn(CONTROL, "border-2")} onClick={() => onRequest(option)}>{option}</Button>
               </li>
             ))}
           </ul>
@@ -389,7 +463,7 @@ function ErrorBanner(props: { error: NonNullable<LensUIState["error"]>; onRetry(
     <div className="mack-error" role="alert">
       <p>{props.error.message}</p>
       {props.error.retryable && (
-        <button type="button" className="mack-btn" onClick={props.onRetry}>Try again</button>
+        <Button type="button" variant="outline" className={cn(CONTROL, "border-2")} onClick={props.onRetry}>Try again</Button>
       )}
     </div>
   );
@@ -418,32 +492,33 @@ function RequestBar(props: LensAppProps & { compact?: boolean }) {
     <form className="mack-request" onSubmit={submit}>
       <label htmlFor={inputId}>{props.compact ? "Ask Mack" : "What do you want to do?"}</label>
       <div className="mack-request-row">
-        <input
+        <Input
           id={inputId}
-          className="mack-input"
           type="text"
           autoComplete="off"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="Type or press Speak"
+          className={cn(FIELD, "flex-[1_1_240px]")}
         />
-        <button type="submit" className="mack-btn mack-btn--primary" disabled={!draft.trim()}>Send</button>
+        <Button type="submit" className="h-14 rounded-xl px-6 text-[20px] font-bold" disabled={!draft.trim()}>Send</Button>
       </div>
       <div className="mack-request-row">
-        <button
+        <Button
           type="button"
-          className="mack-btn"
+          variant={listening ? "destructive" : "outline"}
+          className={cn(CONTROL, !listening && "border-2")}
           aria-pressed={listening}
           disabled={state.voiceState === "processing"}
           onClick={listening ? onMicStop : onMicStart}
         >
-          <Mic size={22} strokeWidth={2.4} aria-hidden="true" />
+          <Mic strokeWidth={2.4} aria-hidden="true" />
           {listening ? "Stop" : "Speak"}
-        </button>
-        <button type="button" className="mack-btn" onClick={onReplay} disabled={!state.instruction}>
-          <RotateCcw size={22} strokeWidth={2.4} aria-hidden="true" />
+        </Button>
+        <Button type="button" variant="outline" className={cn(CONTROL, "border-2")} onClick={onReplay} disabled={!state.instruction}>
+          <RotateCcw strokeWidth={2.4} aria-hidden="true" />
           Repeat instruction
-        </button>
+        </Button>
       </div>
     </form>
   );
