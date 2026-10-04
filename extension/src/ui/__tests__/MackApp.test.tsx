@@ -207,6 +207,17 @@ describe("MackApp", () => {
     expect(root.style.getPropertyValue("--accent")).not.toBe("#ffd000");
   });
 
+  it("shows the site's own logo on its background color, falling back to its name if the image fails", () => {
+    const siteLogo = { src: "https://example.com/logo.png", alt: "Liberty Mutual Insurance", background: "#ffd000" };
+    setup({ ...uiFixtures.manyGrouped, siteLogo });
+    const img = screen.getByRole("img", { name: "Liberty Mutual Insurance" });
+    expect(img.closest<HTMLElement>(".mack-logo")!.style.background).toMatch(/255, 208, 0|#ffd000/i);
+    screen.getByText("Simplified by Mack");
+    fireEvent.error(img);
+    expect(screen.queryByRole("img", { name: "Liberty Mutual Insurance" })).toBeNull();
+    screen.getByText("Liberty Mutual Insurance");
+  });
+
   it("uses native buttons so every control is keyboard reachable", () => {
     setup(uiFixtures.withAddition);
     const controls = document.querySelectorAll("button, input");
