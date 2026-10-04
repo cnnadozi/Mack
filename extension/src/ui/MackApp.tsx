@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from "react";
-import { ArrowLeft, ArrowRight, ChevronDown, ChevronRight, ChevronUp, Maximize2, Mic, RotateCcw, Sparkles, X, type LucideIcon } from "lucide-react";
-import type { LensAppProps, LensUIState, ScreenSection, SiteLogo, TaskButton, VoiceState } from "../../../shared/contracts";
+import { ArrowLeft, ArrowRight, ChevronDown, ChevronRight, ChevronUp, Maximize2, Mic, RotateCcw, Search, Sparkles, X, type LucideIcon } from "lucide-react";
+import type { LensAppProps, LensUIState, ScreenSection, SiteLogo, SiteSearch, TaskButton, VoiceState } from "../../../shared/contracts";
 import { isMoreSection } from "./design/validate";
 import { taskIcon } from "./taskIcon";
 import { themeStyle } from "./theme";
@@ -127,6 +127,8 @@ function SimplifiedView(props: MackAppProps) {
 
         <Guidance {...props} />
 
+        {screen.search && <SearchBox search={screen.search} disabled={state.busy} onSearch={props.onSearch} key={screen.snapshotVersion} />}
+
         <div ref={gridRef} className="mack-tasks" key={screen.snapshotVersion}>
           {mainSections.map((section, index) => (
             <SectionView
@@ -170,6 +172,40 @@ function SimplifiedView(props: MackAppProps) {
         <RequestBar {...props} />
       </div>
     </section>
+  );
+}
+
+// The site's own search, front and centre when searching is what people come to do (e.g. a store).
+function SearchBox(props: { search: SiteSearch; disabled: boolean; onSearch(actionId: string, text: string): void }) {
+  const { search, disabled, onSearch } = props;
+  const inputId = useId();
+  const [text, setText] = useState("");
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (text.trim()) onSearch(search.actionId, text.trim());
+  };
+  return (
+    <form className="mack-search" role="search" onSubmit={submit}>
+      <label htmlFor={inputId}>{search.label}</label>
+      <div className="mack-search-row">
+        <span className="mack-search-field">
+          <Search className="mack-search-icon" size={26} strokeWidth={2.4} aria-hidden="true" />
+          <input
+            id={inputId}
+            className="mack-input"
+            type="search"
+            autoComplete="off"
+            enterKeyHint="search"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Type what you are looking for"
+          />
+        </span>
+        <button type="submit" className="mack-btn mack-btn--primary mack-search-go" disabled={disabled || !text.trim()}>
+          Search
+        </button>
+      </div>
+    </form>
   );
 }
 

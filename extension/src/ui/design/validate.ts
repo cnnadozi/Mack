@@ -1,3 +1,4 @@
+import { SITE_SEARCH_PREFIX } from "../../../../shared/contracts";
 import type {
   DesignProposal,
   LensError,
@@ -46,6 +47,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function duplicateKey(action: SourceAction): string | undefined {
   // Distinct ids pointing at the same destination (header, menu and footer copies) are one task.
   return action.href || undefined;
+}
+
+// A search box is only offered for a real site-search field from this snapshot; anything else is dropped.
+function groundSearch(raw: unknown, byId: Map<string, SourceAction>): ScreenDesign["search"] {
+  if (!isRecord(raw) || typeof raw.actionId !== "string") return undefined;
+  const field = byId.get(raw.actionId);
+  if (!field || field.disabled || field.kind !== "field" || !field.context.startsWith(SITE_SEARCH_PREFIX)) return undefined;
+  return { actionId: field.id, label: cleanText(raw.label, 40) || "Search this site" };
 }
 
 /**
@@ -107,6 +116,7 @@ export function groundDesign(raw: unknown, snapshot: PageSnapshot, stamp: Stamp)
 
   // Something must always be visible without expanding.
   if (!sections.some((section) => !isMoreSection(section))) sections[0] = { ...sections[0], id: `main-${sections[0].id.split("-")[1]}` };
-  const design: ScreenDesign = { title, mode: "simplified", sections };
+  const search = groundSearch(raw.search, byId);
+  const design: ScreenDesign = { title, mode: "simplified", sections, ...(search ? { search } : {}) };
   return { stamp, status: "ready", design };
 }
