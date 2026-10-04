@@ -36,33 +36,33 @@ colors:
   dark-highlight-fill: "#4a3d00"
 typography:
   display:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+    fontFamily: "\"Mack Atkinson Hyperlegible\", ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
     fontSize: "32px"
     fontWeight: 800
     lineHeight: 1.12
     letterSpacing: "-0.01em"
   headline:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+    fontFamily: "\"Mack Atkinson Hyperlegible\", ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
     fontSize: "28px"
     fontWeight: 700
     lineHeight: 1.25
   instruction:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+    fontFamily: "\"Mack Atkinson Hyperlegible\", ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
     fontSize: "25px"
     fontWeight: 700
     lineHeight: 1.3
   title:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+    fontFamily: "\"Mack Atkinson Hyperlegible\", ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
     fontSize: "24px"
     fontWeight: 600
     lineHeight: 1.25
   tab:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+    fontFamily: "\"Mack Atkinson Hyperlegible\", ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
     fontSize: "22px"
     fontWeight: 750
     lineHeight: 1.25
   body:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+    fontFamily: "\"Mack Atkinson Hyperlegible\", ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
     fontSize: "20px"
     fontWeight: 400
     lineHeight: 1.4
@@ -215,10 +215,10 @@ The ramp, light to dark: **Card Stock** (`card-stock`, cards, request bar, field
 
 ## Typography
 
-**Display Font:** platform system sans (`ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`)
-**Body Font:** the same stack
+**Display Font:** Atkinson Hyperlegible Next (Braille Institute, SIL OFL), bundled as variable latin and latin-ext woff2 files in `extension/public/fonts/` and registered by `extension/src/ui/font.ts` as "Mack Atkinson Hyperlegible"
+**Body Font:** the same family
 
-**Character:** One family, carried entirely by size and heavy weights (600 to 800) so labels read at a glance for users with weaker eyesight. The face is currently the platform default; a bundled, more legible face (Atkinson Hyperlegible Next is proposed) is an open item awaiting the user's permission, not a decision.
+**Character:** One family, designed for low-vision readers (I, l and 1, 0 and O, rn and m all differ), carried by size and heavy weights (600 to 800) so labels read at a glance. Shadow roots ignore `@font-face`, so the face is added to the page's font set from bytes (not a URL, so a site's Content-Security-Policy cannot block it). Scripts it does not cover (Chinese, Japanese, Korean, Hindi, Arabic) fall back to the platform system sans, which also shows until the face has loaded.
 
 ### Hierarchy
 - **Display** (800, 32px, 1.12, -0.01em; 26px at 560px and below; 21px in the guide panel): the page title on the lid, balanced wrapping.

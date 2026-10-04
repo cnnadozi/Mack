@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { MackApp, type MackAppProps } from "./MackApp";
+import { loadMackFont } from "./font";
 import { MACK_STYLES } from "./styles";
 // The compiled Tailwind and shadcn styles as text, because they go into a shadow root.
 import tailwind from "./styles.css?inline";
@@ -60,6 +61,7 @@ export function mountMackApp(parent: HTMLElement = document.documentElement): Ma
   const container = document.createElement("div");
   shadow.append(style, container);
   parent.append(host);
+  void loadMackFont();
 
   const root = createRoot(container);
   return {

@@ -100,6 +100,7 @@ One extension, built by Vite, with four parts that talk through `chrome.runtime`
 - [`docs/CONTEXT.md`](docs/CONTEXT.md): the full combined context, including the shared contract
 - `docs/role-*.md`: one file per role
 - [`AGENTS.md`](AGENTS.md): rules for AI coding agents working in this repo
+- [`PRODUCT.md`](PRODUCT.md) and [`DESIGN.md`](DESIGN.md): the product brief and the simple view's design system, kept for the Impeccable design skill. To use the skill in Claude Code, run `npx impeccable install` in the repo root (its files stay local and are not committed).
 
 ## Status
 

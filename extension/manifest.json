@@ -32,7 +32,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["icons/icon48.png"],
+      "resources": ["icons/icon48.png", "fonts/*.woff2"],
       "matches": ["<all_urls>"]
     }
   ]

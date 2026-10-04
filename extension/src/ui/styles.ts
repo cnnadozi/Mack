@@ -33,7 +33,8 @@ export const MACK_STYLES = `
   --highlight-fill: #fff3a3;
   /* Index-card corners, not app tiles. */
   --radius: 5px;
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Scripts it does not cover (Chinese, Japanese, Korean, Hindi, Arabic) fall back to the system face. */
+  font-family: "Mack Atkinson Hyperlegible", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 20px;
   line-height: 1.4;
   color: var(--ink);
