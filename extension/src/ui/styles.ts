@@ -165,6 +165,22 @@ export const MACK_STYLES = `
 .mack-choices h2 { margin: 0; font-size: 20px; }
 .mack-choices ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 
+/* Site search */
+.mack-search {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 18px 20px;
+  background: var(--paper);
+  border: 2px solid var(--accent-line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.mack-search label { font-size: 22px; font-weight: 750; }
+.mack-search-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.mack-search-field { position: relative; flex: 1 1 260px; display: flex; }
+.mack-search-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--accent); pointer-events: none; }
+.mack-search .mack-input { min-height: 64px; padding-left: 54px; font-size: 24px; width: 100%; }
+.mack-search-go { min-height: 64px; padding: 8px 28px; font-size: 22px; font-weight: 750; }
+
 /* Task hierarchy: primary > card > row */
 .mack-tasks { display: flex; flex-direction: column; gap: 28px; }
 .mack-section { display: flex; flex-direction: column; gap: 12px; }

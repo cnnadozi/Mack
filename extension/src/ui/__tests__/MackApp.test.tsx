@@ -11,6 +11,7 @@ function setup(state: LensUIState) {
     state,
     onAction: vi.fn(),
     onRequest: vi.fn(),
+    onSearch: vi.fn(),
     onMicStart: vi.fn(),
     onMicStop: vi.fn(),
     onReplay: vi.fn(),
@@ -222,6 +223,22 @@ describe("MackApp", () => {
     setup({ ...uiFixtures.manyGrouped, siteLogo: { src: "https://example.com/touch.png", alt: "Example Library", background: "#ffffff", kind: "icon" } });
     screen.getByText("Example Library");
     expect(document.querySelector(".mack-logo img")!.getAttribute("alt")).toBe("");
+  });
+
+  it("offers the site's own search and sends the query with its field id", () => {
+    const { props } = setup({ ...uiFixtures.manyGrouped, screen: { ...uiFixtures.manyGrouped.screen, search: { actionId: "a6", label: "Search Costco" } } });
+    const box = screen.getByRole("search");
+    const input = within(box).getByLabelText("Search Costco");
+    const go = within(box).getByRole("button", { name: "Search" });
+    expect((go as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(input, { target: { value: "  paper towels " } });
+    fireEvent.submit(box);
+    expect(props.onSearch).toHaveBeenCalledWith("a6", "paper towels");
+  });
+
+  it("shows no search box when the design has none", () => {
+    setup(uiFixtures.manyGrouped);
+    expect(screen.queryByRole("search")).toBeNull();
   });
 
   it("uses native buttons so every control is keyboard reachable", () => {

@@ -45,6 +45,22 @@ describe("groundDesign", () => {
     expect(isMoreSection({ id: "request", buttons: [] })).toBe(false);
   });
 
+  it("keeps a search box only when it points at a real site-search field", () => {
+    const actions = [
+      ...fixtureSnapshot.actions,
+      { id: "q", label: "Search warehouse", kind: "field" as const, context: "site search; search field; header", disabled: false },
+      { id: "zip", label: "ZIP code", kind: "field" as const, context: "text field; Find a warehouse", disabled: false },
+    ];
+    const snapshot = { ...fixtureSnapshot, actions };
+    const withSearch = (search: unknown) => groundDesign({ ...fixtureModelDesign, search }, snapshot, stamp).design.search;
+    expect(withSearch({ actionId: "q", label: "  Search Costco  " })).toEqual({ actionId: "q", label: "Search Costco" });
+    expect(withSearch({ actionId: "q", label: "" })).toEqual({ actionId: "q", label: "Search this site" });
+    expect(withSearch({ actionId: "zip", label: "Search" })).toBeUndefined();
+    expect(withSearch({ actionId: "a1", label: "Search" })).toBeUndefined();
+    expect(withSearch({ actionId: "nope", label: "Search" })).toBeUndefined();
+    expect(withSearch(undefined)).toBeUndefined();
+  });
+
   it("treats every copy of one destination as a single task", () => {
     const actions = [
       { id: "v", label: "Find a doctor", kind: "navigate" as const, context: "main", disabled: false, href: "https://e.org/find" },
