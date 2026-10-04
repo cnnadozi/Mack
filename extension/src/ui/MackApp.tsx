@@ -42,12 +42,16 @@ function Brand({ logo }: { logo?: SiteLogo }) {
   return (
     <p className="mack-brand">
       {logo && (
-        <span className="mack-logo" style={{ background: logo.background }}>
-          {failed ? (
-            <span className="mack-logo-text">{logo.alt}</span>
-          ) : (
-            <img src={logo.src} alt={logo.alt} onError={() => setFailed(true)} />
+        <span className="mack-logo" data-kind={logo.kind ?? "logo"} style={{ background: logo.background }}>
+          {!failed && (
+            <img
+              src={logo.src}
+              alt={logo.kind === "icon" ? "" : logo.alt}
+              onError={() => setFailed(true)}
+            />
           )}
+          {/* A bare site icon or a broken image does not say which site this is, so the name is written out. */}
+          {(failed || logo.kind === "icon") && <span className="mack-logo-text">{logo.alt}</span>}
         </span>
       )}
       <span className="mack-brand-mack">
