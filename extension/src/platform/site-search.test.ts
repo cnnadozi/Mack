@@ -133,6 +133,8 @@ describe("Mack's voice on the simple view", () => {
     const h = setup();
     await h.ready();
     const { screen } = h.platform.getState();
+    // Shown in place of a logo the site does not have.
+    expect(h.platform.getState().siteName).toBeTruthy();
     const claims = screen.sections[0].buttons[0].actionId;
     const hidden = h.platform.getExtraction().snapshot.actions.find((a) => a.label === "Other")!.id;
 

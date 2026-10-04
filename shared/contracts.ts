@@ -110,6 +110,7 @@ export type LensUIState = {
   clarificationOptions?: string[];
   accentColor?: string; // "#rrggbb" brand color of the source site; the UI adjusts it for contrast
   siteLogo?: SiteLogo;
+  siteName?: string; // the source site's own name, shown in place of a logo the site does not have
 };
 // The source site's own logo, as an https image or an inert SVG data URL, with the color it sits on.
 // kind "icon" is a small square site icon (no wordmark), so the UI shows the site name beside it.
@@ -174,6 +175,7 @@ export const LensUIStateSchema = z.object({
   clarificationOptions: z.array(text).optional(),
   accentColor: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
   siteLogo: z.lazy(() => SiteLogoSchema).optional(),
+  siteName: z.string().max(160).optional(),
 }).strict();
 export const SiteLogoSchema = z.object({
   src: z.string().max(200_000).regex(/^(https:\/\/|data:image\/(svg\+xml|png|jpeg|webp|gif)[;,])/),

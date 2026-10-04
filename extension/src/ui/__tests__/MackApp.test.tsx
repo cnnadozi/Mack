@@ -221,6 +221,12 @@ describe("MackApp", () => {
     screen.getByText("Liberty Mutual Insurance");
   });
 
+  it("writes the store's name when the site has no logo, and never a Mack label", () => {
+    setup({ ...uiFixtures.manyGrouped, siteName: "Costco" });
+    screen.getByText("Costco");
+    expect(screen.queryByText(/^Mack$|Simplified by/i)).toBeNull();
+  });
+
   it("writes the site name beside a bare site icon", () => {
     setup({ ...uiFixtures.manyGrouped, siteLogo: { src: "https://example.com/touch.png", alt: "Example Library", background: "#ffffff", kind: "icon" } });
     screen.getByText("Example Library");

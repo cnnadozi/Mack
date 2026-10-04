@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import {
-  ArrowLeft, ArrowRight, ChevronDown, ChevronRight, ChevronUp, Maximize2, Mic, Moon, RotateCcw, Search, Sparkles, Sun, X,
+  ArrowLeft, ArrowRight, ChevronDown, ChevronRight, ChevronUp, Maximize2, Mic, Moon, RotateCcw, Search, Sun, X,
   type LucideIcon,
 } from "lucide-react";
 import type { LensAppProps, LensUIState, ScreenSection, SiteLogo, SiteSearch, TaskButton, VoiceState } from "../../../shared/contracts";
@@ -65,10 +65,11 @@ function ThemeToggle({ mode, onToggle }: { mode: ThemeMode; onToggle(): void }) 
   return <IconButton icon={mode === "dark" ? Sun : Moon} label={mode === "dark" ? t("lightMode") : t("darkMode")} onClick={onToggle} />;
 }
 
-// The site's own logo keeps users sure they are still on that site.
-function Brand({ logo }: { logo?: SiteLogo }) {
+// The site's own logo, or its name when it has none, keeps users sure they are still on that site.
+function Brand({ logo, name }: { logo?: SiteLogo; name?: string }) {
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [logo?.src]);
+  if (!logo && !name) return null;
   return (
     <p className="mack-brand">
       {logo && (
@@ -84,10 +85,9 @@ function Brand({ logo }: { logo?: SiteLogo }) {
           {(failed || logo.kind === "icon") && <span className="mack-logo-text">{logo.alt}</span>}
         </span>
       )}
-      {!logo && (
-        <span className="mack-brand-mack">
-          <Sparkles size={15} strokeWidth={2.4} aria-hidden="true" />
-          Mack
+      {!logo && name && (
+        <span className="mack-logo" data-kind="name">
+          <span className="mack-logo-text">{name}</span>
         </span>
       )}
     </p>
@@ -187,7 +187,7 @@ function SimplifiedView(props: ViewProps) {
         <Card className="mack-header">
           <IconButton icon={ArrowLeft} label={t("previousPage")} onClick={onPreviousPage} />
           <div className="mack-heading">
-            <Brand logo={state.siteLogo} />
+            <Brand logo={state.siteLogo} name={state.siteName} />
             <h1 className="mack-title">{screen.title}</h1>
           </div>
           <div className="mack-toolbar" role="toolbar" aria-label={t("controls")}>
@@ -421,7 +421,7 @@ function OriginalPanel(props: ViewProps) {
       <header className="mack-panel-header">
         <IconButton icon={ArrowLeft} label={t("previousPage")} onClick={onPreviousPage} />
         <div className="mack-heading">
-          <Brand logo={state.siteLogo} />
+          <Brand logo={state.siteLogo} name={state.siteName} />
           <h1 className="mack-title">{state.screen.title}</h1>
         </div>
         <div className="mack-panel-tools">

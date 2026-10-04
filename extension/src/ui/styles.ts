@@ -102,15 +102,12 @@ export const MACK_STYLES = `
 }
 .mack-heading { flex: 1 1 240px; min-width: 0; }
 .mack-brand { margin: 0 0 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.mack-brand-mack {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: 15px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase;
-  color: var(--brand);
-}
 .mack-logo { display: inline-flex; align-items: center; height: 44px; padding: 6px 12px; border-radius: 10px; border: 1px solid var(--line); }
 .mack-logo img { display: block; height: 100%; max-width: 200px; width: auto; object-fit: contain; }
 .mack-logo-text { font-size: 17px; font-weight: 800; color: #111827; }
 .mack-logo[data-kind="icon"] { gap: 8px; }
+.mack-logo[data-kind="name"] { height: auto; min-height: 44px; background: var(--paper); }
+.mack-logo[data-kind="name"] .mack-logo-text { color: var(--ink); }
 .mack-logo[data-kind="icon"] img { height: 28px; width: 28px; border-radius: 6px; }
 .mack-title { margin: 0; font-size: 30px; line-height: 1.15; font-weight: 800; overflow-wrap: anywhere; color: var(--ink); }
 .mack-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -275,7 +272,6 @@ export const MACK_STYLES = `
 .mack-panel-body { display: flex; flex-direction: column; gap: 12px; }
 .mack-panel .mack-title { font-size: 21px; }
 .mack-panel .mack-brand { margin-bottom: 4px; gap: 8px; }
-.mack-panel .mack-brand-mack { font-size: 12px; }
 .mack-panel .mack-logo { height: 34px; padding: 4px 8px; }
 .mack-panel .mack-logo img { max-width: 140px; }
 .mack-panel .mack-instruction { font-size: 21px; box-shadow: none; background: var(--brand-soft); }

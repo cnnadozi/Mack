@@ -3,7 +3,7 @@ import {
   type CommittedScreen, type GenerateScreen, type SiteLogo, type LensAppProps, type LensUIState, type ResolveIntent, type Stamp,
   type VoiceCallbacks, type VoiceController,
 } from "../../../shared/contracts";
-import { brandColor, deepLink, isSiteSearch, siteLogo, extractPage, isMack, liveTarget, sourceKind, type Extraction } from "./extractor";
+import { brandColor, deepLink, isSiteSearch, siteLogo, siteName, extractPage, isMack, liveTarget, sourceKind, type Extraction } from "./extractor";
 import { addPeekedLinks, hasPasswordField, peekCandidates, type Peek } from "./peek";
 import { translator } from "../ui/i18n-text";
 import { mergeGuidance } from "./state";
@@ -83,6 +83,7 @@ export function startPlatform(deps: Dependencies) {
   const readAccent = deps.brandColor ?? brandColor;
   const readLogo = deps.siteLogo ?? siteLogo;
   const withAccent = (accentColor: string | undefined) => (accentColor ? { accentColor } : {});
+  const withName = (name: string | undefined) => (name?.trim() ? { siteName: name.trim().slice(0, 160) } : {});
   const withLogo = (logo: SiteLogo | undefined) => (logo && SiteLogoSchema.safeParse(logo).success ? { siteLogo: logo } : {});
   // Branding is a nicety; a strange page must never stop Mack from loading.
   const safely = <T,>(read: () => T | undefined) => { try { return read(); } catch { return undefined; } };
@@ -210,6 +211,7 @@ export function startPlatform(deps: Dependencies) {
         instruction: "", transcript: state?.transcript ?? "", voiceState: voice ? "idle" : "error", busy: true,
         ...withAccent(safely(readAccent)),
         ...withLogo(safely(readLogo)),
+        ...withName(safely(siteName)),
       };
       render();
       const expected = designStamp = stamp();
