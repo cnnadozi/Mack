@@ -51,6 +51,7 @@ import {
 } from "../messages";
 import { createSimpleView, simpleViewState, subscribeSimpleView } from "./simple-view";
 import { followTheme, resolveTheme, type Theme } from "./theme";
+import { useTranslator, type MessageKey } from "../../ui/i18n";
 
 /** Where the user dragged the bar: its centre, and its distance from the bottom. */
 interface BarPosition {
@@ -64,14 +65,14 @@ const EDGE = 12;
 const NO_LINES: TranscriptLine[] = [];
 const NO_VOICES: VoiceOption[] = [];
 
-const STATE_TEXT: Record<SessionState, string> = {
-  idle: "",
-  ready: "Ready",
-  listening: "Listening",
-  hearing: "Hearing you",
-  thinking: "Thinking",
-  working: "Working",
-  speaking: "Speaking",
+const STATE_TEXT: Record<SessionState, MessageKey | undefined> = {
+  idle: undefined,
+  ready: "ready",
+  listening: "listening",
+  hearing: "hearing",
+  thinking: "thinking",
+  working: "working",
+  speaking: "speaking",
 };
 
 // The orb in the middle of the bar: its colour in each state, and how the sound
@@ -174,6 +175,9 @@ function IconButton(props: {
 // The round indicator in the middle of the bar. With push to talk on it is also
 // the talk button: Mack records while it is held.
 function Orb({ state, holdToTalk }: { state: SessionState; holdToTalk: boolean }) {
+  const { t } = useTranslator();
+  const stateKey = STATE_TEXT[state];
+  const stateText = stateKey ? t(stateKey) : "";
   const [recording, setRecording] = useState(false);
   const current = useRef(false);
   const record = (next: boolean): void => {
@@ -205,7 +209,7 @@ function Orb({ state, holdToTalk }: { state: SessionState; holdToTalk: boolean }
 
   if (!holdToTalk) {
     return (
-      <div className={look} role="img" aria-label={STATE_TEXT[state]} title={STATE_TEXT[state]}>
+      <div className={look} role="img" aria-label={stateText} title={stateText}>
         {inside}
       </div>
     );
@@ -215,8 +219,8 @@ function Orb({ state, holdToTalk }: { state: SessionState; holdToTalk: boolean }
     <Button
       type="button"
       className={cn(look, "touch-none p-0 select-none hover:brightness-110")}
-      aria-label="Hold to talk"
-      title="Hold to talk"
+      aria-label={t("holdToTalk")}
+      title={t("holdToTalk")}
       aria-pressed={recording}
       onPointerDown={(event: PointerEvent<HTMLButtonElement>) => {
         // Capture keeps the release coming here even if the pointer slides off the button.
@@ -241,6 +245,7 @@ function Orb({ state, holdToTalk }: { state: SessionState; holdToTalk: boolean }
 }
 
 function AskBox() {
+  const { t } = useTranslator();
   const [draft, setDraft] = useState("");
   const submit = (event: FormEvent): void => {
     event.preventDefault();
@@ -258,8 +263,8 @@ function AskBox() {
         type="text"
         autoComplete="off"
         className="h-10 flex-1 rounded-full border-0 px-4 text-[15px] shadow-none focus-visible:ring-0"
-        placeholder="Ask Mack, or tell it what to do"
-        aria-label="Type a question or a task for Mack"
+        placeholder={t("askPlaceholder")}
+        aria-label={t("askLabel")}
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
       />
@@ -267,8 +272,8 @@ function AskBox() {
         type="submit"
         size="icon"
         className="size-10 rounded-full"
-        aria-label="Send"
-        title="Send"
+        aria-label={t("send")}
+        title={t("send")}
       >
         <ArrowUp />
       </Button>
@@ -277,6 +282,7 @@ function AskBox() {
 }
 
 function SimpleViewButton() {
+  const { t } = useTranslator();
   const view = useSyncExternalStore(subscribeSimpleView, simpleViewState);
   return (
     <Button
@@ -286,8 +292,8 @@ function SimpleViewButton() {
       disabled={!view.available}
       title={
         view.available
-          ? "Turn this page into a few large buttons"
-          : "The simple view only works on https websites."
+          ? t("simpleViewHint")
+          : t("simpleViewHttpsOnly")
       }
       onClick={createSimpleView}
     >
@@ -298,7 +304,7 @@ function SimpleViewButton() {
       ) : (
         <LayoutGrid />
       )}
-      {view.creating ? "Creating…" : view.showing ? "Recreate" : "Simple view"}
+      {view.creating ? t("creating") : view.showing ? t("recreate") : t("simpleView")}
     </Button>
   );
 }
@@ -360,6 +366,7 @@ function Conversation({ session, lines }: { session: MackSession; lines: Transcr
 // Shown while Mack is carrying out a task: what it is doing right now, and a way
 // to stop it. The glowing frame around the page is drawn by Panel.
 function WorkingNote({ lines }: { lines: TranscriptLine[] }) {
+  const { t } = useTranslator();
   // The steps of the current task are the step lines after the user's last words.
   const lastAsk = lines.map((line) => line.speaker).lastIndexOf("user");
   const steps = lines.slice(lastAsk + 1).filter((line) => line.step);
@@ -384,7 +391,7 @@ function WorkingNote({ lines }: { lines: TranscriptLine[] }) {
         onClick={() => send({ type: "mack:halt" })}
       >
         <Square className="size-3 fill-current" />
-        Stop
+        {t("stop")}
       </Button>
     </div>
   );
@@ -416,6 +423,7 @@ function SettingSwitch(props: {
 }
 
 function Settings() {
+  const { t } = useTranslator();
   const [pushToTalk, setPushToTalk] = useStored<boolean>(STORAGE.pushToTalk, false);
   const [textInput, setTextInput] = useStored<boolean>(STORAGE.textInput, false);
   const [voice, setVoice] = useStored<string>(STORAGE.voice, "");
@@ -426,18 +434,18 @@ function Settings() {
   return (
     <Card
       className="w-[min(320px,calc(100vw-24px))] gap-4 p-4 shadow-lg"
-      aria-label="Mack settings"
+      aria-label={t("settingsTitle")}
     >
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={voiceId} className="text-sm">
-          Mack's voice
+          {t("macksVoice")}
         </Label>
         <NativeSelect
           id={voiceId}
           value={voices.some((option) => option.id === voice) ? voice : ""}
           onChange={(event) => setVoice(event.target.value)}
         >
-          <option value="">Default voice</option>
+          <option value="">{t("defaultVoice")}</option>
           {voices.map((option) => (
             <option key={option.id} value={option.id}>
               {option.description ? `${option.name} (${option.description})` : option.name}
@@ -447,7 +455,7 @@ function Settings() {
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={languageId} className="text-sm">
-          Language
+          {t("language")}
         </Label>
         <NativeSelect
           id={languageId}
@@ -461,18 +469,18 @@ function Settings() {
           ))}
         </NativeSelect>
         <span className="text-xs text-muted-foreground">
-          For Mack's answers and the simple view.
+          {t("languageHint")}
         </span>
       </div>
       <SettingSwitch
-        label="Push to talk"
-        hint="Mack only listens while you hold the round button."
+        label={t("pushToTalk")}
+        hint={t("pushToTalkHint")}
         checked={pushToTalk}
         onChange={setPushToTalk}
       />
       <SettingSwitch
-        label="Text input"
-        hint="Type to Mack instead of talking."
+        label={t("textInput")}
+        hint={t("textInputHint")}
         checked={textInput}
         onChange={setTextInput}
       />
@@ -488,6 +496,7 @@ function clamp(position: BarPosition): BarPosition {
 }
 
 export function Panel() {
+  const { t, dir, lang } = useTranslator();
   const [session] = useStored<MackSession>(STORAGE.session, IDLE_SESSION);
   const [transcript] = useStored<TranscriptLine[]>(STORAGE.transcript, NO_LINES);
   const [pushToTalk] = useStored<boolean>(STORAGE.pushToTalk, false);
@@ -565,6 +574,8 @@ export function Panel() {
         />
       )}
       <div
+        dir={dir}
+        lang={lang}
         className="pointer-events-none fixed z-[2147483647] flex -translate-x-1/2 flex-col items-center gap-2 font-sans text-sm text-foreground antialiased"
         style={place}
         onKeyDown={keepFromPage}
@@ -605,7 +616,7 @@ export function Panel() {
               <div className="flex items-center gap-1.5">
                 <div
                   className="flex shrink-0 cursor-grab touch-none items-center px-2 select-none active:cursor-grabbing"
-                  title="Drag to move. Double-click to put it back."
+                  title={t("dragHint")}
                   onPointerDown={startDrag}
                   onDoubleClick={() => setStored(null)}
                 >
@@ -623,16 +634,16 @@ export function Panel() {
 
               <div className="flex items-center justify-end">
                 <span role="status" className="sr-only">
-                  {STATE_TEXT[session.state]}
+                  {STATE_TEXT[session.state] ? t(STATE_TEXT[session.state]!) : ""}
                 </span>
                 <IconButton
-                  label={dark ? "Switch to light mode" : "Switch to dark mode"}
+                  label={dark ? t("lightMode") : t("darkMode")}
                   onClick={() => setTheme(dark ? "light" : "dark")}
                 >
                   {dark ? <Sun /> : <Moon />}
                 </IconButton>
                 <IconButton
-                  label={chatHidden ? "Show conversation" : "Hide conversation"}
+                  label={chatHidden ? t("showConversation") : t("hideConversation")}
                   pressed={!chatHidden && !settingsOpen}
                   onClick={() => {
                     // From the settings, this goes back to the conversation.
@@ -643,13 +654,13 @@ export function Panel() {
                   <MessageSquare />
                 </IconButton>
                 <IconButton
-                  label="Settings"
+                  label={t("settings")}
                   pressed={settingsOpen}
                   onClick={() => setSettingsOpen(!settingsOpen)}
                 >
                   <Settings2 />
                 </IconButton>
-                <IconButton label="Turn Mack off" onClick={() => send({ type: "mack:stop" })}>
+                <IconButton label={t("turnOff")} onClick={() => send({ type: "mack:stop" })}>
                   <X />
                 </IconButton>
               </div>

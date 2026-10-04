@@ -51,6 +51,7 @@ import type { MackAppProps } from "./MackApp";
 import { SiteLogoView, SiteSearchBox } from "./site";
 import { taskIcon } from "./taskIcon";
 import { paletteFor } from "./theme";
+import { useTranslator } from "./i18n";
 
 const ICONS: Record<IconName, LucideIcon> = {
   search: Search,
@@ -119,6 +120,7 @@ function ActionCard(props: {
   badgeId: string;
   onAction(id: string): void;
 }) {
+  const { t } = useTranslator();
   const { button, detail, highlighted, badgeId } = props;
   // The model's pick, else a guess from the label.
   const Icon = detail?.icon ? ICONS[detail.icon] : taskIcon(button.label);
@@ -173,7 +175,7 @@ function ActionCard(props: {
           className="px-2.5 py-1 text-sm forced-colors:border-2 forced-colors:border-[CanvasText]"
           id={badgeId}
         >
-          Next step
+          {t("nextStep")}
         </Badge>
       ) : (
         <ChevronRight className="size-5 shrink-0 opacity-40" />
@@ -226,6 +228,7 @@ function SectionCards(props: {
 }
 
 export function RichView(props: MackAppProps & { details: ScreenDetails; guidance: ReactNode }) {
+  const { t, dir, lang } = useTranslator();
   const { state, details, onAction, onSearch, onPreviousPage, onShowOriginal, onExit } = props;
   const { screen, highlightedActionId } = state;
   const { site } = details;
@@ -257,7 +260,9 @@ export function RichView(props: MackAppProps & { details: ScreenDetails; guidanc
         "mack-overlay fixed inset-0 overflow-y-auto overscroll-contain bg-muted",
         LAYER,
       )}
-      aria-label="Mack simplified view"
+      aria-label={t("simplifiedView")}
+      dir={dir}
+      lang={lang}
     >
       <div className="mx-auto flex min-h-full max-w-[1040px] flex-col gap-6 px-4 pt-4 pb-40">
         <header className="flex flex-wrap items-center gap-3">
@@ -266,8 +271,8 @@ export function RichView(props: MackAppProps & { details: ScreenDetails; guidanc
             variant="outline"
             size="icon"
             className="size-11 rounded-xl bg-card [&_svg:not([class*='size-'])]:size-5"
-            aria-label="Previous page"
-            title="Previous page"
+            aria-label={t("previousPage")}
+            title={t("previousPage")}
             onClick={onPreviousPage}
           >
             <ArrowLeft />
@@ -279,14 +284,14 @@ export function RichView(props: MackAppProps & { details: ScreenDetails; guidanc
               <span className="truncate text-lg font-semibold">{site?.name}</span>
             )}
           </div>
-          <div className="flex flex-wrap gap-2" role="toolbar" aria-label="Mack controls">
+          <div className="flex flex-wrap gap-2" role="toolbar" aria-label={t("controls")}>
             <Button
               type="button"
               variant="outline"
               className="h-11 bg-card px-4 text-base"
               onClick={onShowOriginal}
             >
-              Original page
+              {t("originalPage")}
             </Button>
             <Button
               type="button"
@@ -294,7 +299,7 @@ export function RichView(props: MackAppProps & { details: ScreenDetails; guidanc
               className="h-11 bg-card px-4 text-base"
               onClick={onExit}
             >
-              Exit Mack
+              {t("exitMack")}
             </Button>
           </div>
         </header>
@@ -374,8 +379,7 @@ export function RichView(props: MackAppProps & { details: ScreenDetails; guidanc
           )}
           {buttonCount === 0 && !state.busy && (
             <p className="m-0 text-xl text-muted-foreground">
-              No simple actions are ready for this page yet. You can ask Mack or open the original
-              page.
+              {t("noActions")}
             </p>
           )}
         </div>

@@ -8,6 +8,7 @@ import type { SiteLogo, SiteSearch } from "../../../shared/contracts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useTranslator } from "./i18n";
 
 /** The site's logo on the colour it normally sits on, or its name if the image fails. */
 export function SiteLogoView({ logo, className }: { logo: SiteLogo; className?: string }) {
@@ -41,6 +42,7 @@ export function SiteSearchBox(props: {
   onSearch(actionId: string, text: string): void;
   className?: string;
 }) {
+  const { t } = useTranslator();
   const inputId = useId();
   const [draft, setDraft] = useState("");
   const submit = (event: FormEvent): void => {
@@ -69,7 +71,7 @@ export function SiteSearchBox(props: {
         disabled={!draft.trim()}
       >
         <Search />
-        Search
+        {t("search")}
       </Button>
     </form>
   );

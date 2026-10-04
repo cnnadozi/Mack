@@ -95,7 +95,10 @@ describe("Mack's bar", () => {
     ]);
     fireEvent.change(screen.getByLabelText("Language"), { target: { value: "Spanish" } });
     expect(stored[STORAGE.language]).toBe("Spanish");
-    await act(async () => void fireEvent.click(screen.getByLabelText("Push to talk")));
+    // Mack's own words follow the chosen language right away.
+    await screen.findByText("Idioma");
+    screen.getByText("Voz de Mack");
+    await act(async () => void fireEvent.click(screen.getByLabelText("Pulsar para hablar")));
     expect(stored[STORAGE.pushToTalk]).toBe(true);
   });
 

@@ -38,6 +38,7 @@ import type { ScreenDetails } from "./details";
 import { RichView } from "./RichView";
 import { SiteLogoView, SiteSearchBox } from "./site";
 import { paletteFor } from "./theme";
+import { useTranslator, type MessageKey } from "./i18n";
 
 export type MackAppProps = LensAppProps & {
   /**
@@ -64,12 +65,12 @@ const DOCK_CLASS: Record<Dock, string> = {
 // Just under the extension's own panel, which must stay on top of the simple view.
 const LAYER = "z-[2147483646]";
 
-const VOICE_STATUS: Record<VoiceState, string> = {
-  idle: "",
-  listening: "Listening… press Stop when you are done.",
-  processing: "Working on what you said…",
-  speaking: "Speaking…",
-  error: "The microphone is not available. You can type instead.",
+const VOICE_STATUS: Record<VoiceState, MessageKey | undefined> = {
+  idle: undefined,
+  listening: "voiceListening",
+  processing: "voiceProcessing",
+  speaking: "voiceSpeaking",
+  error: "voiceError",
 };
 
 function IconButton(props: {
@@ -104,6 +105,7 @@ function prefersReducedMotion() {
 }
 
 export function MackApp(props: MackAppProps) {
+  const { dir, lang } = useTranslator();
   const { state, onRendered } = props;
   const { screenVersion } = state.screen;
   const lastAcked = useRef<string | undefined>(undefined);
@@ -123,6 +125,8 @@ export function MackApp(props: MackAppProps) {
       style={{ "--brand": paletteFor(state.accentColor).accent } as CSSProperties}
       data-mode={state.screen.mode}
       aria-busy={state.busy || undefined}
+      dir={dir}
+      lang={lang}
     >
       {state.screen.mode === "original" ? (
         original
@@ -136,6 +140,7 @@ export function MackApp(props: MackAppProps) {
 }
 
 function SimplifiedView(props: MackAppProps) {
+  const { t } = useTranslator();
   const { state, onAction, onSearch, onPreviousPage, onShowOriginal, onExit } = props;
   const { screen, highlightedActionId } = state;
   const badgeId = useId();
@@ -175,7 +180,7 @@ function SimplifiedView(props: MackAppProps) {
         "mack-overlay fixed inset-0 overflow-y-auto overscroll-contain bg-background",
         LAYER,
       )}
-      aria-label="Mack simplified view"
+      aria-label={t("simplifiedView")}
     >
       <div
         className={cn(
@@ -185,21 +190,21 @@ function SimplifiedView(props: MackAppProps) {
         )}
       >
         <header className="flex flex-wrap items-center justify-between gap-3">
-          <IconButton icon={<ArrowLeft />} label="Previous page" onClick={onPreviousPage} />
+          <IconButton icon={<ArrowLeft />} label={t("previousPage")} onClick={onPreviousPage} />
           <h1 className="m-0 min-w-0 flex-[1_1_200px] truncate text-xl leading-tight font-semibold">
             {screen.title}
           </h1>
-          <div className="flex flex-wrap gap-2" role="toolbar" aria-label="Mack controls">
+          <div className="flex flex-wrap gap-2" role="toolbar" aria-label={t("controls")}>
             <Button
               type="button"
               variant="outline"
               className="h-11 px-4 text-xl"
               onClick={onShowOriginal}
             >
-              Original page
+              {t("originalPage")}
             </Button>
             <Button type="button" variant="outline" className="h-11 px-4 text-xl" onClick={onExit}>
-              Exit Mack
+              {t("exitMack")}
             </Button>
           </div>
         </header>
@@ -207,7 +212,7 @@ function SimplifiedView(props: MackAppProps) {
         {state.siteLogo && (
           <div className="flex flex-wrap items-center gap-3">
             <SiteLogoView logo={state.siteLogo} />
-            <span className="text-sm text-muted-foreground">Simplified by Mack</span>
+            <span className="text-sm text-muted-foreground">{t("simplifiedBy")}</span>
           </div>
         )}
         {screen.search && <SiteSearchBox search={screen.search} onSearch={onSearch} />}
@@ -241,7 +246,7 @@ function SimplifiedView(props: MackAppProps) {
                     moreOpen && "rotate-90",
                   )}
                 />
-                {moreOpen ? "Fewer options" : `More options (${moreCount})`}
+                {moreOpen ? t("fewerOptions") : t("moreOptions", { n: moreCount })}
               </Button>
               {moreOpen && (
                 <div id={`${badgeId}-more`} className="flex flex-col gap-6">
@@ -261,8 +266,7 @@ function SimplifiedView(props: MackAppProps) {
           )}
           {buttonCount === 0 && !state.busy && (
             <p className="m-0 text-xl text-muted-foreground">
-              No simple actions are ready for this page yet. You can ask below or open the original
-              page.
+              {t("noActionsBelow")}
             </p>
           )}
         </div>
@@ -327,6 +331,7 @@ function TaskButtonView(props: {
   badgeId: string;
   onAction(id: string): void;
 }) {
+  const { t } = useTranslator();
   const { button, highlighted, variant, badgeId, onAction } = props;
   return (
     <Button
@@ -353,7 +358,7 @@ function TaskButtonView(props: {
           className="px-2.5 py-1 text-sm forced-colors:border-2 forced-colors:border-[CanvasText]"
           id={badgeId}
         >
-          Next step
+          {t("nextStep")}
         </Badge>
       )}
     </Button>
@@ -361,6 +366,7 @@ function TaskButtonView(props: {
 }
 
 function OriginalPanel(props: MackAppProps) {
+  const { t } = useTranslator();
   const { state, onBack, onPreviousPage, onExit } = props;
   const [dock, setDock] = useState<Dock>("bottom-right");
   const [collapsed, setCollapsed] = useState(false);
@@ -378,22 +384,22 @@ function OriginalPanel(props: MackAppProps) {
       className={cn("fixed w-[min(420px,calc(100vw-32px))]", LAYER, DOCK_CLASS[dock])}
       data-dock={dock}
       data-collapsed={collapsed || undefined}
-      aria-label="Mack guide"
+      aria-label={t("mackGuide")}
     >
       <Card className="max-h-[calc(100vh-32px)] gap-4 overflow-y-auto p-4 shadow-lg">
         <header className="flex items-center gap-2">
-          <IconButton icon={<ArrowLeft />} label="Previous page" onClick={onPreviousPage} />
+          <IconButton icon={<ArrowLeft />} label={t("previousPage")} onClick={onPreviousPage} />
           <h1 className="m-0 min-w-0 flex-1 truncate text-xl font-bold">{state.screen.title}</h1>
           <div className="flex gap-2">
             <IconButton
               icon={collapsed ? <ChevronUp /> : <ChevronDown />}
-              label={collapsed ? "Expand" : "Minimize"}
+              label={collapsed ? t("expand") : t("minimize")}
               expanded={!collapsed}
               controls={bodyId}
               onClick={() => setCollapsed(!collapsed)}
             />
-            <IconButton icon={<Maximize />} label="Full screen" onClick={onBack} />
-            <IconButton icon={<X />} label="Exit Mack" onClick={onExit} />
+            <IconButton icon={<Maximize />} label={t("fullScreen")} onClick={onBack} />
+            <IconButton icon={<X />} label={t("exitMack")} onClick={onExit} />
           </div>
         </header>
         {!collapsed && (
@@ -406,10 +412,10 @@ function OriginalPanel(props: MackAppProps) {
                 variant="ghost"
                 className="h-11 px-3 text-base"
                 onClick={() => setDock(nextDock)}
-                aria-label={`Move this panel to the ${nextDock.replace("-", " ")}`}
-                title={`Move this panel to the ${nextDock.replace("-", " ")}`}
+                aria-label={t("movePanelLabel")}
+                title={t("movePanelLabel")}
               >
-                Move panel
+                {t("movePanel")}
               </Button>
             </footer>
           </div>
@@ -422,6 +428,7 @@ function OriginalPanel(props: MackAppProps) {
 // What the embedded app shows over the original page: Mack's instruction for the
 // highlighted control, if there is one, and the way back to the simple view.
 function EmbeddedGuide(props: MackAppProps) {
+  const { t } = useTranslator();
   const { state, onBack } = props;
   const hasGuidance =
     state.busy || !!state.instruction || !!state.error || !!state.clarificationOptions?.length;
@@ -431,7 +438,7 @@ function EmbeddedGuide(props: MackAppProps) {
         "fixed top-4 right-4 flex w-[min(360px,calc(100vw-32px))] flex-col items-end gap-2",
         LAYER,
       )}
-      aria-label="Mack guide"
+      aria-label={t("mackGuide")}
     >
       <Button
         type="button"
@@ -440,7 +447,7 @@ function EmbeddedGuide(props: MackAppProps) {
         onClick={onBack}
       >
         <LayoutGrid />
-        Simple view
+        {t("simpleView")}
       </Button>
       {hasGuidance && (
         <Card className="w-full gap-3 p-4 shadow-lg">
@@ -452,9 +459,11 @@ function EmbeddedGuide(props: MackAppProps) {
 }
 
 function Guidance(props: MackAppProps) {
+  const { t } = useTranslator();
   const { state, onRetry, onRequest } = props;
   // The extension's panel already shows whether Mack is listening or speaking.
-  const voiceStatus = props.embedded ? "" : VOICE_STATUS[state.voiceState];
+  const statusKey = VOICE_STATUS[state.voiceState];
+  const voiceStatus = props.embedded || !statusKey ? "" : t(statusKey);
   return (
     <>
       <p className="m-0 text-xl font-medium empty:hidden" aria-live="polite" aria-atomic="true">
@@ -467,7 +476,7 @@ function Guidance(props: MackAppProps) {
               className="size-5 animate-spin motion-reduce:animate-none"
               aria-hidden="true"
             />
-            Working…
+            {t("busy")}
           </p>
         )}
         {voiceStatus && <p className="m-0 text-xl text-muted-foreground">{voiceStatus}</p>}
@@ -475,7 +484,7 @@ function Guidance(props: MackAppProps) {
       {state.error && <ErrorBanner error={state.error} onRetry={onRetry} />}
       {state.clarificationOptions && state.clarificationOptions.length > 0 && (
         <div className="flex flex-col gap-2">
-          <h2 className="m-0 text-xl font-semibold">Did you mean:</h2>
+          <h2 className="m-0 text-xl font-semibold">{t("didYouMean")}</h2>
           <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
             {state.clarificationOptions.map((option) => (
               <li key={option}>
@@ -497,6 +506,7 @@ function Guidance(props: MackAppProps) {
 }
 
 function ErrorBanner(props: { error: NonNullable<LensUIState["error"]>; onRetry(): void }) {
+  const { t } = useTranslator();
   return (
     <div
       className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-xl text-destructive"
@@ -510,7 +520,7 @@ function ErrorBanner(props: { error: NonNullable<LensUIState["error"]>; onRetry(
           className="h-11 px-4 text-xl text-foreground"
           onClick={props.onRetry}
         >
-          Try again
+          {t("tryAgain")}
         </Button>
       )}
     </div>
@@ -518,6 +528,7 @@ function ErrorBanner(props: { error: NonNullable<LensUIState["error"]>; onRetry(
 }
 
 function RequestBar(props: LensAppProps & { compact?: boolean }) {
+  const { t } = useTranslator();
   const { state, onRequest, onMicStart, onMicStop, onReplay } = props;
   const inputId = useId();
   const [draft, setDraft] = useState(state.transcript);
@@ -545,7 +556,7 @@ function RequestBar(props: LensAppProps & { compact?: boolean }) {
       onSubmit={submit}
     >
       <Label htmlFor={inputId} className="text-xl">
-        {props.compact ? "Ask Mack" : "What do you want to do?"}
+        {props.compact ? t("askMack") : t("whatToDo")}
       </Label>
       <div className="flex gap-2">
         <Input
@@ -555,10 +566,10 @@ function RequestBar(props: LensAppProps & { compact?: boolean }) {
           autoComplete="off"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Type or press Speak"
+          placeholder={t("typeOrSpeak")}
         />
         <Button type="submit" className="h-12 px-5 text-xl" disabled={!draft.trim()}>
-          Send
+          {t("send")}
         </Button>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -571,7 +582,7 @@ function RequestBar(props: LensAppProps & { compact?: boolean }) {
           onClick={listening ? onMicStop : onMicStart}
         >
           <Mic />
-          {listening ? "Stop" : "Speak"}
+          {listening ? t("stop") : t("speak")}
         </Button>
         <Button
           type="button"
@@ -581,7 +592,7 @@ function RequestBar(props: LensAppProps & { compact?: boolean }) {
           disabled={!state.instruction}
         >
           <RotateCcw />
-          Repeat instruction
+          {t("repeat")}
         </Button>
       </div>
     </form>
