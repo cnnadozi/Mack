@@ -15,6 +15,14 @@ describe("paletteFor", () => {
     }
   });
 
+  it("lightens brand colors in dark mode until they read on dark cards, with a readable button label", () => {
+    for (const brand of ["#002677", "#06748c", "#1a1446", "#ffd000", "#e32b31"]) {
+      const p = paletteFor(brand, "dark");
+      expect(contrast(p.accent, "#1a1d24")).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(p.onAccent, p.accent)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
   it("falls back to a readable default for missing or invalid colors", () => {
     for (const brand of [undefined, "", "red", "#12345"]) {
       expect(contrast(paletteFor(brand).accent, "#ffffff")).toBeGreaterThanOrEqual(4.5);

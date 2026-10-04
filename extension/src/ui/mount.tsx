@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { MackApp, type MackAppProps } from "./MackApp";
+import { MACK_STYLES } from "./styles";
 // The compiled Tailwind and shadcn styles as text, because they go into a shadow root.
 import tailwind from "./styles.css?inline";
 
@@ -54,7 +55,8 @@ export function mountMackApp(parent: HTMLElement = document.documentElement): Ma
   host.setAttribute("data-mack", "");
   const shadow = host.attachShadow({ mode: "open" });
   const style = document.createElement("style");
-  style.textContent = shadowStyleText();
+  // Mack's own layout and brand rules come after Tailwind/shadcn; they are unlayered, so they win.
+  style.textContent = shadowStyleText() + MACK_STYLES;
   const container = document.createElement("div");
   shadow.append(style, container);
   parent.append(host);

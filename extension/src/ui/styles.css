@@ -1,4 +1,15 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+/* dark: follows Mack's own setting (the .dark class or the host's data-theme), not the computer's. */
+@custom-variant dark {
+  &:where(.dark, .dark *) {
+    @slot;
+  }
+  :host([data-theme="dark"]) & {
+    @slot;
+  }
+}
 
 /* shadcn/ui theme tokens (new-york, neutral base). ":host" is for the simple view,
    which uses this stylesheet inside a shadow root on the website. */
