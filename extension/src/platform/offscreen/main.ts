@@ -327,30 +327,37 @@ function hold(held: boolean): void {
   status("hearing");
 }
 
-// Tap to talk: listen for one sentence and answer it once the user stops talking.
-// Pressed again before any speech, it stops listening instead.
+// Tap to talk: the first press records, and the recording ends by itself once the
+// user stops talking. A second press ends it at once. Either way it is answered.
 const LISTEN_GIVE_UP_MS = 8000;
+let tapRecording = false;
 let waitingForSpeech = false;
 let listenTimer = 0;
+function endTap(): void {
+  tapRecording = false;
+  waitingForSpeech = false;
+  window.clearTimeout(listenTimer);
+}
 function listenOnce(): void {
   if (!listener) return;
-  window.clearTimeout(listenTimer);
-  if (waitingForSpeech) {
-    waitingForSpeech = false;
-    rest();
+  if (tapRecording) {
+    debug("offscreen", "tap to talk: pressed again, answering what was said");
+    endTap();
+    listener.finishManual();
     return;
   }
   turnId += 1;
   resting = false;
   stopSpeech();
+  tapRecording = true;
   waitingForSpeech = true;
-  listener.resume();
+  listener.startManual({ endOnSilence: true });
   status("listening");
   listenTimer = window.setTimeout(() => {
-    if (!waitingForSpeech) return;
+    if (!tapRecording || !waitingForSpeech) return;
     debug("offscreen", "tap to talk: nothing was said, stopping");
-    waitingForSpeech = false;
-    rest();
+    endTap();
+    listener?.cancelManual();
   }, LISTEN_GIVE_UP_MS);
 }
 
@@ -367,14 +374,15 @@ async function openMicrophone(): Promise<string | undefined | typeof STOP> {
       onSpeechStart: () => {
         debug("offscreen", "mic: speech started");
         waitingForSpeech = false;
-        window.clearTimeout(listenTimer);
         status("hearing");
       },
       onDiscarded: () => {
         debug("offscreen", "mic: sound was too short to be speech, discarded");
+        endTap();
         rest();
       },
       onUtterance: (audio) => {
+        endTap();
         // Base64 is 4 characters per 3 bytes.
         debug(
           "offscreen",
@@ -473,8 +481,7 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage) => {
       break;
     case "mack:talk":
       debug("offscreen", message.held ? "talk key held" : "talk key released");
-      waitingForSpeech = false;
-      window.clearTimeout(listenTimer);
+      endTap();
       hold(message.held);
       break;
     case "mack:listen":

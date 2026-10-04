@@ -24,10 +24,13 @@ export interface MicListener {
   /**
    * Push to talk: records everything from now until finishManual(), without the
    * voice detector and even while paused. The recording is then reported through
-   * onUtterance, or onDiscarded when it is too short to hold a word.
+   * onUtterance, or onDiscarded when it is too short to hold a word. With
+   * endOnSilence, the voice detector also finishes it once the user stops talking.
    */
-  startManual(): void;
+  startManual(options?: { endOnSilence?: boolean }): void;
   finishManual(): void;
+  /** Drops the recording in progress and reports onDiscarded. */
+  cancelManual(): void;
   dispose(): void;
 }
 
@@ -55,10 +58,12 @@ export async function startMicListener(
   const vad = createVad({ chunkSeconds: CHUNK_SECONDS });
   let paused = false;
   let manual: Float32Array[] | null = null;
+  let endOnSilence = false;
 
   function finishManual(): void {
     const chunks = manual;
     manual = null;
+    endOnSilence = false;
     if (!chunks) return;
     if (chunks.length * CHUNK_SECONDS < MIN_MANUAL_SECONDS) {
       callbacks.onDiscarded();
@@ -78,7 +83,16 @@ export async function startMicListener(
     if (manual) {
       manual.push(message.data);
       // A stuck button must not record forever.
-      if (manual.length * CHUNK_SECONDS >= MAX_MANUAL_SECONDS) finishManual();
+      if (manual.length * CHUNK_SECONDS >= MAX_MANUAL_SECONDS) {
+        finishManual();
+        return;
+      }
+      if (endOnSilence) {
+        // Everything recorded since the press is kept; the detector only decides when it ends.
+        const event = vad.feed(message.data);
+        if (event?.type === "speech-start") callbacks.onSpeechStart();
+        else if (event && event.type !== "discarded") finishManual();
+      }
       return;
     }
     if (paused) return;
@@ -104,11 +118,18 @@ export async function startMicListener(
       vad.reset();
       paused = false;
     },
-    startManual: () => {
+    startManual: (options) => {
       vad.reset();
       manual = [];
+      endOnSilence = !!options?.endOnSilence;
     },
     finishManual,
+    cancelManual: () => {
+      if (!manual) return;
+      manual = null;
+      endOnSilence = false;
+      callbacks.onDiscarded();
+    },
     dispose: () => {
       paused = true;
       manual = null;
