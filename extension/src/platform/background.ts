@@ -347,7 +347,7 @@ chrome.runtime.onMessage.addListener((raw: unknown, sender, sendResponse) => {
         ...(message.text ? { text: message.text } : {}),
       }).then(async (reply) => {
         // Like a step on the page: answered once the page it leads to has loaded.
-        if (reply?.ok && message.op !== "point") await settle();
+        if (reply?.ok && (message.op === "press" || message.op === "search")) await settle();
         sendResponse(reply ?? ({ ok: false } satisfies GuideReply));
       });
       return true;

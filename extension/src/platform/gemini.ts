@@ -259,9 +259,11 @@ export function buildGeminiRequest(input: {
     parts.push({
       text:
         "The user is looking at Mack's simple view, which covers the original page and shows its main links as big buttons, plus its search box. The screenshot shows the simple view. " +
-        'Its buttons and search box are the elements whose region is "simple view" (their ids start with "sv-"). When the user asks about something they see, look for it there first, and use that id to point at it, click it or type into it. ' +
-        "The other elements belong to the original page underneath; use them only when the simple view has nothing that fits. " +
-        "When you point at something, call it by its label but do not say where it is on the screen; Mack highlights it on the simple view.",
+        'Its buttons and search box are the elements whose region is "simple view" (their ids start with "sv-"); the other elements belong to the original page underneath. ' +
+        "Choose the element that really matches what the user wants. Use an sv- element when the simple view shows that exact thing. " +
+        "Do not settle for a loosely related simple-view button, such as a general help, menu or category page, when the original page has the specific link, button or field they need: use the original page's element, and Mack switches to the original page and highlights it there. " +
+        "Fields to fill in, forms, and details that only the original page has always use the original page's elements. " +
+        "When you point at an sv- element, call it by its label but do not say where it is on the screen.",
     });
   }
   if (input.steps?.length) {

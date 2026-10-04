@@ -150,6 +150,12 @@ export function withSimpleView(page: PageSnapshot): PageSnapshot {
 }
 
 export function actInSimpleView(op: SimpleOp, elementId: string, text: string): boolean {
+  if (op === "original") {
+    if (!covering) return false;
+    removeSimpleView();
+    debug("content", `simple view: removed to show "${elementId}" on the real page`);
+    return true;
+  }
   const done = simpleView?.act(op, elementId, text) ?? false;
   debug("content", `simple view: ${op} for "${elementId}"`, done ? "done" : "not on the simple view");
   return done;

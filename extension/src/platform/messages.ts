@@ -71,8 +71,9 @@ export interface GuideReply {
 /**
  * Mack's own answer carried out on the simple view instead of the covered page:
  * point at the matching big button or search box, press that button, or search.
+ * "original" takes the simple view away, for something only the real page has.
  */
-export type SimpleOp = "point" | "press" | "search";
+export type SimpleOp = "point" | "press" | "search" | "original";
 
 /** One thing Mack does on the page for the user. */
 export const PRESS_KEYS = [

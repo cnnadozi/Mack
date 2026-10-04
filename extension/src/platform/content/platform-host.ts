@@ -231,6 +231,7 @@ export async function startSimpleView(options: {
         : shownIdFor(platform, elementId);
       if (!id) return false;
       if (op === "point") return platform.point(id);
+      if (op === "original") return false;
       // The page a press or a search leads to continues in the simple view.
       rememberToContinue();
       return op === "press" ? platform.press(id) : platform.search(id, text);

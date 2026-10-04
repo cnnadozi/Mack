@@ -23,7 +23,7 @@ import type {
   RuntimeMessage,
   SessionState,
 } from "../messages";
-import { greetingIn } from "../messages";
+import { greetingIn, SIMPLE_VIEW_ID_PREFIX } from "../messages";
 
 const ELEVENLABS_API_KEY = import.meta.env.ELEVENLABS_API_KEY ?? "";
 const GEMINI_API_KEY = import.meta.env.GEMINI_API_KEY ?? "";
@@ -33,6 +33,8 @@ const LEFT_TO_USER =
   "I'd rather you do this one yourself, because it may pay for something, delete something or sign you in. I've highlighted it for you.";
 const TOO_MANY_STEPS =
   "I've done several steps and I'm not finished. Tell me to keep going if you want me to continue.";
+// Steps that leave the page anyway, so the simple view need not step aside first.
+const NAVIGATION_STEPS = new Set<PageAction["kind"]>(["back", "forward", "open", "wait"]);
 // A task that needs more than this is probably going in circles.
 const MAX_STEPS = 15;
 
@@ -237,6 +239,16 @@ async function answer(asked: Asked): Promise<void> {
           guidedRequest = null;
           debug("offscreen", "answer: the simple view had no guidance, using Mack's own answer");
         }
+        // Only the real page has it: the simple view steps aside so the highlight can be seen.
+        if (
+          context.simple &&
+          context.tabId !== null &&
+          reply.targetId &&
+          !reply.targetId.startsWith(SIMPLE_VIEW_ID_PREFIX)
+        ) {
+          await onSimpleView(context.tabId, "original", reply.targetId);
+          if (id !== turnId) return;
+        }
         if (context.tabId !== null) {
           send({ type: "mack:highlight", tabId: context.tabId, elementId: reply.targetId });
         }
@@ -281,6 +293,11 @@ async function answer(asked: Asked): Promise<void> {
         continue;
       }
       if (id !== turnId) return;
+      // Anything else is done on the real page, which the user should see happen.
+      if (context.simple && !NAVIGATION_STEPS.has(step.kind)) {
+        await onSimpleView(context.tabId, "original", "elementId" in step && step.elementId ? step.elementId : "");
+        if (id !== turnId) return;
+      }
 
       actingTurn = id;
       status("working");
