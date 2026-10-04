@@ -31,6 +31,12 @@ export const DESIGN_SCHEMA = {
         },
       },
     },
+    search: {
+      type: "object",
+      additionalProperties: false,
+      required: ["actionId", "label"],
+      properties: { actionId: { type: "string" }, label: { type: "string" } },
+    },
   },
 };
 

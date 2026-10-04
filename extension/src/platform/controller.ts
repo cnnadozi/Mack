@@ -3,7 +3,7 @@ import {
   type CommittedScreen, type GenerateScreen, type SiteLogo, type LensAppProps, type LensUIState, type ResolveIntent, type Stamp,
   type VoiceCallbacks, type VoiceController,
 } from "../../../shared/contracts";
-import { brandColor, deepLink, siteLogo, extractPage, isMack, liveTarget, sourceKind, type Extraction } from "./extractor";
+import { brandColor, deepLink, isSiteSearch, siteLogo, extractPage, isMack, liveTarget, sourceKind, type Extraction } from "./extractor";
 import { addPeekedLinks, hasPasswordField, peekCandidates, type Peek } from "./peek";
 import { mergeGuidance } from "./state";
 
@@ -20,6 +20,16 @@ type Dependencies = {
 };
 
 const BUTTON_SETTLE_MS = 900;
+const SEARCH_BUTTON_MS = 700;
+
+function searchButtonNear(input: HTMLInputElement): HTMLElement | undefined {
+  for (let node = input.parentElement, depth = 0; node && depth < 4; node = node.parentElement, depth++) {
+    const button = Array.from(node.querySelectorAll<HTMLElement>("button, [role=button], input[type=submit]"))
+      .find((el) => /search|go|find|submit/i.test(`${el.getAttribute("aria-label") ?? ""} ${el.getAttribute("title") ?? ""} ${el.textContent ?? ""} ${el.getAttribute("type") ?? ""}`));
+    if (button) return button;
+  }
+  return undefined;
+}
 const NAVIGATE_CONFIRM_MS = 1800;
 export const NO_SIMPLE_VIEW = "This page has no simple view, so you can use it as it is. Press Exit to close Mack.";
 const DESIGN_INSTRUCTION = {
@@ -65,6 +75,7 @@ export function startPlatform(deps: Dependencies) {
   let mutationTimer: ReturnType<typeof setTimeout> | undefined;
   let simplifiedScreen: CommittedScreen | undefined;
   let clickTimer: ReturnType<typeof setTimeout> | undefined;
+  let searchTimer: ReturnType<typeof setTimeout> | undefined;
   let url = location.href;
 
   const voice = deps.createVoice?.({
@@ -84,6 +95,7 @@ export function startPlatform(deps: Dependencies) {
     designAbort?.abort(); guideAbort?.abort(); designStamp = undefined; guideStamp = undefined;
     cancelSpeech(); clearHighlight();
     if (clickTimer) clearTimeout(clickTimer);
+    if (searchTimer) clearTimeout(searchTimer);
   }
   function applyMode() {
     if (currentBody !== document.body) {
@@ -249,6 +261,32 @@ export function startPlatform(deps: Dependencies) {
       }
     } catch (error) { actionPending = false; fail(error); }
   }
+  function search(id: string, query: string) {
+    const text = query.trim().slice(0, 200);
+    const design = state.screen.search;
+    if (!active || !text || state.busy || actionPending || state.screen.mode !== "simplified" || design?.actionId !== id) return;
+    try {
+      const element = liveTarget(extraction, id);
+      if (!isSiteSearch(element)) throw new Error("That search box has changed. Refresh Mack and try again.");
+      setGoal(`Find ${text}`);
+      actionPending = true; invalidate();
+      const before = location.href;
+      commit({ busy: true, instruction: `Searching for “${text}”…`, highlightedActionId: undefined, error: undefined });
+      currentBody.inert = bodyInert;
+      try {
+        // Sites often use framework-controlled inputs, which only notice the native setter plus input/change events.
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(element, text);
+        element.dispatchEvent(new Event("input", { bubbles: true }));
+        element.dispatchEvent(new Event("change", { bubbles: true }));
+        if (element.form) element.form.requestSubmit();
+        else for (const type of ["keydown", "keypress", "keyup"]) element.dispatchEvent(new KeyboardEvent(type, { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
+      } finally { if (active) applyMode(); }
+      // Some sites ignore Enter and only search from their button next to the box.
+      if (!element.form) searchTimer = setTimeout(() => { if (active && actionPending && location.href === before) searchButtonNear(element)?.click(); }, SEARCH_BUTTON_MS);
+      // Results that load without a page change are re-read in place.
+      clickTimer = setTimeout(() => { if (active && location.href === before) { actionPending = false; void refresh(); } }, NAVIGATE_CONFIRM_MS);
+    } catch (error) { actionPending = false; fail(error); }
+  }
   function original() {
     if (!active) return;
     if (state.screen.mode === "simplified" && !designPending && state.screen.sections.length) simplifiedScreen = state.screen;
@@ -310,7 +348,7 @@ export function startPlatform(deps: Dependencies) {
   }
   const props: LensAppProps = {
     get state() { return state; },
-    onAction: action, onRequest: request,
+    onAction: action, onRequest: request, onSearch: search,
     onMicStart: () => { if (voice) { cancelSpeech(); void voice.startListening().catch(fail); } else unavailableVoice(); },
     onMicStop: () => { if (voice) void voice.stopListening().catch(fail); },
     onReplay: () => { if (voice) { voice.cancelSpeech(); speechVersion = state.screen.screenVersion; speak(speechVersion); } else unavailableVoice(); },

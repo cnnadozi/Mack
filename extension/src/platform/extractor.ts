@@ -1,4 +1,4 @@
-import type { PageSnapshot, SiteLogo, SourceAction } from "../../../shared/contracts";
+import { SITE_SEARCH_PREFIX, type PageSnapshot, type SiteLogo, type SourceAction } from "../../../shared/contracts";
 import { sameSite, UNSAFE_LINK } from "./settings";
 
 export const MACK_SELECTOR = "mack-root[data-mack], [data-mack-platform]";
@@ -98,9 +98,27 @@ function regionContext(element: HTMLElement): string {
   return heading ? safeText(heading, 200) : "";
 }
 
+const SEARCH_NAMES = /^(q|query|search|searchterm|search_?query|keywords?|term|s)$/i;
+const TEXT_TYPES = new Set(["search", "text", ""]);
+
+/** A single-box site search (never part of a login, payment or multi-field form). */
+export function isSiteSearch(element: HTMLElement): element is HTMLInputElement {
+  if (!(element instanceof HTMLInputElement) || !TEXT_TYPES.has(element.getAttribute("type")?.toLowerCase() ?? "") || element.disabled || element.readOnly) return false;
+  const form = element.form;
+  if (form) {
+    if (form.querySelector("input[type=password]")) return false;
+    const textInputs = Array.from(form.querySelectorAll<HTMLInputElement>("input:not([type]), input[type=text], input[type=search], input[type=email], input[type=tel], textarea"))
+      .filter((input) => visible(input));
+    if (textInputs.length > 2) return false;
+  }
+  if (element.type === "search" || element.closest("[role=search]") || SEARCH_NAMES.test(element.name)) return true;
+  const hints = `${element.id} ${element.getAttribute("aria-label") ?? ""} ${element.getAttribute("placeholder") ?? ""} ${Array.from(element.labels ?? []).map((l) => l.textContent).join(" ")} ${form?.getAttribute("action") ?? ""}`;
+  return /search|find|look ?up/i.test(hints);
+}
+
 function contextFor(element: HTMLElement, kind: SourceAction["kind"]): string {
   let prefix = "";
-  if (kind === "field") prefix = `${element instanceof HTMLInputElement ? element.type : isField(element) ? element.type : "text"} field; `;
+  if (kind === "field") prefix = `${isSiteSearch(element) ? SITE_SEARCH_PREFIX : ""}${element instanceof HTMLInputElement ? element.type : isField(element) ? element.type : "text"} field; `;
   else if (kind === "button" && ["aria-expanded", "aria-haspopup", "aria-controls"].some((a) => element.hasAttribute(a))) prefix = "opens menu; ";
   // Role 3's prompt matches these prefixes exactly, including the trailing space.
   return `${prefix}${regionContext(element)}`.slice(0, 200);
