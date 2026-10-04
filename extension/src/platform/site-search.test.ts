@@ -115,12 +115,14 @@ describe("Mack's voice on the simple view", () => {
       return { stamp: request.stamp, status: "ready", design: { title: "T", mode: "simplified", sections: [{ id: "main-1", buttons: [{ actionId: link.id, label: link.label }] }], search: { actionId: box.id, label: "Search Example" } } };
     });
     const navigate = vi.fn();
+    const saveGoal = vi.fn();
+    const announce = vi.fn();
     const platform = startPlatform({
       mount: { host, render: () => undefined, unmount: () => host.remove() },
       generateScreen, resolveIntent: async (r) => ({ stamp: r.stamp, status: "not_found", mode: r.screen.mode, additions: [], responseText: "" }),
-      saveGoal: vi.fn(), onExit: vi.fn(), navigate,
+      saveGoal, announce, onExit: vi.fn(), navigate,
     });
-    return { platform, navigate, ready: () => vi.waitFor(() => expect(platform.getState().busy).toBe(false)) };
+    return { platform, navigate, saveGoal, announce, ready: () => vi.waitFor(() => expect(platform.getState().busy).toBe(false)) };
   }
 
   it("points at, presses and searches with what the simple view shows, and nothing else", async () => {
@@ -142,6 +144,9 @@ describe("Mack's voice on the simple view", () => {
     expect(h.platform.search(claims, "x")).toBe(false);
     expect(h.platform.search(screen.search!.actionId, "paper towels")).toBe(true);
     expect(seen).toEqual(["paper towels"]);
+    // Mack's voice says what it did once the results load, so the simple view stays quiet and sets no goal.
+    expect(h.saveGoal).not.toHaveBeenCalledWith("Find paper towels", expect.anything());
+    expect(h.announce).not.toHaveBeenCalledWith(expect.stringMatching(/Searching/));
     h.platform.exit();
   });
 });

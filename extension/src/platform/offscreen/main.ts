@@ -53,6 +53,8 @@ let turnId = 0;
 let resting = false;
 // The question handed to the simple view's guidance, until its answer is spoken.
 let guidedRequest: string | null = null;
+// The turn that has started doing steps on the page, until it has said what it did.
+let actingTurn = 0;
 // The turn in which a simple-view instruction is being spoken, so only that
 // speech is cut off when the simple view asks for quiet.
 let guidanceTurn = 0;
@@ -159,6 +161,13 @@ function describe(step: PageAction, context: PageContext, result: ActResult): st
   return result.ok
     ? `Done: ${what}.`
     : `Failed: ${what}. It had no effect or was not possible here.`;
+}
+
+function afterSteps(last: string): string {
+  const what = last.replace(/^(Done|Failed): /, "").replace(/\.( It had.*)?$/s, "");
+  return last.startsWith("Done")
+    ? `All done. My last step was to ${what}.`
+    : `I tried to ${what}, but it didn't work.`;
 }
 
 // One question from the user. A plain question or "where is" takes one round. A
@@ -277,11 +286,14 @@ async function answer(asked: Asked): Promise<void> {
       ) {
         if (id !== turnId) return;
         if (reply.reply) line("mack", reply.reply, true);
-        history.push({ role: "user", text: heard }, { role: "model", text: reply.reply });
-        return;
+        steps.push(describe(step, context, { ok: true }));
+        context = await getContext();
+        if (id !== turnId) return;
+        continue;
       }
       if (id !== turnId) return;
 
+      actingTurn = id;
       status("working");
       // Steps are shown as text only: speaking each one would make a task slow.
       if (reply.reply) line("mack", reply.reply, true);
@@ -302,6 +314,8 @@ async function answer(asked: Asked): Promise<void> {
       if (id !== turnId) return;
     }
 
+    // After doing something, Mack always says what it did, even if the model went quiet.
+    if (!spoken && steps.length > 0) spoken = afterSteps(steps[steps.length - 1]);
     if (!spoken) {
       debug("offscreen", "answer: the reply text was empty, nothing will be spoken");
       return;
@@ -312,6 +326,7 @@ async function answer(asked: Asked): Promise<void> {
     debug("offscreen", `answer: failed after ${since(started)}`, error);
     problem = messageFrom(error);
   } finally {
+    if (actingTurn === id) actingTurn = 0;
     if (id === turnId) {
       debug("offscreen", `answer: turn finished in ${since(started)}`);
       restAfter(spoken, problem);
@@ -350,6 +365,12 @@ async function guideOnSimpleView(tabId: number, text: string): Promise<boolean> 
 
 // An instruction from Role 4's simple view, spoken in Mack's voice.
 async function speakGuidance(text: string): Promise<void> {
+  // While Mack carries out a task, a page it opened must not cut it off before it
+  // says what it did. Its own answer covers what the new page shows.
+  if (actingTurn !== 0 && actingTurn === turnId && !guidedRequest) {
+    debug("offscreen", "simple view instruction skipped while Mack finishes a task:", text);
+    return;
+  }
   turnId += 1;
   const id = turnId;
   guidanceTurn = id;

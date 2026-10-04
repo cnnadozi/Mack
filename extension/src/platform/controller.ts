@@ -281,16 +281,17 @@ export function startPlatform(deps: Dependencies) {
   function shownLabel(id: string): string | undefined {
     return state.screen.sections.flatMap((s) => s.buttons).find((b) => b.actionId === id)?.label;
   }
-  function action(id: string) {
+  // Quiet: Mack's voice pressed it and says what happened itself, carrying the task on its own.
+  function action(id: string, quiet = false) {
     const label = shownLabel(id);
     if (!active || state.busy || actionPending || state.screen.mode !== "simplified" || !label) return;
     try {
       if (extraction.deep.has(id)) {
         const href = deepLink(extraction, id);
-        setGoal(goalFromLabel(label));
+        if (!quiet) setGoal(goalFromLabel(label));
         actionPending = true; invalidate();
         commit({ busy: true, instruction: t("opening", { label }), highlightedActionId: undefined, error: undefined });
-        say(state.instruction);
+        if (!quiet) say(state.instruction);
         navigate(href);
         clickTimer = setTimeout(() => { if (active && actionPending) { actionPending = false; fail(new Error("Mack could not open that page. Check your connection or retry.")); } }, NAVIGATE_CONFIRM_MS * 3);
         return;
@@ -298,14 +299,14 @@ export function startPlatform(deps: Dependencies) {
       const element = liveTarget(extraction, id);
       const kind = sourceKind(element);
       if (kind !== "navigate" && kind !== "button") throw new Error("Use that control directly on the original page.");
-      setGoal(goalFromLabel(label));
+      if (!quiet) setGoal(goalFromLabel(label));
       actionPending = true; invalidate();
       const before = location.href;
       currentBody.inert = bodyInert;
       try { element.click(); } finally { if (active) applyMode(); }
       if (kind === "button") {
         commit({ busy: true, instruction: t("opening", { label }), highlightedActionId: undefined, error: undefined });
-        say(state.instruction);
+        if (!quiet) say(state.instruction);
         // A button that doesn't navigate probably opened a menu or panel behind the overlay; re-read the page.
         clickTimer = setTimeout(() => { if (active && location.href === before) void refresh(); }, BUTTON_SETTLE_MS);
       } else {
@@ -317,18 +318,18 @@ export function startPlatform(deps: Dependencies) {
       }
     } catch (error) { actionPending = false; fail(error); }
   }
-  function search(id: string, query: string) {
+  function search(id: string, query: string, quiet = false) {
     const text = query.trim().slice(0, 200);
     const design = state.screen.search;
     if (!active || !text || state.busy || actionPending || state.screen.mode !== "simplified" || design?.actionId !== id) return;
     try {
       const element = liveTarget(extraction, id);
       if (!isSiteSearch(element)) throw new Error("That search box has changed. Refresh Mack and try again.");
-      setGoal(`Find ${text}`);
+      if (!quiet) setGoal(`Find ${text}`);
       actionPending = true; invalidate();
       const before = location.href;
       commit({ busy: true, instruction: t("searching", { text }), highlightedActionId: undefined, error: undefined });
-      say(state.instruction);
+      if (!quiet) say(state.instruction);
       currentBody.inert = bodyInert;
       try {
         // Sites often use framework-controlled inputs, which only notice the native setter plus input/change events.
@@ -433,12 +434,12 @@ export function startPlatform(deps: Dependencies) {
   }
   function press(id: string): boolean {
     if (!active || state.busy || actionPending || state.screen.mode !== "simplified" || !shownLabel(id)) return false;
-    action(id);
+    action(id, true);
     return true;
   }
   function searchFor(id: string, text: string): boolean {
     if (!active || state.busy || actionPending || state.screen.mode !== "simplified" || state.screen.search?.actionId !== id || !text.trim()) return false;
-    search(id, text);
+    search(id, text, true);
     return true;
   }
   function unavailableVoice() {

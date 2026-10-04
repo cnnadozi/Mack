@@ -345,7 +345,11 @@ chrome.runtime.onMessage.addListener((raw: unknown, sender, sendResponse) => {
         op: message.op,
         elementId: message.elementId,
         ...(message.text ? { text: message.text } : {}),
-      }).then((reply) => sendResponse(reply ?? ({ ok: false } satisfies GuideReply)));
+      }).then(async (reply) => {
+        // Like a step on the page: answered once the page it leads to has loaded.
+        if (reply?.ok && message.op !== "point") await settle();
+        sendResponse(reply ?? ({ ok: false } satisfies GuideReply));
+      });
       return true;
     case "mack:guide":
       void sendToTab<GuideReply>(message.tabId, { type: "mack:guide", text: message.text }).then(
