@@ -65,9 +65,8 @@ function ThemeToggle({ mode, onToggle }: { mode: ThemeMode; onToggle(): void }) 
   return <IconButton icon={mode === "dark" ? Sun : Moon} label={mode === "dark" ? t("lightMode") : t("darkMode")} onClick={onToggle} />;
 }
 
-// The site's own logo keeps users sure they are still on that site; Mack is credited beside it.
+// The site's own logo keeps users sure they are still on that site.
 function Brand({ logo }: { logo?: SiteLogo }) {
-  const { t } = useTranslator();
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [logo?.src]);
   return (
@@ -85,10 +84,12 @@ function Brand({ logo }: { logo?: SiteLogo }) {
           {(failed || logo.kind === "icon") && <span className="mack-logo-text">{logo.alt}</span>}
         </span>
       )}
-      <span className="mack-brand-mack">
-        <Sparkles size={15} strokeWidth={2.4} aria-hidden="true" />
-        {logo ? t("simplifiedBy") : "Mack"}
-      </span>
+      {!logo && (
+        <span className="mack-brand-mack">
+          <Sparkles size={15} strokeWidth={2.4} aria-hidden="true" />
+          Mack
+        </span>
+      )}
     </p>
   );
 }

@@ -215,7 +215,7 @@ describe("MackApp", () => {
     setup({ ...uiFixtures.manyGrouped, siteLogo });
     const img = screen.getByRole("img", { name: "Liberty Mutual Insurance" });
     expect(img.closest<HTMLElement>(".mack-logo")!.style.background).toMatch(/255, 208, 0|#ffd000/i);
-    screen.getByText("Simplified by Mack");
+    expect(screen.queryByText(/Simplified by/i)).toBeNull();
     fireEvent.error(img);
     expect(screen.queryByRole("img", { name: "Liberty Mutual Insurance" })).toBeNull();
     screen.getByText("Liberty Mutual Insurance");
