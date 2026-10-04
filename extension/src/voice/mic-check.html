@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mack microphone check</title>
+    <link rel="stylesheet" href="mic-check.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Microphone check</h1>
+      <p>
+        Development fixture for Role 1 microphone capture. This is not the product
+        UI. Recording runs in this extension tab because Chrome grants microphone
+        permission to a top-level extension document.
+      </p>
+      <button id="record" type="button" aria-pressed="false">Hold to record</button>
+      <pre id="status" aria-live="polite">Idle</pre>
+    </main>
+    <script type="module" src="dist/mic-check.js"></script>
+  </body>
+</html>

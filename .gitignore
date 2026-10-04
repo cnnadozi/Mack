@@ -1,8 +1,12 @@
-node_modules/
-.DS_Store
 infra/workflows/.obsidian/plugins/mcp-tools-istefox/data.json
-node_modules/
-dist/
+.DS_Store
 .env
 .env.*
 *.local
+
+# Local-only developer credentials. Never commit.
+extension/local-env.js
+
+node_modules/
+# Build output. It contains the keys from .env.local, so never commit or share it.
+dist/

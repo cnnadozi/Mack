@@ -6,10 +6,23 @@
     "moduleResolution": "Bundler",
     "jsx": "react-jsx",
     "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "noEmit": true,
-    "esModuleInterop": true,
     "skipLibCheck": true,
-    "types": ["chrome", "node", "vitest/globals"]
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "types": ["chrome", "vite/client", "node", "vitest/globals"],
+    "paths": { "@/*": ["./extension/src/ui/*"] }
   },
-  "include": ["shared/**/*.ts", "extension/src/**/*.ts", "extension/src/**/*.tsx", "vitest.config.ts", "test/**/*.ts"]
+  "include": [
+    "vite.config.ts",
+    "vitest.config.ts",
+    "shared",
+    "extension/src/env.d.ts",
+    "extension/src/platform",
+    "extension/src/ui",
+    "extension/src/guidance",
+    "extension/src/voice/live"
+  ]
 }

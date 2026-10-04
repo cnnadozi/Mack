@@ -1,17 +1,39 @@
 {
   "manifest_version": 3,
   "name": "Mack",
-  "version": "0.4.0",
-  "minimum_chrome_version": "120",
-  "description": "Simplify real website actions with AI guidance.",
-  "permissions": ["activeTab", "scripting", "storage"],
-  "host_permissions": [
-    "https://*/*",
-    "https://generativelanguage.googleapis.com/*"
-  ],
-  "background": { "service_worker": "service-worker.js", "type": "module" },
-  "options_ui": { "page": "options.html", "open_in_tab": true },
+  "version": "0.2.0",
+  "description": "Mack turns confusing websites into simple interfaces and guides you through them by voice.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": ["storage", "offscreen", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "src/platform/background.ts",
+    "type": "module"
+  },
   "action": {
-    "default_title": "Activate Mack"
-  }
+    "default_title": "Start Mack"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/platform/content/index.ts"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/icon48.png"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

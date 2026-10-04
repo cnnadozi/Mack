@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mack speech check</title>
+    <link rel="stylesheet" href="speech-check.css" />
+  </head>
+  <body data-speech-state="idle">
+    <main>
+      <h1>Mack speech check</h1>
+      <p>This page speaks one fixed sentence. It does not use the microphone.</p>
+      <p id="sentence"></p>
+      <label>
+        Voice ID
+        <input id="voice-id" type="text" autocomplete="off" spellcheck="false" />
+      </label>
+      <div class="actions">
+        <button id="speak" type="button">Speak the sentence</button>
+      </div>
+      <p id="status" role="status"></p>
+    </main>
+    <script type="module" src="dist/speech-check.js"></script>
+  </body>
+</html>

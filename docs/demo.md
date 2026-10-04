@@ -2,17 +2,18 @@
 
 ## Sites
 
-Mack works on any https website the user activates it on. Clicking the toolbar
-icon starts a tab session; that tab stays active across navigations to any
-https domain (including separate sign-in domains such as
-`identity.healthsafe-id.com`) until Exit or the tab is closed. Each completed
-load is re-injected. There are no task-specific URL or selector shortcuts.
+The simple view works on any https website. Clicking the toolbar icon turns
+Mack on for every tab (the icon shows an `ON` badge) until it is clicked again,
+the X on Mack's bar is pressed, or "Exit Mack" is pressed in the simple view.
+The content script is declared in the manifest, so nothing is injected on
+click. The platform starts on a page only when the user presses "Simple
+view" in Mack's bar, or reaches the page by pressing a simple-view button.
+There are no task-specific URL or selector shortcuts.
 
-Chrome-blocked pages (`chrome://`, `file:`, `http:`, the Chrome Web Store) are
-not injectable. The icon then shows a `!` badge and the title "Mack can't run
-on this page. Open a website and click Mack again." If an active tab briefly
-leaves https, the session is kept for 15 minutes and resumes when the tab
-returns.
+On pages that are not https (`http:`, `file:`), and on pages Chrome blocks
+(`chrome://`, the Chrome Web Store), there is no simple view. Mack's voice and
+typed conversation still runs wherever the content script can. A goal is kept
+per tab for 15 minutes.
 
 Demo journeys used while building: uhc.com (sign-in hops to
 healthsafe-id.com) and libertymutual.com. Stop before any payment, submission,
@@ -27,13 +28,14 @@ Design calls also send `responseJsonSchema`. Design and guidance share one
 service-worker `ModelClient`; prompts and grounding belong to Roles 3 and 2.
 No application server exists.
 
-The operator pastes their own key (and optionally a model) into Mack's options
-page. Saving runs a test call, then stores both only in `chrome.storage.session`
-with `TRUSTED_CONTEXTS` access. Content scripts receive results, never
-credentials. Restarting Chrome or reloading the extension clears the key.
-The key is never read from `.env.local` or bundled: the repository is public,
-and `build.mjs` fails if a key pattern appears in any bundle or if the content
-bundle contains the provider host.
+The key is `GEMINI_API_KEY` from `.env.local` (gitignored), inlined at build
+time into the background service worker and the offscreen document only; the
+content script and its chunks never contain it. `dist/` therefore contains the
+key and must not be committed or shared. The options page is optional: a key
+and model saved there (after a test call) are kept only in
+`chrome.storage.session` with `TRUSTED_CONTEXTS` access and take precedence
+until Chrome restarts or the extension reloads. Content scripts receive
+results, never credentials.
 
 ## Platform behavior
 

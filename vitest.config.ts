@@ -1,15 +1,21 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
-  // Tests don't need the compiled stylesheet.
-  resolve: { alias: { "virtual:mack-tailwind": new URL("./test/tailwind-stub.ts", import.meta.url).pathname } },
+  resolve: { alias: { "@": fileURLToPath(new URL("./extension/src/ui", import.meta.url)) } },
   test: {
     environment: "jsdom",
     environmentOptions: { jsdom: { url: "https://www.uhc.com/" } },
     globals: true,
     include: ["shared/**/*.test.ts", "extension/src/**/*.test.{ts,tsx}"],
-    exclude: ["extension/src/guidance/**"],
+    // These use Node's built-in test runner and are run by "npm run test:node".
+    exclude: [
+      "extension/src/guidance/**",
+      "extension/src/voice/**",
+      "extension/src/platform/gemini.test.ts",
+      "extension/src/platform/cache.test.ts",
+    ],
   },
 });

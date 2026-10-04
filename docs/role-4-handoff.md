@@ -57,8 +57,7 @@ drops when the user returns to the page that set the goal.
 1. `LensAppProps.onPreviousPage(): void` is now required in
    `shared/contracts.ts`. Add `onPreviousPage: vi.fn()` to the props in
    `__tests__/MackApp.test.tsx` and update the "only when provided" tests; until
-   then the full `tsc --noEmit` fails in that file (the build uses
-   `tsconfig.build.json`, which excludes tests).
+   then the full `tsc --noEmit` fails in that file.
 2. Context prefixes match your prompt exactly: `opens menu; `, `<type> field; `,
    `menu: <name>`, and `one click away via "<label>"`.
 3. `DESIGN_SCHEMA` currently lives in `platform/provider.ts` and is sent only for

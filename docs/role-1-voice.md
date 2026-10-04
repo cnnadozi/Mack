@@ -12,6 +12,14 @@ You own extension/src/voice/. Your output is voice transport: microphone → tra
 - Playback cancellation, replay support through Role 4's current instruction, and disposal of microphone/audio resources on exit.
 - A concise provider/setup note with credential placeholders and the tested audio context. Never commit actual secrets.
 
+## Current speech path
+
+The loaded-extension speech check is `extension/src/voice/speech-check.html`, opened from the toolbar popup. It is an extension page, not a service worker and not a website. It speaks one fixed sentence through ElevenLabs and plays the audio in that page.
+
+The API keys are read from `.env.local` (`ELEVENLABS_API_KEY`, `GEMINI_API_KEY`) at build time and inlined only into the offscreen voice document. `dist/` therefore contains them and is ignored by git, as is `.env.local`. No page asks for a key. This is a local developer setup: never commit, zip or share `dist/`.
+
+The built extension holds a hands-free voice conversation about the current page from an offscreen document: Gemini transcribes each spoken sentence, Gemini answers from a screenshot and the page's extracted elements, and ElevenLabs speaks the answer. See `extension/src/voice/PROVIDER.md`.
+
 ## Sequence
 
 1. With Role 4, verify a real microphone recording and a real ElevenLabs utterance inside the loaded extension. Resolve provider credentials immediately; a normal webpage test alone is insufficient.
@@ -29,6 +37,12 @@ Do not assume a service worker has a microphone, DOM, or persistent audio lifeti
 ## Acceptance
 
 Actual speech becomes a single request; exact accepted guidance is spoken by ElevenLabs; assistant audio is not transcribed as user input; permission denial allows typing; navigation/new requests stop stale speech; stop/exit releases devices; transcript can be corrected through the UI. A pre-recorded clip is not completion.
+
+## Microphone context
+
+Push-to-talk capture runs in a top-level extension document. The development fixture is `extension/src/voice/mic-check.html`, opened as a `chrome-extension://` tab. Chrome can show the microphone permission prompt there. A service worker cannot record. An offscreen document can call `getUserMedia` only after that permission already exists, and creating one needs the `offscreen` manifest permission owned by Role 4.
+
+This phase records microphone audio only. It does not transcribe speech or call ElevenLabs. No credentials are stored. The extension loads the compiled JavaScript from `extension/src/voice/dist/`. Recompile with `npx --yes -p typescript@5.9.2 tsc -p extension/src/voice` after editing the TypeScript.
 
 ## Agent kickoff prompt
 

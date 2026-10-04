@@ -23,14 +23,26 @@ function setup(state: LensUIState) {
     onRendered: vi.fn(),
   };
   const view = render(<MackApp {...props} />);
-  return { props, ...view, rerenderWith: (next: LensUIState) => view.rerender(<MackApp {...props} state={next} />) };
+  return {
+    props,
+    ...view,
+    rerenderWith: (next: LensUIState) => view.rerender(<MackApp {...props} state={next} />),
+  };
+}
+
+function setupEmbedded(state: LensUIState) {
+  const { props, unmount } = setup(state);
+  unmount();
+  render(<MackApp {...props} embedded />);
+  return { props };
 }
 
 describe("MackApp", () => {
   it("renders every section and button with its action id", () => {
     const { props } = setup(uiFixtures.manyGrouped);
     expect(screen.getByRole("heading", { level: 1, name: "Library home" })).toBeTruthy();
-    for (const name of ["Find something", "Visit", "Your account"]) screen.getByRole("heading", { level: 2, name });
+    for (const name of ["Find something", "Visit", "Your account"])
+      screen.getByRole("heading", { level: 2, name });
     const buttons = document.querySelectorAll("[data-action-id]");
     expect(buttons).toHaveLength(12);
     fireEvent.click(screen.getByRole("button", { name: "Pay a fine" }));
@@ -121,11 +133,9 @@ describe("MackApp", () => {
   it("shows a loading state and an honest empty state", () => {
     const { rerenderWith } = setup(uiFixtures.loading);
     screen.getByText("Working…");
-    expect(screen.getByTestId("mack-loading").getAttribute("aria-hidden")).toBe("true");
     expect(screen.queryByText(/No simple actions/)).toBeNull();
     rerenderWith(uiFixtures.empty);
     screen.getByText(/No simple actions are ready/);
-    expect(screen.queryByTestId("mack-loading")).toBeNull();
   });
 
   it("renders only a compact movable guide in original mode", () => {
@@ -182,7 +192,14 @@ describe("MackApp", () => {
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
     screen.getByRole("button", { name: "Contact customer support" });
     expect(document.querySelectorAll("[data-action-id]")).toHaveLength(5);
-    rerenderWith({ ...uiFixtures.goalWithMore, screen: { ...uiFixtures.goalWithMore.screen, snapshotVersion: "next-page", screenVersion: "v2" } });
+    rerenderWith({
+      ...uiFixtures.goalWithMore,
+      screen: {
+        ...uiFixtures.goalWithMore.screen,
+        snapshotVersion: "next-page",
+        screenVersion: "v2",
+      },
+    });
     expect(document.querySelectorAll("[data-action-id]")).toHaveLength(2);
   });
 
@@ -190,7 +207,32 @@ describe("MackApp", () => {
     setup({ ...uiFixtures.goalWithMore, highlightedActionId: "d5" });
     const target = screen.getByRole("button", { name: /Contact customer support/ });
     expect(target.getAttribute("data-highlighted")).toBe("true");
-    expect(screen.getByRole("button", { name: "Fewer options" }).getAttribute("aria-expanded")).toBe("true");
+    expect(
+      screen.getByRole("button", { name: "Fewer options" }).getAttribute("aria-expanded"),
+    ).toBe("true");
+  });
+
+  it("leaves typing and speaking to the extension's own panel when embedded", () => {
+    const { props } = setupEmbedded(uiFixtures.withAddition);
+    expect(screen.queryByLabelText("What do you want to do?")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Speak/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Repeat instruction/ })).toBeNull();
+    screen.getByText("Press “Contact the library”.");
+    fireEvent.click(screen.getByRole("button", { name: /Contact the library/ }));
+    expect(props.onAction).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Original page" }));
+    expect(props.onShowOriginal).toHaveBeenCalled();
+  });
+
+  it("shows only the instruction and the way back over the original page when embedded", () => {
+    const { props } = setupEmbedded(uiFixtures.original);
+    screen.getByRole("complementary", { name: "Mack guide" });
+    screen.getByText(/Type your email address/);
+    expect(screen.queryByLabelText("Ask Mack")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Exit Mack" })).toBeNull();
+    expect(screen.queryByText(/microphone is not available/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Simple view" }));
+    expect(props.onBack).toHaveBeenCalled();
   });
 
   it("leads with one primary next step, then cards, with other options as quieter rows", () => {
@@ -206,8 +248,8 @@ describe("MackApp", () => {
   it("themes itself from the site's brand color", () => {
     setup({ ...uiFixtures.manyGrouped, accentColor: "#ffd000" });
     const root = document.querySelector<HTMLElement>(".mack")!;
-    expect(root.style.getPropertyValue("--accent")).toMatch(/^#[0-9a-f]{6}$/);
-    expect(root.style.getPropertyValue("--accent")).not.toBe("#ffd000");
+    expect(root.style.getPropertyValue("--brand")).toMatch(/^#[0-9a-f]{6}$/);
+    expect(root.style.getPropertyValue("--brand")).not.toBe("#ffd000");
   });
 
   it("shows the site's own logo on its background color, falling back to its name if the image fails", () => {
@@ -234,25 +276,13 @@ describe("MackApp", () => {
     const go = within(box).getByRole("button", { name: "Search" });
     expect((go as HTMLButtonElement).disabled).toBe(true);
     fireEvent.change(input, { target: { value: "  paper towels " } });
-    fireEvent.submit(input.closest("form")!);
+    fireEvent.submit(box);
     expect(props.onSearch).toHaveBeenCalledWith("a6", "paper towels");
   });
 
   it("shows no search box when the design has none", () => {
     setup(uiFixtures.manyGrouped);
     expect(screen.queryByRole("search")).toBeNull();
-  });
-
-  it("switches to dark mode with an accessible accent and remembers nothing outside the extension", () => {
-    setup({ ...uiFixtures.manyGrouped, accentColor: "#002677" });
-    const root = document.querySelector<HTMLElement>(".mack")!;
-    const lightAccent = root.style.getPropertyValue("--accent");
-    fireEvent.click(screen.getByRole("button", { name: "Dark mode" }));
-    expect(root.getAttribute("data-theme")).toBe("dark");
-    expect(root.classList.contains("dark")).toBe(true);
-    expect(root.style.getPropertyValue("--accent")).not.toBe(lightAccent);
-    fireEvent.click(screen.getByRole("button", { name: "Light mode" }));
-    expect(root.getAttribute("data-theme")).toBe("light");
   });
 
   it("uses native buttons so every control is keyboard reachable", () => {

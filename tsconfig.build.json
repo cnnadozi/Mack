@@ -1,6 +1,0 @@
-{
-  "extends": "./tsconfig.json",
-  "compilerOptions": { "types": ["chrome"] },
-  "include": ["shared/**/*.ts", "extension/src/**/*.ts", "extension/src/**/*.tsx"],
-  "exclude": ["**/*.test.ts", "**/*.test.tsx", "**/__tests__/**", "**/fixtures.ts"]
-}
