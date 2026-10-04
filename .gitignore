@@ -1,6 +1,8 @@
 infra/workflows/.obsidian/plugins/mcp-tools-istefox/data.json
+.DS_Store
 .env
 .env.*
+*.local
 
 # Local-only developer credentials. Never commit.
 extension/local-env.js

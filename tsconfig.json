@@ -12,11 +12,16 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "types": ["chrome", "vite/client", "node"],
+    "types": ["chrome", "vite/client", "node", "vitest/globals"],
     "paths": { "@/*": ["./extension/src/ui/*"] }
   },
   "include": [
     "vite.config.ts",
+    "vitest.config.ts",
+    "shared",
+    "extension/src/content.ts",
+    "extension/src/options.ts",
+    "extension/src/service-worker.ts",
     "extension/src/env.d.ts",
     "extension/src/platform",
     "extension/src/ui",

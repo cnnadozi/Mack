@@ -48,7 +48,7 @@ How it works: the microphone is heard in a hidden extension page. Gemini (`gemin
 
 Caching: asking the same question again on a page that has not changed is answered from memory, without another Gemini call, for up to five minutes. Tasks are never cached, because they change the page. Sentences Mack has already spoken in the current voice (the greeting, a repeated answer) reuse the audio instead of calling ElevenLabs again. Both caches are in memory only and are emptied when Mack is turned off.
 
-Checks: `npm run typecheck` and `npm test`.
+Checks: `npm run typecheck` and `npm test`. The tests use two runners: Node's built-in one for the voice conversation code (`npm run test:node`) and Vitest for Role 4's platform, UI and shared contract tests.
 
 ## Debugging
 
@@ -74,6 +74,15 @@ The work is split into four roles:
 | 3 | UI: AI-generated screen design and rendering |
 | 4 | Platform: Chrome extension shell, page extraction, integration |
 
+
+## Role 4's platform code (merged, not yet wired in)
+
+The `role4_chrome_extension` branch is merged into this one. Its code is in the repo and its tests run with `npm test`, but the built extension does not load it yet: the manifest, `package.json` and Vite build are still the voice-conversation extension described above.
+
+- `shared/contracts.ts`: the shared contract types and validation
+- `extension/src/platform/` (`controller.ts`, `extractor.ts`, `provider.ts`, and others), `extension/src/service-worker.ts`, `extension/src/content.ts`, `extension/src/options.ts`: Role 4's platform, written for its own manifest
+- `extension/src/ui/MackApp.tsx` and `extension/src/ui/design/`: the AI-redesigned simple screen
+- `build.mjs`: Role 4's esbuild build. Do not run it as is: it writes to `dist/` and expects Role 4's manifest, which this branch does not use.
 
 ## Documentation
 
