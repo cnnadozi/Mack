@@ -248,15 +248,6 @@ function onLivePage<Result>(run: () => Result): Result {
   }
 }
 
-/**
- * Types into a real field of the page and presses Enter, for the simple view's
- * own search box. The same refusals apply as for a step Mack takes itself.
- */
-export function typeAndSubmit(element: HTMLElement, text: string): ActResult {
-  if (!isUsable(element)) return FAILED;
-  return onLivePage(() => fill(element, text, true));
-}
-
 function targetOf(elementId: string | null): HTMLElement | null {
   if (elementId === null) {
     return document.activeElement instanceof HTMLElement ? document.activeElement : document.body;

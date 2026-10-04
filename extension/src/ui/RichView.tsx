@@ -3,7 +3,7 @@
 // a line about what it does. Used when the extension supplies ScreenDetails;
 // every card is still one of the contract's grounded buttons.
 
-import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -44,11 +44,13 @@ import type { ScreenSection, TaskButton } from "../../../shared/contracts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { isMoreSection } from "./design/validate";
 import { sectionKey, type IconName, type ScreenDetails } from "./details";
 import type { MackAppProps } from "./MackApp";
+import { SiteLogoView, SiteSearchBox } from "./site";
+import { taskIcon } from "./taskIcon";
+import { paletteFor } from "./theme";
 
 const ICONS: Record<IconName, LucideIcon> = {
   search: Search,
@@ -109,32 +111,6 @@ function Picture(props: { src?: string; className: string; fallback?: ReactNode 
   );
 }
 
-function SearchBox({ search }: { search: NonNullable<ScreenDetails["search"]> }) {
-  const [draft, setDraft] = useState("");
-  const submit = (event: FormEvent): void => {
-    event.preventDefault();
-    const text = draft.trim();
-    if (text) search.onSearch(text);
-  };
-  return (
-    <form className="flex max-w-[520px] gap-2" role="search" onSubmit={submit}>
-      <Input
-        type="search"
-        autoComplete="off"
-        className="h-12 rounded-xl bg-background px-4 text-lg text-foreground"
-        placeholder={search.label}
-        aria-label={search.label}
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-      />
-      <Button type="submit" variant="secondary" className="h-12 rounded-xl px-5 text-lg">
-        <Search />
-        Search
-      </Button>
-    </form>
-  );
-}
-
 function ActionCard(props: {
   button: TaskButton;
   detail?: NonNullable<ScreenDetails["actions"]>[string];
@@ -144,7 +120,8 @@ function ActionCard(props: {
   onAction(id: string): void;
 }) {
   const { button, detail, highlighted, badgeId } = props;
-  const Icon = ICONS[detail?.icon ?? "arrow"];
+  // The model's pick, else a guess from the label.
+  const Icon = detail?.icon ? ICONS[detail.icon] : taskIcon(button.label);
   const iconTile = (
     <span
       className={cn(
@@ -208,6 +185,7 @@ function ActionCard(props: {
 function SectionCards(props: {
   section: ScreenSection;
   details: ScreenDetails;
+  color?: string;
   idPrefix: string;
   highlightedActionId?: string;
   badgeId: string;
@@ -235,7 +213,7 @@ function SectionCards(props: {
             <ActionCard
               button={button}
               detail={details.actions?.[button.actionId]}
-              color={details.site?.color}
+              color={props.color}
               highlighted={button.actionId === props.highlightedActionId}
               badgeId={props.badgeId}
               onAction={props.onAction}
@@ -248,7 +226,7 @@ function SectionCards(props: {
 }
 
 export function RichView(props: MackAppProps & { details: ScreenDetails; guidance: ReactNode }) {
-  const { state, details, onAction, onPreviousPage, onShowOriginal, onExit } = props;
+  const { state, details, onAction, onSearch, onPreviousPage, onShowOriginal, onExit } = props;
   const { screen, highlightedActionId } = state;
   const { site } = details;
   const idPrefix = useId();
@@ -271,7 +249,8 @@ export function RichView(props: MackAppProps & { details: ScreenDetails; guidanc
     });
   }, [highlightedActionId, screen.screenVersion]);
 
-  const onColor = site?.color ? (site.lightText ? "#ffffff" : "#18181b") : undefined;
+  // The site's brand colour, darkened where needed so white text on it is readable.
+  const accent = state.accentColor ? paletteFor(state.accentColor).accent : undefined;
   return (
     <section
       className={cn(
@@ -294,8 +273,11 @@ export function RichView(props: MackAppProps & { details: ScreenDetails; guidanc
             <ArrowLeft />
           </Button>
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
-            <Picture src={site?.icon} className="size-7 shrink-0 rounded-md" />
-            <span className="truncate text-lg font-medium">{site?.name}</span>
+            {state.siteLogo ? (
+              <SiteLogoView logo={state.siteLogo} />
+            ) : (
+              <span className="truncate text-lg font-semibold">{site?.name}</span>
+            )}
           </div>
           <div className="flex flex-wrap gap-2" role="toolbar" aria-label="Mack controls">
             <Button
@@ -320,14 +302,14 @@ export function RichView(props: MackAppProps & { details: ScreenDetails; guidanc
         <div
           className={cn(
             "flex items-center gap-6 rounded-3xl p-6 shadow-sm sm:p-8",
-            !site?.color && "border bg-card",
+            !accent && "border bg-card",
           )}
           // The site's own colour, darkened a little towards one corner.
           style={
-            site?.color
+            accent
               ? {
-                  background: `linear-gradient(135deg, ${site.color}, color-mix(in srgb, ${site.color} 72%, black))`,
-                  color: onColor,
+                  background: `linear-gradient(135deg, ${accent}, color-mix(in srgb, ${accent} 72%, black))`,
+                  color: "#ffffff",
                 }
               : undefined
           }
@@ -339,7 +321,9 @@ export function RichView(props: MackAppProps & { details: ScreenDetails; guidanc
             {details.summary && (
               <p className="m-0 max-w-[60ch] text-lg opacity-90">{details.summary}</p>
             )}
-            {details.search && <SearchBox search={details.search} />}
+            {screen.search && (
+              <SiteSearchBox search={screen.search} onSearch={onSearch} className="max-w-[520px]" />
+            )}
           </div>
           <Picture
             src={site?.image}
@@ -368,6 +352,7 @@ export function RichView(props: MackAppProps & { details: ScreenDetails; guidanc
               key={section.id}
               section={section}
               details={details}
+              color={accent}
               idPrefix={idPrefix}
               highlightedActionId={highlightedActionId}
               badgeId={`${idPrefix}-badge`}

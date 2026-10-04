@@ -1,4 +1,12 @@
-import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import {
   ArrowLeft,
   ChevronDown,
@@ -28,6 +36,8 @@ import { cn } from "@/lib/utils";
 import { isMoreSection } from "./design/validate";
 import type { ScreenDetails } from "./details";
 import { RichView } from "./RichView";
+import { SiteLogoView, SiteSearchBox } from "./site";
+import { paletteFor } from "./theme";
 
 export type MackAppProps = LensAppProps & {
   /**
@@ -111,6 +121,8 @@ export function MackApp(props: MackAppProps) {
   return (
     <div
       className="mack font-sans text-base text-foreground antialiased"
+      // The site's brand colour, made readable. Not "--accent": that is a shadcn token.
+      style={{ "--brand": paletteFor(state.accentColor).accent } as CSSProperties}
       data-mode={state.screen.mode}
       aria-busy={state.busy || undefined}
     >
@@ -126,7 +138,7 @@ export function MackApp(props: MackAppProps) {
 }
 
 function SimplifiedView(props: MackAppProps) {
-  const { state, onAction, onPreviousPage, onShowOriginal, onExit } = props;
+  const { state, onAction, onSearch, onPreviousPage, onShowOriginal, onExit } = props;
   const { screen, highlightedActionId } = state;
   const badgeId = useId();
   const gridRef = useRef<HTMLDivElement>(null);
@@ -195,6 +207,14 @@ function SimplifiedView(props: MackAppProps) {
           </div>
         </header>
 
+        {state.siteLogo && (
+          <div className="flex flex-wrap items-center gap-3">
+            <SiteLogoView logo={state.siteLogo} />
+            <span className="text-sm text-muted-foreground">Simplified by Mack</span>
+          </div>
+        )}
+        {screen.search && <SiteSearchBox search={screen.search} onSearch={onSearch} />}
+
         <Guidance {...props} />
 
         <div ref={gridRef} className="flex flex-col gap-6">
@@ -204,6 +224,7 @@ function SimplifiedView(props: MackAppProps) {
               section={section}
               index={index}
               idPrefix={badgeId}
+              variant={index === 0 ? "lead" : "card"}
               {...sectionProps}
             />
           ))}
@@ -233,6 +254,7 @@ function SimplifiedView(props: MackAppProps) {
                       section={section}
                       index={index + 1}
                       idPrefix={badgeId}
+                      variant="row"
                       {...sectionProps}
                     />
                   ))}
@@ -261,6 +283,8 @@ function SectionView(props: {
   highlightedActionId?: string;
   badgeId: string;
   singleColumn?: boolean;
+  /** "lead" makes the section's first button the one primary next step. */
+  variant: "lead" | "card" | "row";
   onAction(id: string): void;
 }) {
   const { section, index, idPrefix, highlightedActionId, badgeId, onAction } = props;
@@ -283,10 +307,17 @@ function SectionView(props: {
           !props.singleColumn && "sm:grid-cols-2",
         )}
       >
-        {section.buttons.map((button) => (
+        {section.buttons.map((button, position) => (
           <li key={button.actionId}>
             <TaskButtonView
               button={button}
+              variant={
+                props.variant === "row"
+                  ? "row"
+                  : props.variant === "lead" && position === 0
+                    ? "primary"
+                    : "card"
+              }
               highlighted={button.actionId === highlightedActionId}
               badgeId={badgeId}
               onAction={onAction}
@@ -301,16 +332,21 @@ function SectionView(props: {
 function TaskButtonView(props: {
   button: TaskButton;
   highlighted: boolean;
+  variant: "primary" | "card" | "row";
   badgeId: string;
   onAction(id: string): void;
 }) {
-  const { button, highlighted, badgeId, onAction } = props;
+  const { button, highlighted, variant, badgeId, onAction } = props;
   return (
     <Button
       type="button"
-      variant={highlighted ? "default" : "outline"}
+      variant={
+        highlighted || variant === "primary" ? "default" : variant === "row" ? "ghost" : "outline"
+      }
+      data-variant={variant}
       className={cn(
         "h-full min-h-16 w-full justify-between gap-3 rounded-xl px-5 py-4 text-left text-2xl font-semibold whitespace-normal",
+        variant === "row" && "min-h-12 py-2 text-xl font-medium",
         highlighted &&
           "ring-4 ring-ring/60 forced-colors:outline-4 forced-colors:outline-[Highlight]",
       )}

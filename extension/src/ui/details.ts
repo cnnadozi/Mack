@@ -1,6 +1,7 @@
 // The extra detail that turns the simple view from a list of buttons into a
 // redesign of the page: a summary, key facts, descriptions and icons from the
-// model, and the site's own name, colour and pictures read from the page.
+// model, and the site's own name and pictures read from the page. (The site's
+// logo, colour and search box come through the shared contract instead.)
 //
 // None of this is part of the shared contract. It only decorates buttons the
 // contract has already grounded in real page actions, so a missing or wrong
@@ -42,12 +43,8 @@ export type IconName = (typeof ICON_NAMES)[number];
 
 export type ScreenDetails = {
   site?: {
+    /** Shown when the contract carries no logo for the site. */
     name: string;
-    /** The site's own icon. */
-    icon?: string;
-    /** The site's main colour as a CSS colour, and whether white text is readable on it. */
-    color?: string;
-    lightText?: boolean;
     /** The page's own preview picture. */
     image?: string;
   };
@@ -57,8 +54,6 @@ export type ScreenDetails = {
   sections?: Record<string, { description?: string }>;
   /** By action id. */
   actions?: Record<string, { description?: string; icon?: IconName; image?: string }>;
-  /** The page's own search box, when it has one. */
-  search?: { label: string; onSearch(text: string): void };
 };
 
 const MAX_SUMMARY = 320;

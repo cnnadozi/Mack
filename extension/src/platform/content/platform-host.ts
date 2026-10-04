@@ -18,9 +18,8 @@ import { createResolveIntent } from "../guidance-adapter";
 import type { GuideReply, RuntimeMessage } from "../messages";
 import { createModelClient } from "../model-client";
 import { PeekReplySchema } from "../protocol";
-import { typeAndSubmit } from "./act";
 import { rememberToContinue } from "./continue";
-import { pictureFor, searchField, siteLook } from "./page-look";
+import { pictureFor, siteLook } from "./page-look";
 import { followTheme } from "./theme";
 
 const SessionSchema = z.object({
@@ -41,6 +40,7 @@ const RICH_DESIGN = `This screen is a full, well-organised redesign of the page,
 - Add "highlights": up to 6 key facts that the page itself states and a visitor would look for, such as opening hours, a price, a phone number, a deadline or a delivery time. Each is {"title","text"}. Use only facts present in the snapshot; use an empty list when there are none.
 - Give each section a "description": one short sentence about what is in it.
 - Give each button a "description": one short sentence saying what the visitor will find there or what happens, based on the snapshot, and an "icon": the one of ${ICON_NAMES.join(", ")} that fits it best.
+- If page.searchFields lists a search box, always set "search" to it.
 - Prefer status "ready". Use "use_original" only when the page's main purpose is filling in a form that asks for private details.`;
 
 // What is added to Role 3's design prompt and Role 2's guidance prompt.
@@ -151,25 +151,7 @@ export async function startSimpleView(options: {
         };
       }
     }
-    const search = extraction ? searchField(extraction) : undefined;
-    return {
-      ...fromModel,
-      site,
-      actions,
-      ...(search
-        ? {
-            search: {
-              label: search.label,
-              onSearch: (text) => {
-                // The results page continues in the simple view, like any button.
-                rememberToContinue();
-                const result = typeAndSubmit(search.element, text);
-                debug("content", "simple view: searched the page's own search box ->", result);
-              },
-            },
-          }
-        : {}),
-    };
+    return { ...fromModel, site, actions };
   };
 
   const inner = mountMackApp();
@@ -185,9 +167,14 @@ export async function startSimpleView(options: {
           embedded: true,
           details: detailsFor(props),
           onShowOriginal: options.onShowOriginal,
+          // The page a card or a search leads to continues in the simple view.
           onAction: (id) => {
             rememberToContinue();
             props.onAction(id);
+          },
+          onSearch: (id, text) => {
+            rememberToContinue();
+            props.onSearch(id, text);
           },
         });
       },

@@ -1,4 +1,4 @@
-import type { PageSnapshot, SourceAction } from "../../../shared/contracts";
+import { SITE_SEARCH_PREFIX, type PageSnapshot, type SiteLogo, type SourceAction } from "../../../shared/contracts";
 import { sameSite, UNSAFE_LINK } from "./settings";
 
 export const MACK_SELECTOR = "mack-root[data-mack], [data-mack-platform]";
@@ -98,9 +98,27 @@ function regionContext(element: HTMLElement): string {
   return heading ? safeText(heading, 200) : "";
 }
 
+const SEARCH_NAMES = /^(q|query|search|searchterm|search_?query|keywords?|term|s)$/i;
+const TEXT_TYPES = new Set(["search", "text", ""]);
+
+/** A single-box site search (never part of a login, payment or multi-field form). */
+export function isSiteSearch(element: HTMLElement): element is HTMLInputElement {
+  if (!(element instanceof HTMLInputElement) || !TEXT_TYPES.has(element.getAttribute("type")?.toLowerCase() ?? "") || element.disabled || element.readOnly) return false;
+  const form = element.form;
+  if (form) {
+    if (form.querySelector("input[type=password]")) return false;
+    const textInputs = Array.from(form.querySelectorAll<HTMLInputElement>("input:not([type]), input[type=text], input[type=search], input[type=email], input[type=tel], textarea"))
+      .filter((input) => visible(input));
+    if (textInputs.length > 2) return false;
+  }
+  if (element.type === "search" || element.closest("[role=search]") || SEARCH_NAMES.test(element.name)) return true;
+  const hints = `${element.id} ${element.getAttribute("aria-label") ?? ""} ${element.getAttribute("placeholder") ?? ""} ${Array.from(element.labels ?? []).map((l) => l.textContent).join(" ")} ${form?.getAttribute("action") ?? ""}`;
+  return /search|find|look ?up/i.test(hints);
+}
+
 function contextFor(element: HTMLElement, kind: SourceAction["kind"]): string {
   let prefix = "";
-  if (kind === "field") prefix = `${element instanceof HTMLInputElement ? element.type : isField(element) ? element.type : "text"} field; `;
+  if (kind === "field") prefix = `${isSiteSearch(element) ? SITE_SEARCH_PREFIX : ""}${element instanceof HTMLInputElement ? element.type : isField(element) ? element.type : "text"} field; `;
   else if (kind === "button" && ["aria-expanded", "aria-haspopup", "aria-controls"].some((a) => element.hasAttribute(a))) prefix = "opens menu; ";
   // Role 3's prompt matches these prefixes exactly, including the trailing space.
   return `${prefix}${regionContext(element)}`.slice(0, 200);
@@ -188,4 +206,214 @@ export function deepLink(extraction: Extraction, id: string): string {
     throw new Error("Mack can't open that link safely. Refresh Mack and try again.");
   }
   return href;
+}
+
+type Rgb = [number, number, number];
+
+function parseColor(value: string | null | undefined): { rgb: Rgb; alpha: number } | undefined {
+  const v = (value ?? "").trim().toLowerCase();
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/.exec(v);
+  if (hex) {
+    const h = hex[1]!.length === 3 ? hex[1]!.split("").map((c) => c + c).join("") : hex[1]!;
+    return { rgb: [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)) as Rgb, alpha: 1 };
+  }
+  const fn = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:[\s,/]+([\d.]+%?))?\s*\)$/.exec(v);
+  if (!fn) return undefined;
+  const a = fn[4] === undefined ? 1 : fn[4].endsWith("%") ? parseFloat(fn[4]) / 100 : parseFloat(fn[4]);
+  return { rgb: [fn[1], fn[2], fn[3]].map((n) => Math.round(Number(n))) as Rgb, alpha: a };
+}
+
+// Grays, near-white and near-black say nothing about a brand.
+function chroma([r, g, b]: Rgb): number {
+  return (Math.max(r, g, b) - Math.min(r, g, b)) / 255;
+}
+
+// Unstyled link colors are the browser's, not the site's.
+const BROWSER_DEFAULTS = new Set(["#0000ee", "#0000ff", "#551a8b", "#ff0000"]);
+
+const toHex = (rgb: Rgb) => `#${rgb.map((n) => n.toString(16).padStart(2, "0")).join("")}`;
+
+/** The site's brand color: its theme-color, else the dominant saturated color of its header, buttons and links. */
+export function brandColor(): string | undefined {
+  const meta = parseColor(document.querySelector('meta[name="theme-color"]')?.getAttribute("content"));
+  if (meta && meta.alpha > 0.5 && chroma(meta.rgb) >= 0.25) return toHex(meta.rgb);
+  const weights = new Map<string, number>();
+  const add = (value: string, weight: number) => {
+    const color = parseColor(value);
+    if (!color || color.alpha < 0.5 || chroma(color.rgb) < 0.25) return;
+    const key = toHex(color.rgb);
+    if (BROWSER_DEFAULTS.has(key)) return;
+    weights.set(key, (weights.get(key) ?? 0) + weight);
+  };
+  const candidates = document.body.querySelectorAll<HTMLElement>("header, nav, header *, nav *, button, [role=button], a[href]");
+  let seen = 0;
+  for (const element of candidates) {
+    if (seen++ > 600) break;
+    if (isMack(element) || !visible(element)) continue;
+    const style = getComputedStyle(element);
+    const inChrome = !!element.closest("header, nav");
+    add(style.backgroundColor, inChrome || element.matches("button, [role=button]") ? 3 : 1);
+    if (element.matches("a[href]")) add(style.color, 1);
+  }
+  let best: string | undefined;
+  for (const [color, weight] of weights) if (!best || weight > weights.get(best)!) best = color;
+  return best;
+}
+
+const LOGO_WORDS = /logo|brand/i;
+// Cookie banners and alert bars often push the real header well down the page.
+const LOGO_MAX_TOP = 600;
+const MAX_LOGO_BYTES = 150_000;
+const SVG_PAINT = ["fill", "stroke", "stroke-width", "opacity", "fill-opacity", "stroke-opacity", "fill-rule", "clip-rule"] as const;
+
+// Labels that describe the link, not the site ("Home", "Logo") are useless as the logo's name.
+const GENERIC_LABEL = /^(go to |back to |return to )?(the )?(home|homepage|home page|main page|logo|link|site logo|image)$/i;
+
+function logoLabel(element: Element): string {
+  for (let node: Element | null = element, depth = 0; node && depth < 4; node = node.parentElement, depth++) {
+    for (const raw of [node.getAttribute("alt"), node.getAttribute("aria-label"), node.querySelector(":scope > title")?.textContent]) {
+      const label = clean((raw ?? "").replace(/(\s+(logo|home ?page|home|header|banner|image|icon))+\s*$/i, "").replace(/^\s*(logo of|go to|back to)\s+/i, ""), 120);
+      if (label && !GENERIC_LABEL.test(label)) return label;
+    }
+  }
+  return "";
+}
+
+function backgroundBehind(element: Element): string {
+  for (let node: Element | null = element; node; node = node.parentElement) {
+    const color = parseColor(getComputedStyle(node).backgroundColor);
+    if (color && color.alpha >= 0.5) return toHex(color.rgb);
+  }
+  return "#ffffff";
+}
+
+function isHomeLink(anchor: HTMLAnchorElement | null): boolean {
+  if (!anchor) return false;
+  try {
+    const url = new URL(anchor.getAttribute("href") ?? "", location.href);
+    return url.origin === location.origin && (url.pathname === "/" || url.pathname === "");
+  } catch { return false; }
+}
+
+// SVG shown through <img> never runs scripts or handlers, but it also loses page CSS, so computed paint is copied inline.
+function svgDataUrl(svg: SVGSVGElement): string | undefined {
+  const ids = new Set(Array.from(svg.querySelectorAll("[id]"), (el) => el.id));
+  const external = Array.from(svg.querySelectorAll("use")).some((use) => {
+    const ref = use.getAttribute("href") ?? use.getAttribute("xlink:href") ?? "";
+    return !ref.startsWith("#") || !ids.has(ref.slice(1));
+  });
+  if (external) return undefined;
+  const clone = svg.cloneNode(true) as SVGSVGElement;
+  const originals = [svg, ...Array.from(svg.querySelectorAll("*"))];
+  const copies = [clone, ...Array.from(clone.querySelectorAll("*"))];
+  originals.forEach((original, i) => {
+    const copy = copies[i];
+    if (!copy) return;
+    const style = getComputedStyle(original);
+    for (const prop of SVG_PAINT) {
+      const value = style.getPropertyValue(prop);
+      if (value && value !== "normal") copy.setAttribute(prop, value === "currentcolor" || value === "currentColor" ? style.color : value);
+    }
+  });
+  clone.querySelectorAll("script, foreignObject").forEach((el) => el.remove());
+  for (const el of [clone, ...Array.from(clone.querySelectorAll("*"))]) {
+    for (const attr of Array.from(el.attributes)) if (/^on/i.test(attr.name)) el.removeAttribute(attr.name);
+  }
+  // Logos are often sized by page CSS (width="0", padding tricks), which an image cannot see; use the rendered size.
+  const box = svg.getBoundingClientRect();
+  clone.setAttribute("width", String(Math.max(1, Math.round(box.width))));
+  clone.setAttribute("height", String(Math.max(1, Math.round(box.height))));
+  clone.removeAttribute("style");
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(new XMLSerializer().serializeToString(clone))}`;
+  return url.length <= MAX_LOGO_BYTES ? url : undefined;
+}
+
+/** The site's own logo from its header, so the simplified view still clearly belongs to that site. */
+export function siteLogo(): SiteLogo | undefined {
+  const candidates = document.body.querySelectorAll<HTMLElement | SVGSVGElement>("img, svg");
+  let best: { element: HTMLImageElement | SVGSVGElement; score: number } | undefined;
+  let seen = 0;
+  for (const element of candidates) {
+    if (seen++ > 400) break;
+    if (isMack(element) || (element instanceof SVGSVGElement && element.parentElement?.closest("svg"))) continue;
+    const box = element.getBoundingClientRect();
+    if (box.top + scrollY > LOGO_MAX_TOP || box.width < 16 || box.height < 12 || box.width > 420 || box.height > 160) continue;
+    if (element instanceof HTMLElement && !visible(element)) continue;
+    let score = 0;
+    for (let node: Element | null = element, depth = 0; node && depth < 4; node = node.parentElement, depth++) {
+      const words = `${node.getAttribute("alt") ?? ""} ${node.getAttribute("aria-label") ?? ""} ${node.getAttribute("class") ?? ""} ${node.id} ${node.querySelector(":scope > title")?.textContent ?? ""}`;
+      if (LOGO_WORDS.test(words)) { score += 5; break; }
+    }
+    if (isHomeLink(element.closest("a"))) score += 4;
+    if (element.closest("header, [role=banner], nav")) score += 2;
+    if (box.left < 400) score += 1;
+    if (score >= 5 && (!best || score > best.score)) best = { element: element as HTMLImageElement | SVGSVGElement, score };
+  }
+  if (best) {
+    const { element } = best;
+    const alt = logoLabel(element) || siteName();
+    const background = backgroundBehind(element);
+    const src = element instanceof SVGSVGElement ? svgDataUrl(element) : httpsUrl(element.currentSrc || element.src);
+    if (src) return { src, alt, background, kind: "logo" };
+  }
+  return backgroundLogo() ?? siteIcon();
+}
+
+function httpsUrl(value: string | null | undefined): string | undefined {
+  // An empty value would otherwise resolve to the current page.
+  if (!value?.trim()) return undefined;
+  try {
+    const url = new URL(value ?? "", location.href);
+    return url.protocol === "https:" && url.href.length <= 2000 ? url.href : undefined;
+  } catch { return undefined; }
+}
+
+/** The site's own name: og:site_name, application-name, the brand part of the title, or the hostname. */
+export function siteName(): string {
+  const meta = document.querySelector('meta[property="og:site_name"]')?.getAttribute("content")
+    || document.querySelector('meta[name="application-name"]')?.getAttribute("content");
+  if (meta?.trim()) return clean(meta, 120);
+  const parts = document.title.split(/\s+[|–—·:-]\s+/).map((part) => part.trim()).filter(Boolean);
+  // "Health insurance plans | UnitedHealthcare", "Internal Revenue Service | An official website of…":
+  // the brand is usually the shortest part; ties go to the last.
+  if (parts.length > 1) {
+    const host = location.hostname.replace(/^www\./, "").split(".").slice(0, -1).join("").toLowerCase();
+    const matchesHost = (part: string) => {
+      const squashed = part.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const initials = part.split(/\s+/).map((word) => word[0] ?? "").join("").toLowerCase();
+      return (host.length > 2 && (squashed.includes(host) || host.includes(squashed))) || initials === host;
+    };
+    const named = parts.find(matchesHost);
+    return clean(named ?? parts.reduce((best, part) => (part.length <= best.length ? part : best)), 120);
+  }
+  return location.hostname.replace(/^www\./, "");
+}
+
+// Some sites draw the header logo as a CSS background on the home link.
+function backgroundLogo(): SiteLogo | undefined {
+  for (const anchor of document.body.querySelectorAll<HTMLAnchorElement>("a[href]")) {
+    if (!isHomeLink(anchor) || isMack(anchor) || !visible(anchor)) continue;
+    const box = anchor.getBoundingClientRect();
+    if (box.top + scrollY > LOGO_MAX_TOP || box.width < 16 || box.height < 12) continue;
+    for (const node of [anchor, ...Array.from(anchor.querySelectorAll<HTMLElement>("*")).slice(0, 5)]) {
+      const match = /url\(["']?([^"')]+)["']?\)/.exec(getComputedStyle(node).backgroundImage);
+      const src = httpsUrl(match?.[1]);
+      if (src) return { src, alt: clean(anchor.getAttribute("aria-label") || anchor.textContent, 120) || siteName(), background: backgroundBehind(anchor), kind: "logo" };
+    }
+  }
+  return undefined;
+}
+
+// Nearly every site has an app or tab icon; shown with the site's name it still identifies the site.
+function siteIcon(): SiteLogo | undefined {
+  const links = Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel~="apple-touch-icon"], link[rel~="icon"], link[rel="shortcut icon"]'));
+  const size = (link: HTMLLinkElement) => {
+    if (/apple-touch-icon/i.test(link.rel)) return 180;
+    if (/svg/i.test(link.type) || /\.svg(\?|$)/i.test(link.href)) return 512;
+    return Math.max(0, ...(link.getAttribute("sizes") ?? "").split(/\s+/).map((s) => parseInt(s, 10) || 0));
+  };
+  const best = links.sort((a, b) => size(b) - size(a))[0];
+  const src = httpsUrl(best?.href) ?? httpsUrl(`${location.origin}/favicon.ico`);
+  return src ? { src, alt: siteName(), background: "#ffffff", kind: "icon" } : undefined;
 }

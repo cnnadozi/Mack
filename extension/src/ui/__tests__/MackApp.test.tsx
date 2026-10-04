@@ -11,6 +11,7 @@ function setup(state: LensUIState) {
     state,
     onAction: vi.fn(),
     onRequest: vi.fn(),
+    onSearch: vi.fn(),
     onMicStart: vi.fn(),
     onMicStop: vi.fn(),
     onReplay: vi.fn(),
@@ -232,6 +233,56 @@ describe("MackApp", () => {
     expect(screen.queryByText(/microphone is not available/)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Simple view" }));
     expect(props.onBack).toHaveBeenCalled();
+  });
+
+  it("leads with one primary next step, then cards, with other options as quieter rows", () => {
+    setup(uiFixtures.goalWithMore);
+    const primary = screen.getByRole("button", { name: "Search for a doctor near you" });
+    expect(primary.getAttribute("data-variant")).toBe("primary");
+    expect(screen.getByRole("button", { name: "Find a doctor in your plan" }).getAttribute("data-variant")).toBe("card");
+    expect(document.querySelectorAll('[data-variant="primary"]')).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: /More options/ }));
+    expect(screen.getByRole("button", { name: "Contact customer support" }).getAttribute("data-variant")).toBe("row");
+  });
+
+  it("themes itself from the site's brand color", () => {
+    setup({ ...uiFixtures.manyGrouped, accentColor: "#ffd000" });
+    const root = document.querySelector<HTMLElement>(".mack")!;
+    expect(root.style.getPropertyValue("--brand")).toMatch(/^#[0-9a-f]{6}$/);
+    expect(root.style.getPropertyValue("--brand")).not.toBe("#ffd000");
+  });
+
+  it("shows the site's own logo on its background color, falling back to its name if the image fails", () => {
+    const siteLogo = { src: "https://example.com/logo.png", alt: "Liberty Mutual Insurance", background: "#ffd000" };
+    setup({ ...uiFixtures.manyGrouped, siteLogo });
+    const img = screen.getByRole("img", { name: "Liberty Mutual Insurance" });
+    expect(img.closest<HTMLElement>(".mack-logo")!.style.background).toMatch(/255, 208, 0|#ffd000/i);
+    screen.getByText("Simplified by Mack");
+    fireEvent.error(img);
+    expect(screen.queryByRole("img", { name: "Liberty Mutual Insurance" })).toBeNull();
+    screen.getByText("Liberty Mutual Insurance");
+  });
+
+  it("writes the site name beside a bare site icon", () => {
+    setup({ ...uiFixtures.manyGrouped, siteLogo: { src: "https://example.com/touch.png", alt: "Example Library", background: "#ffffff", kind: "icon" } });
+    screen.getByText("Example Library");
+    expect(document.querySelector(".mack-logo img")!.getAttribute("alt")).toBe("");
+  });
+
+  it("offers the site's own search and sends the query with its field id", () => {
+    const { props } = setup({ ...uiFixtures.manyGrouped, screen: { ...uiFixtures.manyGrouped.screen, search: { actionId: "a6", label: "Search Costco" } } });
+    const box = screen.getByRole("search");
+    const input = within(box).getByLabelText("Search Costco");
+    const go = within(box).getByRole("button", { name: "Search" });
+    expect((go as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(input, { target: { value: "  paper towels " } });
+    fireEvent.submit(box);
+    expect(props.onSearch).toHaveBeenCalledWith("a6", "paper towels");
+  });
+
+  it("shows no search box when the design has none", () => {
+    setup(uiFixtures.manyGrouped);
+    expect(screen.queryByRole("search")).toBeNull();
   });
 
   it("uses native buttons so every control is keyboard reachable", () => {

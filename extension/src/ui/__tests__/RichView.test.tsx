@@ -12,6 +12,7 @@ function setup(details: ScreenDetails, state = uiFixtures.withAddition) {
     state,
     onAction: vi.fn(),
     onRequest: vi.fn(),
+    onSearch: vi.fn(),
     onMicStart: vi.fn(),
     onMicStop: vi.fn(),
     onReplay: vi.fn(),
@@ -69,7 +70,7 @@ describe("the simple view as a redesign of the page", () => {
   const state = uiFixtures.withAddition;
   const first = state.screen.sections[0]!;
   const details: ScreenDetails = {
-    site: { name: "Example Library", color: "rgb(20, 90, 200)", lightText: true },
+    site: { name: "Example Library" },
     summary: "Find books, events and opening hours.",
     highlights: [{ title: "Open today", text: "9am to 8pm" }],
     sections: { [first.heading!.toLowerCase()]: { description: "Start here." } },
@@ -114,13 +115,27 @@ describe("the simple view as a redesign of the page", () => {
     expect(screen.queryByRole("button", { name: /More options/ })).toBeNull();
   });
 
-  it("offers the page's own search box", () => {
-    const onSearch = vi.fn();
-    setup({ search: { label: "Search the catalogue", onSearch } });
-    fireEvent.change(screen.getByRole("searchbox", { name: "Search the catalogue" }), {
+  it("uses the site's logo, colour and search box from the contract", () => {
+    const props = setup(details, {
+      ...state,
+      accentColor: "#ffd000",
+      siteLogo: {
+        src: "https://example.org/logo.png",
+        alt: "Example Library",
+        background: "#ffffff",
+      },
+      screen: { ...state.screen, search: { actionId: "a6", label: "Search the catalogue" } },
+    });
+    screen.getByRole("img", { name: "Example Library" });
+    // Yellow is too light for white text, so the banner uses a darkened version of it.
+    const banner = screen.getByRole("heading", { level: 1 }).closest<HTMLElement>("[style]")!;
+    expect(banner.style.color).toMatch(/255, 255, 255|#ffffff/i);
+    expect(banner.style.background).not.toContain("255, 208, 0");
+    const box = screen.getByRole("search");
+    fireEvent.change(within(box).getByLabelText("Search the catalogue"), {
       target: { value: " dune " },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Search" }));
-    expect(onSearch).toHaveBeenCalledWith("dune");
+    fireEvent.submit(box);
+    expect(props.onSearch).toHaveBeenCalledWith("a6", "dune");
   });
 });

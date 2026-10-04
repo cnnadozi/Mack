@@ -24,7 +24,10 @@ export type ScreenDesign = {
   title: string;
   mode: "simplified" | "original";
   sections: ScreenSection[];
+  search?: SiteSearch;
 };
+// The site's own search box, offered in the simplified view; actionId must be a "site search; " field.
+export type SiteSearch = { actionId: ActionId; label: string };
 export type CommittedScreen = ScreenDesign & {
   snapshotVersion: Version;
   screenVersion: Version; // assigned only by Role 4
@@ -105,11 +108,17 @@ export type LensUIState = {
   busy: boolean;
   error?: LensError;
   clarificationOptions?: string[];
+  accentColor?: string; // "#rrggbb" brand color of the source site; the UI adjusts it for contrast
+  siteLogo?: SiteLogo;
 };
+// The source site's own logo, as an https image or an inert SVG data URL, with the color it sits on.
+// kind "icon" is a small square site icon (no wordmark), so the UI shows the site name beside it.
+export type SiteLogo = { src: string; alt: string; background: string; kind?: "logo" | "icon" };
 export type LensAppProps = {
   state: LensUIState;
   onAction(id: ActionId): void;
   onRequest(text: string): void;
+  onSearch(actionId: ActionId, text: string): void; // run the site's own search; Role 4 fills and submits the real field
   onMicStart(): void;
   onMicStop(): void;
   onReplay(): void;
@@ -140,7 +149,8 @@ export const PageSnapshotSchema = z.object({
 }).strict().refine((v) => new Set(v.actions.map((a) => a.id)).size === v.actions.length, "Duplicate source IDs");
 export const TaskButtonSchema = z.object({ actionId: ActionIdSchema, label: text }).strict();
 export const ScreenSectionSchema = z.object({ id: text, heading: z.string().optional(), buttons: z.array(TaskButtonSchema) }).strict();
-export const ScreenDesignSchema = z.object({ title: text, mode: z.enum(["simplified", "original"]), sections: z.array(ScreenSectionSchema) }).strict();
+export const SiteSearchSchema = z.object({ actionId: ActionIdSchema, label: text }).strict();
+export const ScreenDesignSchema = z.object({ title: text, mode: z.enum(["simplified", "original"]), sections: z.array(ScreenSectionSchema), search: SiteSearchSchema.optional() }).strict();
 export const CommittedScreenSchema = ScreenDesignSchema.extend({ snapshotVersion: VersionSchema, screenVersion: VersionSchema });
 export const StampSchema = z.object({ requestId: text, snapshotVersion: VersionSchema, screenVersion: VersionSchema }).strict();
 export const DesignRequestSchema = z.object({ stamp: StampSchema, snapshot: PageSnapshotSchema, goal: z.string().optional() }).strict()
@@ -162,6 +172,14 @@ export const LensUIStateSchema = z.object({
   screen: CommittedScreenSchema, instruction: z.string(), highlightedActionId: ActionIdSchema.optional(),
   transcript: z.string(), voiceState: VoiceStateSchema, busy: z.boolean(), error: LensErrorSchema.optional(),
   clarificationOptions: z.array(text).optional(),
+  accentColor: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
+  siteLogo: z.lazy(() => SiteLogoSchema).optional(),
+}).strict();
+export const SiteLogoSchema = z.object({
+  src: z.string().max(200_000).regex(/^(https:\/\/|data:image\/(svg\+xml|png|jpeg|webp|gif)[;,])/),
+  alt: z.string().max(160),
+  background: z.string().regex(/^#[0-9a-f]{6}$/i),
+  kind: z.enum(["logo", "icon"]).optional(),
 }).strict();
 
 export const parseDesignRequest = (value: unknown): DesignRequest => DesignRequestSchema.parse(value);
@@ -173,12 +191,20 @@ export function sameStamp(a: Stamp, b: Stamp): boolean {
   return a.requestId === b.requestId && a.snapshotVersion === b.snapshotVersion && a.screenVersion === b.screenVersion;
 }
 
+export const SITE_SEARCH_PREFIX = "site search; ";
+
 export function validateDesign(design: ScreenDesign, snapshot: PageSnapshot): void {
   ScreenDesignSchema.parse(design);
   const sources = new Map(snapshot.actions.map((a) => [a.id, a]));
   const seen = new Set<string>();
   const sections = new Set<string>();
   if (design.mode === "original" && design.sections.length) throw new Error("Original mode cannot contain shortcuts");
+  if (design.search) {
+    const field = sources.get(design.search.actionId);
+    if (design.mode === "original" || !field || field.disabled || field.kind !== "field" || !field.context.startsWith(SITE_SEARCH_PREFIX)) {
+      throw new Error("Search must use the site's own search field");
+    }
+  }
   for (const section of design.sections) {
     if (sections.has(section.id)) throw new Error("Duplicate section ID");
     sections.add(section.id);

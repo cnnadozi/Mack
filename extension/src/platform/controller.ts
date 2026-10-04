@@ -1,9 +1,9 @@
 import {
-  DesignProposalSchema, LensUIStateSchema, SpeechJobSchema, parseDesignRequest, parseGuidanceRequest, sameStamp, validateDesign,
-  type CommittedScreen, type GenerateScreen, type LensAppProps, type LensUIState, type ResolveIntent, type Stamp,
+  DesignProposalSchema, LensUIStateSchema, SiteLogoSchema, SpeechJobSchema, parseDesignRequest, parseGuidanceRequest, sameStamp, validateDesign,
+  type CommittedScreen, type GenerateScreen, type SiteLogo, type LensAppProps, type LensUIState, type ResolveIntent, type Stamp,
   type VoiceCallbacks, type VoiceController,
 } from "../../../shared/contracts";
-import { deepLink, extractPage, isMack, liveTarget, sourceKind, type Extraction } from "./extractor";
+import { brandColor, deepLink, isSiteSearch, siteLogo, extractPage, isMack, liveTarget, sourceKind, type Extraction } from "./extractor";
 import { addPeekedLinks, hasPasswordField, peekCandidates, type Peek } from "./peek";
 import { mergeGuidance } from "./state";
 
@@ -13,6 +13,8 @@ type Dependencies = {
   createVoice?: (callbacks: VoiceCallbacks) => VoiceController;
   initialGoal?: string; saveGoal(goal: string, fromUrl?: string): void; onExit(): void;
   extract?: () => Extraction;
+  brandColor?: () => string | undefined;
+  siteLogo?: () => SiteLogo | undefined;
   peek?: Peek;
   navigate?: (url: string) => void;
   /**
@@ -26,6 +28,41 @@ type Dependencies = {
 };
 
 const BUTTON_SETTLE_MS = 900;
+const SEARCH_BUTTON_MS = 700;
+// Page changes alone may trigger at most one redesign in this window.
+const AUTO_REFRESH_MIN_MS = 10_000;
+
+const actionKey = (a: { label: string; kind: string; href?: string }) => `${a.kind}\u0000${a.label}\u0000${a.href ?? ""}`;
+
+/**
+ * Keeps the current snapshot and IDs, pointing each action at its re-rendered node in the new extraction.
+ * Returns undefined when any shown target is gone, which is the only page change worth a redesign.
+ */
+function relink(current: Extraction, next: Extraction, shown: string[]): Extraction | undefined {
+  const fresh = new Map<string, HTMLElement>();
+  for (const action of next.snapshot.actions) {
+    const element = next.registry.get(action.id);
+    if (element && !fresh.has(actionKey(action))) fresh.set(actionKey(action), element);
+  }
+  const registry = new Map(current.registry);
+  for (const action of current.snapshot.actions) {
+    if (current.deep.has(action.id)) continue;
+    const element = fresh.get(actionKey(action));
+    if (element) registry.set(action.id, element);
+    else registry.delete(action.id);
+  }
+  const missing = shown.some((id) => !current.deep.has(id) && !registry.has(id));
+  return missing ? undefined : { ...current, registry, fingerprint: next.fingerprint };
+}
+
+function searchButtonNear(input: HTMLInputElement): HTMLElement | undefined {
+  for (let node = input.parentElement, depth = 0; node && depth < 4; node = node.parentElement, depth++) {
+    const button = Array.from(node.querySelectorAll<HTMLElement>("button, [role=button], input[type=submit]"))
+      .find((el) => /search|go|find|submit/i.test(`${el.getAttribute("aria-label") ?? ""} ${el.getAttribute("title") ?? ""} ${el.textContent ?? ""} ${el.getAttribute("type") ?? ""}`));
+    if (button) return button;
+  }
+  return undefined;
+}
 const NAVIGATE_CONFIRM_MS = 1800;
 export const NO_SIMPLE_VIEW = "This page has no simple view, so you can use it as it is. Press Exit to close Mack.";
 const DESIGN_INSTRUCTION = {
@@ -38,6 +75,12 @@ export const goalFromLabel = (label: string) => label.replace(/\s*\(sign in firs
 
 export function startPlatform(deps: Dependencies) {
   const extract = deps.extract ?? extractPage;
+  const readAccent = deps.brandColor ?? brandColor;
+  const readLogo = deps.siteLogo ?? siteLogo;
+  const withAccent = (accentColor: string | undefined) => (accentColor ? { accentColor } : {});
+  const withLogo = (logo: SiteLogo | undefined) => (logo && SiteLogoSchema.safeParse(logo).success ? { siteLogo: logo } : {});
+  // Branding is a nicety; a strange page must never stop Mack from loading.
+  const safely = <T,>(read: () => T | undefined) => { try { return read(); } catch { return undefined; } };
   const navigate = deps.navigate ?? ((url: string) => location.assign(url));
   const manual = deps.redesignOnPageChange === false;
   const previousBody = document.body;
@@ -64,8 +107,10 @@ export function startPlatform(deps: Dependencies) {
   let actionPending = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let mutationTimer: ReturnType<typeof setTimeout> | undefined;
+  let lastAutoRefresh = 0;
   let simplifiedScreen: CommittedScreen | undefined;
   let clickTimer: ReturnType<typeof setTimeout> | undefined;
+  let searchTimer: ReturnType<typeof setTimeout> | undefined;
   let url = location.href;
 
   const voice = deps.createVoice?.({
@@ -85,6 +130,7 @@ export function startPlatform(deps: Dependencies) {
     designAbort?.abort(); guideAbort?.abort(); designStamp = undefined; guideStamp = undefined;
     cancelSpeech(); clearHighlight();
     if (clickTimer) clearTimeout(clickTimer);
+    if (searchTimer) clearTimeout(searchTimer);
   }
   function applyMode() {
     if (currentBody !== document.body) {
@@ -145,6 +191,8 @@ export function startPlatform(deps: Dependencies) {
       state = {
         screen: { title: extraction.snapshot.title || "This page", mode: "simplified", sections: [], snapshotVersion: extraction.snapshot.version, screenVersion: crypto.randomUUID() },
         instruction: "", transcript: state?.transcript ?? "", voiceState: voice ? "idle" : "error", busy: true,
+        ...withAccent(safely(readAccent)),
+        ...withLogo(safely(readLogo)),
       };
       render();
       const expected = designStamp = stamp();
@@ -248,6 +296,32 @@ export function startPlatform(deps: Dependencies) {
       }
     } catch (error) { actionPending = false; fail(error); }
   }
+  function search(id: string, query: string) {
+    const text = query.trim().slice(0, 200);
+    const design = state.screen.search;
+    if (!active || !text || state.busy || actionPending || state.screen.mode !== "simplified" || design?.actionId !== id) return;
+    try {
+      const element = liveTarget(extraction, id);
+      if (!isSiteSearch(element)) throw new Error("That search box has changed. Refresh Mack and try again.");
+      setGoal(`Find ${text}`);
+      actionPending = true; invalidate();
+      const before = location.href;
+      commit({ busy: true, instruction: `Searching for “${text}”…`, highlightedActionId: undefined, error: undefined });
+      currentBody.inert = bodyInert;
+      try {
+        // Sites often use framework-controlled inputs, which only notice the native setter plus input/change events.
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(element, text);
+        element.dispatchEvent(new Event("input", { bubbles: true }));
+        element.dispatchEvent(new Event("change", { bubbles: true }));
+        if (element.form) element.form.requestSubmit();
+        else for (const type of ["keydown", "keypress", "keyup"]) element.dispatchEvent(new KeyboardEvent(type, { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
+      } finally { if (active) applyMode(); }
+      // Some sites ignore Enter and only search from their button next to the box.
+      if (!element.form) searchTimer = setTimeout(() => { if (active && actionPending && location.href === before) searchButtonNear(element)?.click(); }, SEARCH_BUTTON_MS);
+      // Results that load without a page change are re-read in place.
+      clickTimer = setTimeout(() => { if (active && location.href === before) { actionPending = false; void refresh(); } }, NAVIGATE_CONFIRM_MS);
+    } catch (error) { actionPending = false; fail(error); }
+  }
   function original() {
     if (!active) return;
     if (state.screen.mode === "simplified" && !designPending && state.screen.sections.length) simplifiedScreen = state.screen;
@@ -290,9 +364,28 @@ export function startPlatform(deps: Dependencies) {
       extraction = { ...extraction, registry };
       return;
     }
-    if (state.screen.mode === "original" && !designPending) adoptOriginal(next);
-    else if (manual && !designPending && !actionPending) return;
-    else void refresh(next);
+    if (state.screen.mode === "original" && !designPending) { adoptOriginal(next); return; }
+    if (!designPending && !actionPending) {
+      const known = new Set(extraction.snapshot.actions.map(actionKey));
+      const newFields = next.snapshot.actions.filter((a) => a.kind === "field" && !known.has(actionKey(a)));
+      // A sign-in form rendering late must switch Mack to the original page right away.
+      const newPassword = newFields.some((a) => /password/i.test(`${a.label} ${a.context}`));
+      if (!newPassword) {
+        // Busy pages (carousels, ads, live prices) change all the time. While what Mack shows is still on the page,
+        // keep the design and just point it at the live nodes; asking the model again would loop forever.
+        const relinked = newFields.length ? undefined : relink(extraction, next, shownTargets());
+        if (relinked) { extraction = relinked; return; }
+        // Made only on request: a page that changes on its own keeps the screen it has.
+        if (manual) return;
+        if (Date.now() - lastAutoRefresh < AUTO_REFRESH_MIN_MS) return;
+      }
+    }
+    lastAutoRefresh = Date.now();
+    void refresh(next);
+  }
+  function shownTargets(): string[] {
+    const ids = state.screen.sections.flatMap((section) => section.buttons.map((button) => button.actionId));
+    return state.screen.search ? [...ids, state.screen.search.actionId] : ids;
   }
   function exit(preserveSession = false) {
     if (!active) return;
@@ -310,7 +403,7 @@ export function startPlatform(deps: Dependencies) {
   }
   const props: LensAppProps = {
     get state() { return state; },
-    onAction: action, onRequest: request,
+    onAction: action, onRequest: request, onSearch: search,
     onMicStart: () => { if (voice) { cancelSpeech(); void voice.startListening().catch(fail); } else unavailableVoice(); },
     onMicStop: () => { if (voice) void voice.stopListening().catch(fail); },
     onReplay: () => { if (voice) { voice.cancelSpeech(); speechVersion = state.screen.screenVersion; speak(speechVersion); } else unavailableVoice(); },
