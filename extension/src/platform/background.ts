@@ -1,22 +1,25 @@
 // Service worker. It owns no conversation state itself (Chrome may stop it at any
 // time): it starts and stops the offscreen voice document, answers its requests for
-// page context, and mirrors status and transcript into chrome.storage so the popup
-// and the on-page overlay can render them.
+// page context, mirrors status and transcript into chrome.storage so the on-page
+// panel can render them, and serves Role 4's simple view (see simple-view-worker.ts).
 
 import { CHIME_MS } from "../voice/live/chime";
 import { debug, since } from "./debug";
 import {
   IDLE_SESSION,
+  readLanguage,
   STORAGE,
   type ActResult,
+  type ExtractReply,
+  type GuideReply,
   type MackSession,
   type PageAction,
   type PageContext,
-  type PageSnapshot,
   type RuntimeMessage,
   type TabMessage,
   type TranscriptLine,
 } from "./messages";
+import { createSimpleViewWorker } from "./simple-view-worker";
 
 const OFFSCREEN_PATH = "offscreen.html";
 const MAX_LINES = 30;
@@ -62,13 +65,19 @@ async function start(typingOnly = false): Promise<void> {
   await closeOffscreen();
   // An offscreen document cannot read chrome.storage, so the settings it starts
   // with travel in its URL; later changes are sent as messages.
-  const stored = await chrome.storage.local.get([STORAGE.pushToTalk, STORAGE.voice]);
+  const stored = await chrome.storage.local.get([
+    STORAGE.pushToTalk,
+    STORAGE.voice,
+    STORAGE.language,
+  ]);
   const pushToTalk = stored[STORAGE.pushToTalk] === true;
   const voice = stored[STORAGE.voice];
   const query = new URLSearchParams();
   if (pushToTalk) query.set("ptt", "1");
   if (typingOnly) query.set("nomic", "1");
   if (typeof voice === "string" && voice) query.set("voice", voice);
+  const language = readLanguage(stored[STORAGE.language]);
+  if (language) query.set("language", language);
   await write(() =>
     chrome.storage.local.set({
       [STORAGE.session]: {
@@ -98,6 +107,7 @@ async function stop(session: MackSession = IDLE_SESSION): Promise<void> {
   }
   await closeOffscreen();
   await setSession(session);
+  await simpleViewWorker.clearGoals().catch(() => undefined);
   const tab = await activeTab();
   if (tab?.id !== undefined) sendToTab(tab.id, { type: "mack:highlight", elementId: null });
 }
@@ -156,11 +166,15 @@ async function pageContext(): Promise<PageContext> {
     debug("background", "pageContext: no active tab");
     return { tabId: null, page: null, screenshot: null };
   }
-  const page = await sendToTab<PageSnapshot>(tab.id, { type: "mack:extract" });
+  const extracted = await sendToTab<ExtractReply>(tab.id, { type: "mack:extract" });
+  const page = extracted?.page ?? null;
+  const simple = extracted?.simple === true;
   const context: PageContext = {
     tabId: tab.id,
     page,
-    screenshot: page ? await screenshot(tab.windowId) : null,
+    // A screenshot taken now would show the simple view, not the page the elements are from.
+    screenshot: page && !simple ? await screenshot(tab.windowId) : null,
+    simple,
   };
   debug("background", "pageContext:", {
     tabId: tab.id,
@@ -169,6 +183,7 @@ async function pageContext(): Promise<PageContext> {
     elements: page?.elements.length ?? 0,
     headings: page?.headings.length ?? 0,
     hasScreenshot: context.screenshot !== null,
+    simple,
   });
   return context;
 }
@@ -263,7 +278,18 @@ async function sync(): Promise<void> {
   }
 }
 
-chrome.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResponse) => {
+async function isActive(): Promise<boolean> {
+  const stored = await chrome.storage.local.get(STORAGE.session);
+  return (stored[STORAGE.session] as MackSession | undefined)?.active === true;
+}
+
+const simpleViewWorker = createSimpleViewWorker({ isActive, stop: () => stop() });
+
+chrome.runtime.onMessage.addListener((raw: unknown, sender, sendResponse) => {
+  const handled = simpleViewWorker.handle(raw, sender, sendResponse);
+  if (handled !== undefined) return handled;
+
+  const message = raw as RuntimeMessage;
   debug("background", "message received:", message);
   switch (message.type) {
     case "mack:start":
@@ -297,6 +323,11 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResp
     case "mack:act":
       void act(message.tabId, message.step).then(sendResponse);
       return true;
+    case "mack:guide":
+      void sendToTab<GuideReply>(message.tabId, { type: "mack:guide", text: message.text }).then(
+        (reply) => sendResponse(reply ?? ({ ok: false } satisfies GuideReply)),
+      );
+      return true;
     case "mack:context":
       void pageContext().then(sendResponse);
       return true;
@@ -313,6 +344,9 @@ chrome.storage.onChanged.addListener((changes, area) => {
     void chrome.runtime.sendMessage(message).catch(() => undefined);
   if (changes[STORAGE.pushToTalk]) {
     tell({ type: "mack:mode", pushToTalk: changes[STORAGE.pushToTalk].newValue === true });
+  }
+  if (changes[STORAGE.language]) {
+    tell({ type: "mack:language", language: readLanguage(changes[STORAGE.language].newValue) });
   }
   if (changes[STORAGE.voice]) {
     const voice = changes[STORAGE.voice].newValue;

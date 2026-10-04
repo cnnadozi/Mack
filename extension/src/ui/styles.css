@@ -1,7 +1,9 @@
 @import "tailwindcss";
 
-/* shadcn/ui theme tokens (new-york, neutral base). */
-:root {
+/* shadcn/ui theme tokens (new-york, neutral base). ":host" is for the simple view,
+   which uses this stylesheet inside a shadow root on the website. */
+:root,
+:host {
   --radius: 0.75rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { buildGeminiRequest, parseGeminiReply, SYSTEM_PROMPT } from "./gemini";
-import type { PageContext } from "./messages";
+import { greetingIn, LANGUAGES, type PageContext } from "./messages";
 
 const context: PageContext = {
   tabId: 1,
@@ -28,9 +28,7 @@ test("a real element id is kept as the highlight target", () => {
     answer({ reply: ' Press "Buy now"  on the right. ', targetId: "m2" }),
     context,
   );
-  assert.deepEqual(reply, { reply: 'Press "Buy now" on the right.', targetId: "m2",
-    step: null,
-  });
+  assert.deepEqual(reply, { reply: 'Press "Buy now" on the right.', targetId: "m2", step: null });
 });
 
 test("an invented element id is dropped", () => {
@@ -59,7 +57,11 @@ test("steps without a target are checked before they are accepted", () => {
   const step = (value: Record<string, unknown>) =>
     parseGeminiReply(answer({ reply: "y", ...value }), context).step;
   assert.deepEqual(step({ action: "scroll", text: "Down" }), { kind: "scroll", direction: "down" });
-  assert.deepEqual(step({ action: "press", text: "Escape" }), { kind: "press", key: "Escape", elementId: null });
+  assert.deepEqual(step({ action: "press", text: "Escape" }), {
+    kind: "press",
+    key: "Escape",
+    elementId: null,
+  });
   assert.deepEqual(step({ action: "back" }), { kind: "back" });
   assert.deepEqual(step({ action: "open", text: "https://example.com/cars" }), {
     kind: "open",
@@ -69,6 +71,25 @@ test("steps without a target are checked before they are accepted", () => {
   assert.equal(step({ action: "scroll", text: "sideways" }), null);
   assert.equal(step({ action: "open", text: "javascript:alert(1)" }), null);
   assert.equal(step({ action: "open", text: "chrome://settings" }), null);
+});
+
+test("the chosen language is asked for in the system prompt, and only when one is chosen", () => {
+  const system = (language?: string) =>
+    (
+      buildGeminiRequest({ heard: "hello", context, history: [], language }) as {
+        systemInstruction: { parts: { text: string }[] };
+      }
+    ).systemInstruction.parts[0]!.text;
+  assert.equal(system(), SYSTEM_PROMPT);
+  assert.equal(system(""), SYSTEM_PROMPT);
+  assert.match(system("Spanish"), /Always write "reply" in Spanish/);
+});
+
+test("Mack greets in the chosen language, and in English when none is chosen", () => {
+  assert.equal(greetingIn(""), "Hi, I'm Mack. Ask me anything about this page.");
+  assert.match(greetingIn("Spanish"), /^Hola, soy Mack/);
+  assert.equal(greetingIn("Klingon"), greetingIn(""));
+  for (const language of LANGUAGES) assert.match(language.greeting, /Mack/);
 });
 
 test("steps already taken are sent after the page", () => {

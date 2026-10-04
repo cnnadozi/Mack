@@ -67,7 +67,18 @@ const REPLY_SCHEMA = {
     targetId: { type: "STRING", nullable: true },
     action: {
       type: "STRING",
-      enum: ["point", "click", "type", "hover", "press", "scroll", "back", "forward", "open", "wait"],
+      enum: [
+        "point",
+        "click",
+        "type",
+        "hover",
+        "press",
+        "scroll",
+        "back",
+        "forward",
+        "open",
+        "wait",
+      ],
     },
     text: { type: "STRING", nullable: true },
     submit: { type: "BOOLEAN", nullable: true },
@@ -100,7 +111,10 @@ const BAD_STEP = "I couldn't work out how to do that on this page.";
 
 // Turns the model's raw answer into a step. "invalid" means it asked for a step
 // but left out or made up what the step needs.
-function stepFrom(parsed: Record<string, unknown>, targetId: string | null): PageAction | null | "invalid" {
+function stepFrom(
+  parsed: Record<string, unknown>,
+  targetId: string | null,
+): PageAction | null | "invalid" {
   const text = typeof parsed.text === "string" ? parsed.text.trim() : "";
   switch (parsed.action) {
     case "click":
@@ -126,7 +140,9 @@ function stepFrom(parsed: Record<string, unknown>, targetId: string | null): Pag
       return { kind: parsed.action };
     case "open":
       // Web pages only: never a file, a script, or one of Chrome's own pages.
-      return /^https?:\/\//i.test(text) && URL.canParse(text) ? { kind: "open", url: text } : "invalid";
+      return /^https?:\/\//i.test(text) && URL.canParse(text)
+        ? { kind: "open", url: text }
+        : "invalid";
     default:
       return null;
   }
@@ -210,6 +226,8 @@ export function buildGeminiRequest(input: {
   history: Turn[];
   /** What Mack has already done for this request, oldest first. */
   steps?: string[];
+  /** The language to answer in; empty or missing means English. */
+  language?: string;
 }): unknown {
   const parts: unknown[] = [{ text: `The user said: ${input.heard}` }];
   if (input.context.screenshot) {
@@ -230,7 +248,15 @@ export function buildGeminiRequest(input: {
   }
 
   return {
-    systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+    systemInstruction: {
+      parts: [
+        {
+          text: input.language
+            ? `${SYSTEM_PROMPT}\n\nAlways write "reply" in ${input.language}, whatever language the page or the user's words are in. Keep an element's label exactly as the page writes it.`
+            : SYSTEM_PROMPT,
+        },
+      ],
+    },
     contents: [
       ...input.history
         .slice(-MAX_HISTORY_TURNS)
@@ -252,7 +278,10 @@ export function parseGeminiReply(body: unknown, context: PageContext): MackReply
   const targetId = clean(parsed.targetId);
   const exists = context.page?.elements.some((element) => element.id === targetId) ?? false;
   if (targetId && !exists) {
-    debug("gemini", `reply pointed at "${targetId}", which is not in the page snapshot; ignoring it`);
+    debug(
+      "gemini",
+      `reply pointed at "${targetId}", which is not in the page snapshot; ignoring it`,
+    );
   }
   const step = stepFrom(parsed, exists ? targetId : null);
   if (step === "invalid") {
@@ -268,6 +297,7 @@ export async function askGemini(input: {
   context: PageContext;
   history: Turn[];
   steps?: string[];
+  language?: string;
   signal?: AbortSignal;
 }): Promise<MackReply> {
   const body = await generate(GEMINI_MODEL, input.apiKey, buildGeminiRequest(input), input.signal);

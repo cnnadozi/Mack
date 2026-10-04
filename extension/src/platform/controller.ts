@@ -15,6 +15,14 @@ type Dependencies = {
   extract?: () => Extraction;
   peek?: Peek;
   navigate?: (url: string) => void;
+  /**
+   * False when the simple view is only made on request: a page that changes on
+   * its own keeps the screen it has, and a move to another page calls onOutdated
+   * instead of designing a new one. Changes caused by the screen's own buttons
+   * still get a new design.
+   */
+  redesignOnPageChange?: boolean;
+  onOutdated?(): void;
 };
 
 const BUTTON_SETTLE_MS = 900;
@@ -31,6 +39,7 @@ export const goalFromLabel = (label: string) => label.replace(/\s*\(sign in firs
 export function startPlatform(deps: Dependencies) {
   const extract = deps.extract ?? extractPage;
   const navigate = deps.navigate ?? ((url: string) => location.assign(url));
+  const manual = deps.redesignOnPageChange === false;
   const previousBody = document.body;
   const previousInert = previousBody.inert;
   const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
@@ -282,6 +291,7 @@ export function startPlatform(deps: Dependencies) {
       return;
     }
     if (state.screen.mode === "original" && !designPending) adoptOriginal(next);
+    else if (manual && !designPending && !actionPending) return;
     else void refresh(next);
   }
   function exit(preserveSession = false) {
@@ -317,6 +327,7 @@ export function startPlatform(deps: Dependencies) {
     if (location.href === url) return;
     url = location.href;
     if (goalFrom && location.href === goalFrom) dropGoal();
+    if (manual && !actionPending) { deps.onOutdated?.(); return; }
     scheduleRefresh();
   }
   const observer = new MutationObserver((records) => {

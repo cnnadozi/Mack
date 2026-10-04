@@ -9,8 +9,8 @@ Owned path: `extension/src/ui/`. Implements `GenerateScreen` and `MackApp` again
 | `createGenerateScreen(model: ModelClient): GenerateScreen` | Sends the snapshot to Role 4's `ModelClient` with `task: "design"`, then grounds the result. |
 | `groundDesign(raw, snapshot, stamp)` | Validates model JSON. Keeps only real, enabled `navigate`/`button` ids, dedupes ids and same-href/same-label copies, cleans labels, assigns section ids in code, echoes the request stamp. |
 | `DesignError` | Thrown with `LensError` fields (`design_invalid`, `design_ungrounded`, `design_model_failed`; all retryable). Aborts rethrow the signal reason. |
-| `MackApp` | React component taking `LensAppProps`. |
-| `mountMackApp(parent?)` | Creates `<mack-root data-mack>` with an open shadow root, injects styles, returns `{ host, render(props), unmount() }`. |
+| `MackApp` | React component taking `LensAppProps`, built from shadcn/ui components (`components/ui/`) and Tailwind classes. The extra `embedded` prop is for the extension, whose own panel takes the typed and spoken requests: it leaves out the request bar, and over the original page shows only a "Simple view" button and the current instruction. `singleColumn` lays the buttons out in one wide column, which the extension always uses. |
+| `mountMackApp(parent?)` | Creates `<mack-root data-mack>` with an open shadow root, injects the compiled Tailwind stylesheet (`styles.css`, with sizes restated in pixels so the website's root font size cannot shrink the UI), returns `{ host, render(props), unmount() }`. |
 | `DESIGN_SYSTEM_PROMPT`, `buildDesignPayload` | The design prompt and the trimmed payload sent to the model. |
 
 `fixtures.ts` holds development-only fixtures (snapshot, canned model output, UI states for loading, 2 actions, 12 grouped actions, an addition with highlight, clarification, error, empty, original mode). Never wire it into the real flow.
@@ -22,7 +22,7 @@ Owned path: `extension/src/ui/`. Implements `GenerateScreen` and `MackApp` again
 - `onRendered(screenVersion)` fires once per committed version, after the DOM commits.
 - Simplified mode: a full-viewport overlay with title, Previous page / Original page / Exit, one instruction (`aria-live`), status, error with Try again, clarification choices (sent through `onRequest`), all sections, and a sticky request bar.
 - Main vs more: the model marks each section `main` or `more`; grounding encodes it in the section id (`main-N` / `more-N`, see `isMoreSection`). Main sections show first (with a goal: only the 1–3 buttons that continue it); `more-*` sections sit behind a "More options (N)" toggle that resets on each new snapshot and opens itself when the highlighted target is inside it. Sections with any other id (e.g. Role 4's "For your request") always show.
-- Highlight: the `highlightedActionId` button gets a double border, a "Next step" badge (`aria-describedby`), and is scrolled into view. It does not rely on colour alone.
+- Highlight: the `highlightedActionId` button is drawn filled with a ring, gets a "Next step" badge (`aria-describedby`), and is scrolled into view. It does not rely on colour alone.
 - Transcript: `state.transcript` fills the input so the user can correct it and resend. Send is disabled when the input is empty.
 - Mic: Speak/Stop (`aria-pressed`) call `onMicStart`/`onMicStop`; disabled while `processing`. In the `error` voice state the UI says typing still works.
 - Original mode: only a compact guide panel: back arrow (`onPreviousPage`), title, minimize/expand toggle (collapses the panel to its top bar; reopens itself on a new instruction, error or clarification), full-screen icon (`onBack`: Role 4 returns to the committed simplified screen, or explains there is none) and ✕ (`onExit`) on top, with tooltips and spoken labels; instruction and request bar; a "Move panel" button that cycles the panel between the four corners so it can be moved off the source target.

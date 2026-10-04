@@ -63,7 +63,9 @@ function isSensitiveClick(element: HTMLElement): boolean {
 
   if (!inSensitiveForm(element)) return false;
   if (element instanceof HTMLButtonElement) return element.type === "submit";
-  return element instanceof HTMLInputElement && (element.type === "submit" || element.type === "image");
+  return (
+    element instanceof HTMLInputElement && (element.type === "submit" || element.type === "image")
+  );
 }
 
 function pointerInit(element: HTMLElement): MouseEventInit {
@@ -82,7 +84,12 @@ function pointerInit(element: HTMLElement): MouseEventInit {
 // mousedown or pointerdown and ignore a bare click.
 function click(element: HTMLElement): void {
   const init = pointerInit(element);
-  const pointer: PointerEventInit = { ...init, pointerId: 1, pointerType: "mouse", isPrimary: true };
+  const pointer: PointerEventInit = {
+    ...init,
+    pointerId: 1,
+    pointerType: "mouse",
+    isPrimary: true,
+  };
   element.dispatchEvent(new PointerEvent("pointerdown", pointer));
   element.dispatchEvent(new MouseEvent("mousedown", init));
   element.focus({ preventScroll: true });
@@ -93,7 +100,12 @@ function click(element: HTMLElement): void {
 
 function hover(element: HTMLElement): void {
   const init = pointerInit(element);
-  const pointer: PointerEventInit = { ...init, pointerId: 1, pointerType: "mouse", isPrimary: true };
+  const pointer: PointerEventInit = {
+    ...init,
+    pointerId: 1,
+    pointerType: "mouse",
+    isPrimary: true,
+  };
   element.dispatchEvent(new PointerEvent("pointerover", pointer));
   element.dispatchEvent(new PointerEvent("pointerenter", { ...pointer, bubbles: false }));
   element.dispatchEvent(new MouseEvent("mouseover", init));
@@ -106,7 +118,9 @@ function hover(element: HTMLElement): void {
 // through the element's native setter and followed by an input event.
 function setValue(field: TextField, text: string): void {
   const prototype =
-    field instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    field instanceof HTMLTextAreaElement
+      ? HTMLTextAreaElement.prototype
+      : HTMLInputElement.prototype;
   Object.getOwnPropertyDescriptor(prototype, "value")?.set?.call(field, text);
   field.dispatchEvent(new Event("input", { bubbles: true }));
   field.dispatchEvent(new Event("change", { bubbles: true }));
@@ -138,7 +152,12 @@ function writeIntoEditor(editor: HTMLElement, text: string): boolean {
 // Sends the key to the page, then does what the browser itself would have done
 // for a real key press, unless the page handled the key.
 function pressKey(target: HTMLElement, name: PressKey): ActResult {
-  const init: KeyboardEventInit = { ...KEY_CODES[name], bubbles: true, cancelable: true, composed: true };
+  const init: KeyboardEventInit = {
+    ...KEY_CODES[name],
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+  };
   const handledByPage = !target.dispatchEvent(new KeyboardEvent("keydown", init));
   target.dispatchEvent(new KeyboardEvent("keyup", init));
   if (handledByPage) return { ok: true };
@@ -146,7 +165,10 @@ function pressKey(target: HTMLElement, name: PressKey): ActResult {
   if (name === "Enter" && target instanceof HTMLInputElement) {
     if (inSensitiveForm(target)) return SENSITIVE;
     target.form?.requestSubmit();
-  } else if ((name === "Enter" || name === "Space") && target.matches("button, a[href], [role='button'], summary")) {
+  } else if (
+    (name === "Enter" || name === "Space") &&
+    target.matches("button, a[href], [role='button'], summary")
+  ) {
     if (isSensitiveClick(target)) return SENSITIVE;
     target.click();
   } else if (name === "Backspace" && isTextField(target) && !target.matches(SENSITIVE_FIELDS)) {
@@ -180,7 +202,7 @@ function fill(element: HTMLElement, text: string, submit: boolean): ActResult {
   if (!submit) return { ok: true };
   if (inSensitiveForm(element)) return SENSITIVE;
   // Sent just after the result, because submitting may navigate away.
-  window.setTimeout(() => pressKey(element, "Enter"), 50);
+  window.setTimeout(() => onLivePage(() => pressKey(element, "Enter")), 50);
   return { ok: true };
 }
 
@@ -213,6 +235,19 @@ function scroll(direction: ScrollDirection): ActResult {
   return area.scrollTop === before ? FAILED : { ok: true };
 }
 
+// Role 4's simple view makes the page inert while it covers it, which blocks
+// focus. A step still has to reach the real control underneath.
+function onLivePage<Result>(run: () => Result): Result {
+  const body = document.body;
+  const inert = body.inert;
+  body.inert = false;
+  try {
+    return run();
+  } finally {
+    body.inert = inert;
+  }
+}
+
 function targetOf(elementId: string | null): HTMLElement | null {
   if (elementId === null) {
     return document.activeElement instanceof HTMLElement ? document.activeElement : document.body;
@@ -238,7 +273,11 @@ export async function act(step: ContentAction): Promise<ActResult> {
   if (step.elementId !== null) {
     highlight(step.elementId);
     if (step.kind === "click" && isSensitiveClick(element)) {
-      debug("content", `act: refusing to press "${step.elementId}", it looks like a payment, deletion or sign-in`, element);
+      debug(
+        "content",
+        `act: refusing to press "${step.elementId}", it looks like a payment, deletion or sign-in`,
+        element,
+      );
       return SENSITIVE;
     }
     await new Promise((resolve) => window.setTimeout(resolve, SHOW_BEFORE_ACTING_MS));
@@ -250,16 +289,16 @@ export async function act(step: ContentAction): Promise<ActResult> {
 
   switch (step.kind) {
     case "type": {
-      const result = fill(element, step.text, step.submit);
+      const result = onLivePage(() => fill(element, step.text, step.submit));
       debug("content", `act: typing into "${step.elementId}" ->`, result, element);
       return result;
     }
     case "hover":
       debug("content", `act: hovering over "${step.elementId}"`, element);
-      hover(element);
+      onLivePage(() => hover(element));
       return { ok: true };
     case "press": {
-      const result = pressKey(element, step.key);
+      const result = onLivePage(() => pressKey(element, step.key));
       debug("content", `act: pressing the ${step.key} key ->`, result, element);
       return result;
     }
@@ -268,7 +307,7 @@ export async function act(step: ContentAction): Promise<ActResult> {
       // after the result has been sent back.
       window.setTimeout(() => {
         debug("content", `act: clicking "${step.elementId}"`, element);
-        click(element);
+        onLivePage(() => click(element));
       }, 50);
       return { ok: true };
   }

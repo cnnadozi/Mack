@@ -1,11 +1,53 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
-import type { LensAppProps, LensUIState, ScreenSection, TaskButton, VoiceState } from "../../../shared/contracts";
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
+import {
+  ArrowLeft,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  LayoutGrid,
+  LoaderCircle,
+  Maximize,
+  Mic,
+  RotateCcw,
+  X,
+} from "lucide-react";
+
+import type {
+  LensAppProps,
+  LensUIState,
+  ScreenSection,
+  TaskButton,
+  VoiceState,
+} from "../../../shared/contracts";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import { isMoreSection } from "./design/validate";
 
-export type MackAppProps = LensAppProps;
+export type MackAppProps = LensAppProps & {
+  /**
+   * The extension's own on-page panel takes the typed and spoken requests, so the
+   * request bar is left out, and on the original page only a small guide is shown.
+   */
+  embedded?: boolean;
+  /** One wide column of buttons, for the simplest screen. */
+  singleColumn?: boolean;
+};
 
 type Dock = "bottom-right" | "bottom-left" | "top-left" | "top-right";
 const DOCK_ORDER: Dock[] = ["bottom-right", "bottom-left", "top-left", "top-right"];
+const DOCK_CLASS: Record<Dock, string> = {
+  "bottom-right": "right-4 bottom-4",
+  "bottom-left": "bottom-4 left-4",
+  "top-left": "top-4 left-4",
+  "top-right": "top-4 right-4",
+};
+
+// Just under the extension's own panel, which must stay on top of the simple view.
+const LAYER = "z-[2147483646]";
 
 const VOICE_STATUS: Record<VoiceState, string> = {
   idle: "",
@@ -15,43 +57,35 @@ const VOICE_STATUS: Record<VoiceState, string> = {
   error: "The microphone is not available. You can type instead.",
 };
 
-const ICONS = {
-  back: "M15 5 8 12l7 7",
-  expand: "M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5",
-  close: "M6 6l12 12M18 6 6 18",
-  mic: "M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3ZM5 11a7 7 0 0 0 14 0M12 18v3",
-  replay: "M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4",
-  chevron: "M9 6l6 6-6 6",
-  chevronDown: "M6 9l6 6 6-6",
-  chevronUp: "M6 15l6-6 6 6",
-} as const;
-
-function Icon({ name }: { name: keyof typeof ICONS }) {
+function IconButton(props: {
+  icon: ReactNode;
+  label: string;
+  onClick(): void;
+  expanded?: boolean;
+  controls?: string;
+}) {
   return (
-    <svg className="mack-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
-      <path d={ICONS[name]} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function IconButton(props: { icon: keyof typeof ICONS; label: string; onClick(): void; expanded?: boolean; controls?: string }) {
-  return (
-    <button
+    <Button
       type="button"
-      className="mack-icon-btn"
+      variant="outline"
+      size="icon"
+      className="size-12 rounded-xl [&_svg:not([class*='size-'])]:size-6"
       aria-label={props.label}
       title={props.label}
       aria-expanded={props.expanded}
       aria-controls={props.controls}
       onClick={props.onClick}
     >
-      <Icon name={props.icon} />
-    </button>
+      {props.icon}
+    </Button>
   );
 }
 
 function prefersReducedMotion() {
-  return typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  return (
+    typeof window !== "undefined" &&
+    !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+  );
 }
 
 export function MackApp(props: MackAppProps) {
@@ -66,9 +100,14 @@ export function MackApp(props: MackAppProps) {
     onRendered(screenVersion);
   }, [screenVersion, onRendered]);
 
+  const original = props.embedded ? <EmbeddedGuide {...props} /> : <OriginalPanel {...props} />;
   return (
-    <div className="mack" data-mode={state.screen.mode} aria-busy={state.busy || undefined}>
-      {state.screen.mode === "original" ? <OriginalPanel {...props} /> : <SimplifiedView {...props} />}
+    <div
+      className="mack font-sans text-base text-foreground antialiased"
+      data-mode={state.screen.mode}
+      aria-busy={state.busy || undefined}
+    >
+      {state.screen.mode === "original" ? original : <SimplifiedView {...props} />}
     </div>
   );
 }
@@ -84,65 +123,119 @@ function SimplifiedView(props: MackAppProps) {
   const moreCount = moreSections.reduce((n, s) => n + s.buttons.length, 0);
   const [showMore, setShowMore] = useState(false);
   // A highlighted target must be visible before Role 4 speaks about it, so it opens the collapsed area.
-  const highlightInMore = !!highlightedActionId && moreSections.some((s) => s.buttons.some((b) => b.actionId === highlightedActionId));
+  const highlightInMore =
+    !!highlightedActionId &&
+    moreSections.some((s) => s.buttons.some((b) => b.actionId === highlightedActionId));
   const moreOpen = showMore || highlightInMore;
-  const sectionProps = { highlightedActionId, badgeId: `${badgeId}-badge`, onAction };
+  const sectionProps = {
+    highlightedActionId,
+    badgeId: `${badgeId}-badge`,
+    onAction,
+    singleColumn: props.singleColumn,
+  };
 
   useEffect(() => setShowMore(false), [screen.snapshotVersion]);
 
   useEffect(() => {
     if (!highlightedActionId) return;
-    const target = Array.from(gridRef.current?.querySelectorAll<HTMLElement>("[data-action-id]") ?? []).find(
-      (el) => el.dataset.actionId === highlightedActionId,
-    );
-    target?.scrollIntoView?.({ block: "nearest", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+    const target = Array.from(
+      gridRef.current?.querySelectorAll<HTMLElement>("[data-action-id]") ?? [],
+    ).find((el) => el.dataset.actionId === highlightedActionId);
+    target?.scrollIntoView?.({
+      block: "nearest",
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
+    });
   }, [highlightedActionId, screen.screenVersion]);
 
   return (
-    <section className="mack-overlay" aria-label="Mack simplified view">
-      <div className="mack-shell">
-        <header className="mack-header">
-          <IconButton icon="back" label="Previous page" onClick={onPreviousPage} />
-          <h1 className="mack-title">{screen.title}</h1>
-          <div className="mack-toolbar" role="toolbar" aria-label="Mack controls">
-            <button type="button" className="mack-btn" onClick={onShowOriginal}>Original page</button>
-            <button type="button" className="mack-btn" onClick={onExit}>Exit Mack</button>
+    <section
+      className={cn(
+        "mack-overlay fixed inset-0 overflow-y-auto overscroll-contain bg-background",
+        LAYER,
+      )}
+      aria-label="Mack simplified view"
+    >
+      <div
+        className={cn(
+          "mx-auto flex min-h-full max-w-[820px] flex-col gap-5 px-4 pt-6",
+          // Room to scroll the last buttons clear of the extension's floating bar.
+          props.embedded ? "pb-40" : "pb-0",
+        )}
+      >
+        <header className="flex flex-wrap items-center justify-between gap-3">
+          <IconButton icon={<ArrowLeft />} label="Previous page" onClick={onPreviousPage} />
+          <h1 className="m-0 min-w-0 flex-[1_1_200px] truncate text-xl leading-tight font-semibold">
+            {screen.title}
+          </h1>
+          <div className="flex flex-wrap gap-2" role="toolbar" aria-label="Mack controls">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 px-4 text-xl"
+              onClick={onShowOriginal}
+            >
+              Original page
+            </Button>
+            <Button type="button" variant="outline" className="h-11 px-4 text-xl" onClick={onExit}>
+              Exit Mack
+            </Button>
           </div>
         </header>
 
         <Guidance {...props} />
 
-        <div ref={gridRef}>
+        <div ref={gridRef} className="flex flex-col gap-6">
           {mainSections.map((section, index) => (
-            <SectionView key={section.id} section={section} index={index} idPrefix={badgeId} {...sectionProps} />
+            <SectionView
+              key={section.id}
+              section={section}
+              index={index}
+              idPrefix={badgeId}
+              {...sectionProps}
+            />
           ))}
           {moreSections.length > 0 && (
-            <div className="mack-more">
-              <button
+            <div className="flex flex-col gap-6">
+              <Button
                 type="button"
-                className="mack-btn mack-more-toggle"
+                variant="ghost"
+                className="h-11 self-start px-3 text-xl"
                 aria-expanded={moreOpen}
                 aria-controls={`${badgeId}-more`}
                 onClick={() => setShowMore(!moreOpen)}
               >
-                <span className="mack-chevron" data-open={moreOpen || undefined}><Icon name="chevron" /></span>
+                <ChevronRight
+                  className={cn(
+                    "size-5 transition-transform motion-reduce:transition-none",
+                    moreOpen && "rotate-90",
+                  )}
+                />
                 {moreOpen ? "Fewer options" : `More options (${moreCount})`}
-              </button>
+              </Button>
               {moreOpen && (
-                <div id={`${badgeId}-more`}>
+                <div id={`${badgeId}-more`} className="flex flex-col gap-6">
                   {moreSections.map((section, index) => (
-                    <SectionView key={section.id} section={section} index={index + 1} idPrefix={badgeId} {...sectionProps} />
+                    <SectionView
+                      key={section.id}
+                      section={section}
+                      index={index + 1}
+                      idPrefix={badgeId}
+                      {...sectionProps}
+                    />
                   ))}
                 </div>
               )}
             </div>
           )}
           {buttonCount === 0 && !state.busy && (
-            <p className="mack-empty">No simple actions are ready for this page yet. You can ask below or open the original page.</p>
+            <p className="m-0 text-xl text-muted-foreground">
+              No simple actions are ready for this page yet. You can ask below or open the original
+              page.
+            </p>
           )}
         </div>
 
-        <RequestBar {...props} />
+        {!props.embedded && <RequestBar {...props} />}
       </div>
     </section>
   );
@@ -154,18 +247,29 @@ function SectionView(props: {
   idPrefix: string;
   highlightedActionId?: string;
   badgeId: string;
+  singleColumn?: boolean;
   onAction(id: string): void;
 }) {
   const { section, index, idPrefix, highlightedActionId, badgeId, onAction } = props;
   const headingId = `${idPrefix}-${section.id}`;
   return (
-    <section className="mack-section" aria-labelledby={section.heading ? headingId : undefined}>
+    <section
+      className="flex flex-col gap-3"
+      aria-labelledby={section.heading ? headingId : undefined}
+    >
       {section.heading ? (
-        <h2 id={headingId}>{section.heading}</h2>
+        <h2 id={headingId} className="m-0 text-xl font-semibold">
+          {section.heading}
+        </h2>
       ) : (
-        index > 0 && <h2 className="mack-visually-hidden">More actions</h2>
+        index > 0 && <h2 className="sr-only">More actions</h2>
       )}
-      <ul className="mack-grid">
+      <ul
+        className={cn(
+          "m-0 grid list-none grid-cols-1 gap-3 p-0",
+          !props.singleColumn && "sm:grid-cols-2",
+        )}
+      >
         {section.buttons.map((button) => (
           <li key={button.actionId}>
             <TaskButtonView
@@ -181,20 +285,38 @@ function SectionView(props: {
   );
 }
 
-function TaskButtonView(props: { button: TaskButton; highlighted: boolean; badgeId: string; onAction(id: string): void }) {
+function TaskButtonView(props: {
+  button: TaskButton;
+  highlighted: boolean;
+  badgeId: string;
+  onAction(id: string): void;
+}) {
   const { button, highlighted, badgeId, onAction } = props;
   return (
-    <button
+    <Button
       type="button"
-      className="mack-task"
+      variant={highlighted ? "default" : "outline"}
+      className={cn(
+        "h-full min-h-16 w-full justify-between gap-3 rounded-xl px-5 py-4 text-left text-2xl font-semibold whitespace-normal",
+        highlighted &&
+          "ring-4 ring-ring/60 forced-colors:outline-4 forced-colors:outline-[Highlight]",
+      )}
       data-action-id={button.actionId}
       data-highlighted={highlighted || undefined}
       aria-describedby={highlighted ? badgeId : undefined}
       onClick={() => onAction(button.actionId)}
     >
       <span>{button.label}</span>
-      {highlighted && <span className="mack-badge" id={badgeId}>Next step</span>}
-    </button>
+      {highlighted && (
+        <Badge
+          variant="secondary"
+          className="px-2.5 py-1 text-sm forced-colors:border-2 forced-colors:border-[CanvasText]"
+          id={badgeId}
+        >
+          Next step
+        </Badge>
+      )}
+    </Button>
   );
 }
 
@@ -203,69 +325,128 @@ function OriginalPanel(props: MackAppProps) {
   const [dock, setDock] = useState<Dock>("bottom-right");
   const [collapsed, setCollapsed] = useState(false);
   const bodyId = useId();
-  const nextDock = DOCK_ORDER[(DOCK_ORDER.indexOf(dock) + 1) % DOCK_ORDER.length];
+  const nextDock = DOCK_ORDER[(DOCK_ORDER.indexOf(dock) + 1) % DOCK_ORDER.length]!;
 
   // New guidance or an error must never stay hidden behind the collapsed bar.
-  useEffect(() => setCollapsed(false), [state.instruction, state.error, state.clarificationOptions]);
+  useEffect(
+    () => setCollapsed(false),
+    [state.instruction, state.error, state.clarificationOptions],
+  );
 
   return (
-    <aside className="mack-panel" data-dock={dock} data-collapsed={collapsed || undefined} aria-label="Mack guide">
-      <header className="mack-panel-header">
-        <IconButton icon="back" label="Previous page" onClick={onPreviousPage} />
-        <h1 className="mack-title">{state.screen.title}</h1>
-        <div className="mack-panel-tools">
-          <IconButton
-            icon={collapsed ? "chevronUp" : "chevronDown"}
-            label={collapsed ? "Expand" : "Minimize"}
-            expanded={!collapsed}
-            controls={bodyId}
-            onClick={() => setCollapsed(!collapsed)}
-          />
-          <IconButton icon="expand" label="Full screen" onClick={onBack} />
-          <IconButton icon="close" label="Exit Mack" onClick={onExit} />
-        </div>
-      </header>
-      {!collapsed && (
-        <div id={bodyId} className="mack-panel-body">
+    <aside
+      className={cn("fixed w-[min(420px,calc(100vw-32px))]", LAYER, DOCK_CLASS[dock])}
+      data-dock={dock}
+      data-collapsed={collapsed || undefined}
+      aria-label="Mack guide"
+    >
+      <Card className="max-h-[calc(100vh-32px)] gap-4 overflow-y-auto p-4 shadow-lg">
+        <header className="flex items-center gap-2">
+          <IconButton icon={<ArrowLeft />} label="Previous page" onClick={onPreviousPage} />
+          <h1 className="m-0 min-w-0 flex-1 truncate text-xl font-bold">{state.screen.title}</h1>
+          <div className="flex gap-2">
+            <IconButton
+              icon={collapsed ? <ChevronUp /> : <ChevronDown />}
+              label={collapsed ? "Expand" : "Minimize"}
+              expanded={!collapsed}
+              controls={bodyId}
+              onClick={() => setCollapsed(!collapsed)}
+            />
+            <IconButton icon={<Maximize />} label="Full screen" onClick={onBack} />
+            <IconButton icon={<X />} label="Exit Mack" onClick={onExit} />
+          </div>
+        </header>
+        {!collapsed && (
+          <div id={bodyId} className="flex flex-col gap-4">
+            <Guidance {...props} />
+            <RequestBar {...props} compact />
+            <footer>
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-11 px-3 text-base"
+                onClick={() => setDock(nextDock)}
+                aria-label={`Move this panel to the ${nextDock.replace("-", " ")}`}
+                title={`Move this panel to the ${nextDock.replace("-", " ")}`}
+              >
+                Move panel
+              </Button>
+            </footer>
+          </div>
+        )}
+      </Card>
+    </aside>
+  );
+}
+
+// What the embedded app shows over the original page: Mack's instruction for the
+// highlighted control, if there is one, and the way back to the simple view.
+function EmbeddedGuide(props: MackAppProps) {
+  const { state, onBack } = props;
+  const hasGuidance =
+    state.busy || !!state.instruction || !!state.error || !!state.clarificationOptions?.length;
+  return (
+    <aside
+      className={cn(
+        "fixed top-4 right-4 flex w-[min(360px,calc(100vw-32px))] flex-col items-end gap-2",
+        LAYER,
+      )}
+      aria-label="Mack guide"
+    >
+      <Button
+        type="button"
+        variant="outline"
+        className="h-11 bg-background px-4 text-base shadow-md"
+        onClick={onBack}
+      >
+        <LayoutGrid />
+        Simple view
+      </Button>
+      {hasGuidance && (
+        <Card className="w-full gap-3 p-4 shadow-lg">
           <Guidance {...props} />
-          <RequestBar {...props} compact />
-          <footer className="mack-panel-footer">
-            <button
-              type="button"
-              className="mack-btn"
-              onClick={() => setDock(nextDock)}
-              aria-label={`Move this panel to the ${nextDock.replace("-", " ")}`}
-              title={`Move this panel to the ${nextDock.replace("-", " ")}`}
-            >
-              Move panel
-            </button>
-          </footer>
-        </div>
+        </Card>
       )}
     </aside>
   );
 }
 
-function Guidance(props: LensAppProps) {
+function Guidance(props: MackAppProps) {
   const { state, onRetry, onRequest } = props;
-  const voiceStatus = VOICE_STATUS[state.voiceState];
+  // The extension's panel already shows whether Mack is listening or speaking.
+  const voiceStatus = props.embedded ? "" : VOICE_STATUS[state.voiceState];
   return (
     <>
-      <p className="mack-instruction" aria-live="polite" aria-atomic="true">{state.instruction}</p>
-      <div role="status" aria-live="polite">
+      <p className="m-0 text-xl font-medium empty:hidden" aria-live="polite" aria-atomic="true">
+        {state.instruction}
+      </p>
+      <div role="status" aria-live="polite" className="flex flex-col gap-1 empty:hidden">
         {state.busy && (
-          <p className="mack-status"><span className="mack-spinner" aria-hidden="true" />Working…</p>
+          <p className="m-0 flex items-center gap-2 text-xl text-muted-foreground">
+            <LoaderCircle
+              className="size-5 animate-spin motion-reduce:animate-none"
+              aria-hidden="true"
+            />
+            Working…
+          </p>
         )}
-        {voiceStatus && <p className="mack-status">{voiceStatus}</p>}
+        {voiceStatus && <p className="m-0 text-xl text-muted-foreground">{voiceStatus}</p>}
       </div>
       {state.error && <ErrorBanner error={state.error} onRetry={onRetry} />}
       {state.clarificationOptions && state.clarificationOptions.length > 0 && (
-        <div className="mack-choices">
-          <h2>Did you mean:</h2>
-          <ul>
+        <div className="flex flex-col gap-2">
+          <h2 className="m-0 text-xl font-semibold">Did you mean:</h2>
+          <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
             {state.clarificationOptions.map((option) => (
               <li key={option}>
-                <button type="button" className="mack-btn" onClick={() => onRequest(option)}>{option}</button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 px-4 text-xl"
+                  onClick={() => onRequest(option)}
+                >
+                  {option}
+                </Button>
               </li>
             ))}
           </ul>
@@ -277,10 +458,20 @@ function Guidance(props: LensAppProps) {
 
 function ErrorBanner(props: { error: NonNullable<LensUIState["error"]>; onRetry(): void }) {
   return (
-    <div className="mack-error" role="alert">
-      <p>{props.error.message}</p>
+    <div
+      className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-xl text-destructive"
+      role="alert"
+    >
+      <p className="m-0 min-w-0 flex-1">{props.error.message}</p>
       {props.error.retryable && (
-        <button type="button" className="mack-btn" onClick={props.onRetry}>Try again</button>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11 px-4 text-xl text-foreground"
+          onClick={props.onRetry}
+        >
+          Try again
+        </Button>
       )}
     </div>
   );
@@ -306,35 +497,52 @@ function RequestBar(props: LensAppProps & { compact?: boolean }) {
   };
 
   return (
-    <form className="mack-request" onSubmit={submit}>
-      <label htmlFor={inputId}>{props.compact ? "Ask Mack" : "What do you want to do?"}</label>
-      <div className="mack-request-row">
-        <input
+    <form
+      className={cn(
+        "flex flex-col gap-3",
+        !props.compact && "sticky bottom-0 mt-auto border-t bg-background py-4",
+      )}
+      onSubmit={submit}
+    >
+      <Label htmlFor={inputId} className="text-xl">
+        {props.compact ? "Ask Mack" : "What do you want to do?"}
+      </Label>
+      <div className="flex gap-2">
+        <Input
           id={inputId}
-          className="mack-input"
+          className="h-12 text-xl md:text-xl"
           type="text"
           autoComplete="off"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="Type or press Speak"
         />
-        <button type="submit" className="mack-btn mack-btn--primary" disabled={!draft.trim()}>Send</button>
+        <Button type="submit" className="h-12 px-5 text-xl" disabled={!draft.trim()}>
+          Send
+        </Button>
       </div>
-      <div className="mack-request-row">
-        <button
+      <div className="flex flex-wrap gap-2">
+        <Button
           type="button"
-          className="mack-btn"
+          variant={listening ? "destructive" : "outline"}
+          className="h-11 px-4 text-xl [&_svg:not([class*='size-'])]:size-5"
           aria-pressed={listening}
           disabled={state.voiceState === "processing"}
           onClick={listening ? onMicStop : onMicStart}
         >
-          <Icon name="mic" />
+          <Mic />
           {listening ? "Stop" : "Speak"}
-        </button>
-        <button type="button" className="mack-btn" onClick={onReplay} disabled={!state.instruction}>
-          <Icon name="replay" />
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11 px-4 text-xl [&_svg:not([class*='size-'])]:size-5"
+          onClick={onReplay}
+          disabled={!state.instruction}
+        >
+          <RotateCcw />
           Repeat instruction
-        </button>
+        </Button>
       </div>
     </form>
   );

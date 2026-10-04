@@ -34,17 +34,21 @@ The build copies the keys into `dist/`, so never commit, zip or share that folde
 
 ## Using it
 
-1. Open a normal website and click the Mack icon in the toolbar. There is no popup: the icon turns Mack on, and clicking it again turns Mack off. The icon shows **ON** while Mack is running.
-2. A short rising chime plays when Mack turns on and a falling one when it turns off. The Mack panel appears at the bottom centre of the page; its sliders button opens the settings. The first time, a tab opens once so Chrome can ask for the microphone.
-3. Ask out loud, for example "Where is the contact page?". Mack answers by voice and puts a ring around the element it means. Keep talking for a back-and-forth conversation; click the Mack icon again, or the X on the Mack panel, to end it.
-4. **Type instead.** While Mack is on, a Mack panel sits at the bottom centre of the page with a box for typing a question. Typing works even when the microphone is blocked or missing. A new question cuts off the answer Mack is still speaking.
-5. **Push to talk** (in the settings) stops Mack from listening all the time. The panel then shows a **Hold to talk** button: hold it (mouse, touch, or Space/Enter) while you speak and let go to send.
-6. **Ask Mack to do a task**, for example "Search for a good car" or "Open the contact page". Mack does it for you step by step: it rings an element, acts on it, looks at the page that results, and carries on until the task is done, then tells you what it did. Each step appears as text in the panel. Asking *where* something is ("Where is the search box?") still only highlights it. Mack can click, type into fields and rich text editors, pick dropdown options, tick boxes, hover to open menus, press keys (Enter, Escape, Tab, Backspace, Space, arrows), scroll, go back and forward, and open a web address you name. A task stops after 15 steps, or as soon as you ask something new or turn Mack off.
-7. **What Mack leaves to you.** It will not press anything that looks like paying, buying, placing an order, donating, subscribing, deleting or transferring, will not type into password or card fields, and will not submit a form that contains one. It goes as far as that step, highlights it, and asks you to do it yourself. It only types words you gave it.
-8. **The Mack panel** on the page is a chat window: your words, Mack's replies, and the steps of a task in smaller text. The arrow minimises it to a small button; the X turns Mack off. Drag the panel by its top bar to move it, and drag any corner to resize it; it stays where you put it on the next page. Double-click the top bar to send it back to the bottom centre. **Show conversation** hides or shows the text in it. **My words** and **Mack's replies** choose which side is shown.
-9. **Mack's voice** picks which ElevenLabs voice speaks. The list comes from your own ElevenLabs account and is loaded the first time Mack starts, so start Mack once before choosing. Changing it while Mack is on plays a short sample in the new voice.
+1. Open a normal website and click the Mack icon in the toolbar. There is no popup: the icon turns Mack on, and clicking it again turns Mack off. The icon shows **ON** while Mack is running. A short rising chime plays when Mack turns on and a falling one when it turns off. The first time, a tab opens once so Chrome can ask for the microphone.
+2. **Mack's bar** appears at the bottom centre of the page. In the middle is a round indicator with a moving sound wave that shows what Mack is doing (green while listening and hearing you, amber while thinking or working, dark while speaking). To its left are the logo (drag it to move the bar; double-click to put it back) and the **Simple view** button. To its right are four small buttons: switch between light and dark mode (for the bar and the simple view; it follows your system until you choose), show or hide the conversation, open the settings, and turn Mack off. The conversation (your words, Mack's replies, and the steps of a task in smaller text) is in a card above the bar.
+3. **Talk.** Mack listens all the time, so you can just speak, for example "Where is the contact page?". There is nothing to press unless push to talk is on. Mack answers by voice and puts a ring around the element it means. A new question cuts off the answer Mack is still speaking.
+4. **Simple view.** Press **Simple view** and Mack covers the page with a very simple version of it: one column of at most three large buttons for the things people come to that page to do, chosen by AI from the page's real links and buttons. Pressing one does the real thing on the website, and the page it leads to gets a simple view too. Mack never creates a simple view on its own. While one is up the button reads **Recreate** and makes it again; **Original page** at the top right of the simple view removes it. It only works on https websites. If you ask where something is while the simple view is up, Mack marks the button to press with **Next step**.
+5. **Ask Mack to do a task**, for example "Search for a good car" or "Open the contact page". Mack does it for you step by step: it rings an element, acts on it, looks at the page that results, and carries on until the task is done, then tells you what it did. Mack can click, type into fields and rich text editors, pick dropdown options, tick boxes, hover to open menus, press keys (Enter, Escape, Tab, Backspace, Space, arrows), scroll, go back and forward, and open a web address you name. While a task is running, a pulsing amber frame surrounds the page and a note above the bar says which step Mack is on and what it is doing, with a **Stop** button. A task also stops after 15 steps, or as soon as you ask something new or turn Mack off.
+6. **What Mack leaves to you.** It will not press anything that looks like paying, buying, placing an order, donating, subscribing, deleting or transferring, will not type into password or card fields, and will not submit a form that contains one. It goes as far as that step, highlights it, and asks you to do it yourself. It only types words you gave it.
+7. **Settings** (the sliders button on the bar):
+   - **Mack's voice** picks which ElevenLabs voice speaks. The list comes from your own ElevenLabs account and is loaded when Mack starts. Changing it plays a short sample.
+   - **Language** sets the language of Mack's answers and of the simple view's buttons. Mack's greeting is in that language too. The bar's own labels stay in English.
+   - **Push to talk** stops Mack from listening all the time: the round indicator becomes the talk button, and Mack only listens while you hold it (mouse, touch, or Space/Enter).
+   - **Text input** shows a box for typing just above the bar, and the round indicator stops being a talk button. Typing works even when the microphone is blocked or missing.
 
 How it works: the microphone is heard in a hidden extension page. Gemini (`gemini-3.5-flash-lite`) turns each sentence into text, then Gemini (`gemini-3.5-flash`) answers using a screenshot of the tab, the page's real links, buttons and fields, and the readable text of the whole page (including parts you have not scrolled to). Text you typed into fields or editors is never sent. ElevenLabs speaks the answer. For a task, that second step repeats once per click or typing action, each time with a fresh reading of the page.
+
+The simple view: when you press **Simple view**, the content script lists the page's real controls and the background worker asks Gemini (`gemini-3.8-flash` unless changed on the options page) which of them to show as buttons. Mack also looks one click ahead at a few same-site links (fetched without cookies) so a button can go straight to a useful page. Every button is checked against the real page before it is shown and again before it is pressed. When you ask where something is while the simple view is up, Role 2's guidance picks the button and Mack speaks its instruction; questions about what the page says and tasks are handled by the conversation as before. A task still works on the real page underneath; if it moves to another page, the simple view is removed.
 
 Caching: asking the same question again on a page that has not changed is answered from memory, without another Gemini call, for up to five minutes. Tasks are never cached, because they change the page. Sentences Mack has already spoken in the current voice (the greeting, a repeated answer) reuse the audio instead of calling ElevenLabs again. Both caches are in memory only and are emptied when Mack is turned off.
 
@@ -75,14 +79,18 @@ The work is split into four roles:
 | 4 | Platform: Chrome extension shell, page extraction, integration |
 
 
-## Role 4's platform code (merged, not yet wired in)
+## How the pieces fit together
 
-The `role4_chrome_extension` branch is merged into this one. Its code is in the repo and its tests run with `npm test`, but the built extension does not load it yet: the manifest, `package.json` and Vite build are still the voice-conversation extension described above.
+One extension, built by Vite, with four parts that talk through `chrome.runtime` messages:
 
-- `shared/contracts.ts`: the shared contract types and validation
-- `extension/src/platform/` (`controller.ts`, `extractor.ts`, `provider.ts`, and others), `extension/src/service-worker.ts`, `extension/src/content.ts`, `extension/src/options.ts`: Role 4's platform, written for its own manifest
-- `extension/src/ui/MackApp.tsx` and `extension/src/ui/design/`: the AI-redesigned simple screen
-- `build.mjs`: Role 4's esbuild build. Do not run it as is: it writes to `dist/` and expects Role 4's manifest, which this branch does not use.
+| Part | Code | What it does |
+| --- | --- | --- |
+| Background service worker | `extension/src/platform/background.ts`, `simple-view-worker.ts` | Turns Mack on and off from the toolbar icon, reads the page for the conversation, and is the only place the simple view's Gemini calls are made (Role 4's `model-handler.ts` and `provider.ts`). |
+| Offscreen document | `extension/src/platform/offscreen/main.ts` | The conversation: microphone, Gemini, ElevenLabs, tasks. It also speaks the simple view's instructions. |
+| Content script | `extension/src/platform/content/` | Mack's bar (`panel.tsx`, shadcn/ui) and highlight ring (`overlay.ts`), clicking and typing (`act.ts`), and Role 4's platform (`simple-view.ts`, `platform-host.ts`, which run `controller.ts`, `extractor.ts` and `peek.ts`). |
+| Simple view | `extension/src/ui/MackApp.tsx`, `ui/design/`, `extension/src/guidance/` | Role 3's AI-redesigned screen, built with shadcn/ui components, and Role 2's guidance. |
+
+`shared/contracts.ts` holds the contract types that Roles 2, 3 and 4 share. The options page (`extension/options.html`, right-click the Mack icon → **Options**) is optional: it lets you try another Gemini key or model for the simple view for the current browser session.
 
 ## Documentation
 

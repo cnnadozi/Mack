@@ -15,15 +15,54 @@ const BUTTON_INPUT_TYPES = new Set(["button", "submit", "reset", "image"]);
 
 // Subtrees with no readable text, or with text the user typed (private).
 const SKIPPED_TAGS = new Set([
-  "SCRIPT", "STYLE", "NOSCRIPT", "TEMPLATE", "SVG", "CANVAS", "VIDEO", "AUDIO",
-  "IFRAME", "OBJECT", "EMBED", "TEXTAREA", "SELECT", "INPUT", "HEAD",
+  "SCRIPT",
+  "STYLE",
+  "NOSCRIPT",
+  "TEMPLATE",
+  "SVG",
+  "CANVAS",
+  "VIDEO",
+  "AUDIO",
+  "IFRAME",
+  "OBJECT",
+  "EMBED",
+  "TEXTAREA",
+  "SELECT",
+  "INPUT",
+  "HEAD",
 ]);
 // Tags that start a new line of text. A tag list is used instead of computed
 // styles because asking for styles on every element is slow on large pages.
 const BLOCK_TAGS = new Set([
-  "ADDRESS", "ARTICLE", "ASIDE", "BLOCKQUOTE", "BR", "DD", "DETAILS", "DIV", "DL", "DT",
-  "FIELDSET", "FIGCAPTION", "FIGURE", "FOOTER", "FORM", "HEADER", "HR", "LI", "MAIN", "NAV",
-  "OL", "P", "PRE", "SECTION", "TABLE", "TD", "TH", "TR", "UL",
+  "ADDRESS",
+  "ARTICLE",
+  "ASIDE",
+  "BLOCKQUOTE",
+  "BR",
+  "DD",
+  "DETAILS",
+  "DIV",
+  "DL",
+  "DT",
+  "FIELDSET",
+  "FIGCAPTION",
+  "FIGURE",
+  "FOOTER",
+  "FORM",
+  "HEADER",
+  "HR",
+  "LI",
+  "MAIN",
+  "NAV",
+  "OL",
+  "P",
+  "PRE",
+  "SECTION",
+  "TABLE",
+  "TD",
+  "TH",
+  "TR",
+  "UL",
 ]);
 
 // Ids are only valid for the snapshot that created them.
@@ -45,7 +84,9 @@ function isEditor(element: Element): boolean {
 function isField(element: Element): boolean {
   if (element instanceof HTMLInputElement) return !BUTTON_INPUT_TYPES.has(element.type);
   return (
-    element instanceof HTMLSelectElement || element instanceof HTMLTextAreaElement || isEditor(element)
+    element instanceof HTMLSelectElement ||
+    element instanceof HTMLTextAreaElement ||
+    isEditor(element)
   );
 }
 
@@ -53,7 +94,10 @@ function isField(element: Element): boolean {
 function checkedState(element: Element): string {
   const role = element.getAttribute("role");
   let checked: boolean;
-  if (element instanceof HTMLInputElement && (element.type === "checkbox" || element.type === "radio")) {
+  if (
+    element instanceof HTMLInputElement &&
+    (element.type === "checkbox" || element.type === "radio")
+  ) {
     checked = element.checked;
   } else if (role === "checkbox" || role === "radio" || role === "switch") {
     checked = element.getAttribute("aria-checked") === "true";

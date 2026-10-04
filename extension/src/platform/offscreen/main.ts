@@ -1,4 +1,5 @@
-// The conversation loop, for spoken and typed questions. It runs in an offscreen document because a service
+// The conversation loop, for spoken and typed questions. It also speaks the
+// instructions of Role 4's simple view, so there is one voice and one microphone. It runs in an offscreen document because a service
 // worker has no microphone or audio output, and because the user must be able to
 // stay on the website: no visible page is needed while talking.
 //
@@ -13,12 +14,19 @@ import { listVoices } from "../../voice/live/voices";
 import { debug, since } from "../debug";
 import { askGemini, transcribe, type Turn } from "../gemini";
 import { replyCache, replyKey } from "../reply-cache";
-import type { ActResult, PageAction, PageContext, RuntimeMessage, SessionState } from "../messages";
+import type {
+  ActResult,
+  GuideReply,
+  PageAction,
+  PageContext,
+  RuntimeMessage,
+  SessionState,
+} from "../messages";
+import { greetingIn } from "../messages";
 
 const ELEVENLABS_API_KEY = import.meta.env.ELEVENLABS_API_KEY ?? "";
 const GEMINI_API_KEY = import.meta.env.GEMINI_API_KEY ?? "";
 
-const GREETING = "Hi, I'm Mack. Ask me anything about this page.";
 const VOICE_SAMPLE = "This is how I sound now.";
 const LEFT_TO_USER =
   "I'd rather you do this one yourself, because it may pay for something, delete something or sign you in. I've highlighted it for you.";
@@ -36,10 +44,17 @@ let lineCount = 0;
 const startedWith = new URLSearchParams(location.search);
 let pushToTalk = startedWith.has("ptt");
 let voiceId = startedWith.get("voice") || DEFAULT_VOICE_ID;
+// The language Mack answers in; "" is English.
+let language = startedWith.get("language") ?? "";
 // Each new question gets the next number. A turn that finds a newer number has
 // been interrupted and must not speak or change the status any more.
 let turnId = 0;
 let resting = false;
+// The question handed to the simple view's guidance, until its answer is spoken.
+let guidedRequest: string | null = null;
+// The turn in which a simple-view instruction is being spoken, so only that
+// speech is cut off when the simple view asks for quiet.
+let guidanceTurn = 0;
 
 function send(message: RuntimeMessage): void {
   void chrome.runtime.sendMessage(message).catch((error: unknown) => {
@@ -174,10 +189,11 @@ async function answer(asked: Asked): Promise<void> {
     for (;;) {
       // Only the first round can be answered from memory: after a step the page
       // has changed and the model has to look at it again.
-      const key = steps.length === 0 ? replyKey(heard, context.page) : null;
+      const key = steps.length === 0 ? replyKey(`${language} ${heard}`, context.page) : null;
       const remembered = key ? replyCache.get(key) : undefined;
       const reply =
-        remembered ?? (await askGemini({ apiKey: GEMINI_API_KEY, heard, context, history, steps }));
+        remembered ??
+        (await askGemini({ apiKey: GEMINI_API_KEY, heard, context, history, steps, language }));
       if (id !== turnId) return;
       debug(
         "offscreen",
@@ -189,6 +205,17 @@ async function answer(asked: Asked): Promise<void> {
       if (!step || context.tabId === null) {
         // Tasks are never remembered, and neither is an empty answer.
         if (key && !step && reply.reply) replyCache.set(key, reply);
+        // The simple view covers the real page, so pointing at something there
+        // would show nothing. Role 2's guidance answers on the simple view
+        // instead: it highlights the matching button and Mack speaks its instruction.
+        if (context.simple && context.tabId !== null && steps.length === 0 && reply.targetId) {
+          guidedRequest = heard;
+          const guided = await guideOnSimpleView(context.tabId, heard);
+          if (id !== turnId) return;
+          if (guided) return;
+          guidedRequest = null;
+          debug("offscreen", "answer: the simple view had no guidance, using Mack's own answer");
+        }
         if (context.tabId !== null) {
           send({ type: "mack:highlight", tabId: context.tabId, elementId: reply.targetId });
         }
@@ -238,6 +265,35 @@ async function answer(asked: Asked): Promise<void> {
       debug("offscreen", "answer: turn was interrupted by a newer question");
     }
   }
+}
+
+async function guideOnSimpleView(tabId: number, text: string): Promise<boolean> {
+  const reply = (await chrome.runtime
+    .sendMessage({ type: "mack:guide", tabId, text } satisfies RuntimeMessage)
+    .catch(() => null)) as GuideReply | null;
+  debug("offscreen", "guideOnSimpleView:", reply);
+  return reply?.ok === true;
+}
+
+// An instruction from Role 4's simple view, spoken in Mack's voice.
+async function speakGuidance(text: string): Promise<void> {
+  turnId += 1;
+  const id = turnId;
+  guidanceTurn = id;
+  resting = false;
+  listener?.pause();
+  if (guidedRequest) {
+    history.push({ role: "user", text: guidedRequest }, { role: "model", text });
+    guidedRequest = null;
+  }
+  let problem: string | undefined;
+  try {
+    await say(text);
+  } catch (error) {
+    debug("offscreen", "speakGuidance: failed", error);
+    problem = messageFrom(error);
+  }
+  if (id === turnId) rest(problem);
 }
 
 // The voice setting changed: say a short sample so the user hears the new voice.
@@ -355,7 +411,7 @@ async function main(): Promise<void> {
   listener?.pause();
   const id = turnId;
   try {
-    await say(GREETING);
+    await say(greetingIn(language));
   } catch (error) {
     debug("offscreen", "main: greeting failed", error);
     problem = messageFrom(error);
@@ -372,6 +428,20 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage) => {
       if (text) void answer({ text });
       break;
     }
+    case "mack:halt":
+      debug("offscreen", "task stopped by the user");
+      // Bumping the turn makes the running task give up before its next step.
+      turnId += 1;
+      stopSpeech();
+      rest();
+      break;
+    case "mack:say":
+      debug("offscreen", "simple view instruction:", message.text);
+      if (message.text.trim()) void speakGuidance(message.text.trim());
+      break;
+    case "mack:hush":
+      if (guidanceTurn === turnId) stopSpeech();
+      break;
     case "mack:talk":
       debug("offscreen", message.held ? "talk button held" : "talk button released");
       hold(message.held);
@@ -388,6 +458,10 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage) => {
     case "mack:voice":
       debug("offscreen", "voice is now", message.voiceId || "(default)");
       void changeVoice(message.voiceId);
+      break;
+    case "mack:language":
+      debug("offscreen", "language is now", message.language || "English");
+      language = message.language;
       break;
     case "mack:mode":
       debug("offscreen", "push to talk is now", message.pushToTalk);
