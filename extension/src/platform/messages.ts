@@ -213,6 +213,8 @@ export type RuntimeMessage =
   | { type: "mack:say"; text: string }
   | { type: "mack:hush" }
   | { type: "mack:talk"; held: boolean }
+  /** The talk button was pressed: listen for one sentence and answer when the user stops talking; pressed again before they speak, stop. */
+  | { type: "mack:listen" }
   | { type: "mack:mode"; pushToTalk: boolean }
   | { type: "mack:voice"; voiceId: string }
   | { type: "mack:language"; language: string }

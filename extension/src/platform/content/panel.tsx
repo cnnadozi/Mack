@@ -173,21 +173,13 @@ function IconButton(props: {
 }
 
 // The round indicator in the middle of the bar. With push to talk on it is also
-// the talk button: Mack records while it is held.
+// the talk button: one press and Mack listens until the user stops talking.
+// Holding the Space bar records instead (see useHoldSpaceToTalk).
 function Orb({ state, holdToTalk }: { state: SessionState; holdToTalk: boolean }) {
   const { t } = useTranslator();
   const stateKey = STATE_TEXT[state];
   const stateText = stateKey ? t(stateKey) : "";
-  const [recording, setRecording] = useState(false);
-  const current = useRef(false);
-  const record = (next: boolean): void => {
-    if (next === current.current) return;
-    current.current = next;
-    setRecording(next);
-    send({ type: "mack:talk", held: next });
-  };
-  // If holding stops being possible mid-recording, the microphone must not keep recording.
-  useEffect(() => () => record(false), [holdToTalk]);
+  const listening = state === "listening" || state === "hearing";
 
   const lively = state === "hearing" || state === "speaking";
   const look = cn(
@@ -199,11 +191,7 @@ function Orb({ state, holdToTalk }: { state: SessionState; holdToTalk: boolean }
       {lively && (
         <span className="absolute inset-0 animate-ping rounded-full bg-current opacity-20 motion-reduce:hidden" />
       )}
-      {holdToTalk && !recording && state === "ready" ? (
-        <Mic className="size-6" />
-      ) : (
-        <StateWave state={state} />
-      )}
+      {holdToTalk && state === "ready" ? <Mic className="size-6" /> : <StateWave state={state} />}
     </>
   );
 
@@ -214,34 +202,68 @@ function Orb({ state, holdToTalk }: { state: SessionState; holdToTalk: boolean }
       </div>
     );
   }
-  const isPressKey = (event: KeyboardEvent): boolean => event.key === " " || event.key === "Enter";
   return (
     <Button
       type="button"
-      className={cn(look, "touch-none p-0 select-none hover:brightness-110")}
+      className={cn(look, "p-0 select-none hover:brightness-110")}
       aria-label={t("holdToTalk")}
       title={t("holdToTalk")}
-      aria-pressed={recording}
-      onPointerDown={(event: PointerEvent<HTMLButtonElement>) => {
-        // Capture keeps the release coming here even if the pointer slides off the button.
-        event.currentTarget.setPointerCapture(event.pointerId);
-        record(true);
-      }}
-      onPointerUp={() => record(false)}
-      onPointerCancel={() => record(false)}
-      onBlur={() => record(false)}
-      onKeyDown={(event) => {
-        if (!isPressKey(event)) return;
-        event.preventDefault();
-        if (!event.repeat) record(true);
-      }}
-      onKeyUp={(event) => {
-        if (isPressKey(event)) record(false);
-      }}
+      aria-pressed={listening}
+      // The Space bar is handled for the whole page; letting it also "click" this button would toggle twice.
+      onKeyDown={(event) => { if (event.key === " ") event.preventDefault(); }}
+      onKeyUp={(event) => { if (event.key === " ") event.preventDefault(); }}
+      onClick={() => send({ type: "mack:listen" })}
     >
       {inside}
     </Button>
   );
+}
+
+// Push to talk from anywhere on the page: Mack records while the Space bar is held,
+// except while the user is typing in a field (theirs or Mack's own).
+function useHoldSpaceToTalk(enabled: boolean): void {
+  useEffect(() => {
+    if (!enabled) return;
+    let held = false;
+    const typing = (event: globalThis.KeyboardEvent): boolean =>
+      event
+        .composedPath()
+        .some(
+          (node) =>
+            node instanceof HTMLElement &&
+            (node.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(node.tagName)),
+        );
+    const release = (): void => {
+      if (!held) return;
+      held = false;
+      send({ type: "mack:talk", held: false });
+    };
+    const down = (event: globalThis.KeyboardEvent): void => {
+      if (event.code !== "Space" || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (!held && (event.repeat || typing(event))) return;
+      // Holding Space would otherwise scroll the page.
+      event.preventDefault();
+      event.stopPropagation();
+      if (held) return;
+      held = true;
+      send({ type: "mack:talk", held: true });
+    };
+    const up = (event: globalThis.KeyboardEvent): void => {
+      if (event.code !== "Space" || !held) return;
+      event.preventDefault();
+      event.stopPropagation();
+      release();
+    };
+    window.addEventListener("keydown", down, true);
+    window.addEventListener("keyup", up, true);
+    window.addEventListener("blur", release);
+    return () => {
+      window.removeEventListener("keydown", down, true);
+      window.removeEventListener("keyup", up, true);
+      window.removeEventListener("blur", release);
+      release();
+    };
+  }, [enabled]);
 }
 
 function AskBox() {
@@ -497,10 +519,12 @@ function clamp(position: BarPosition): BarPosition {
 
 export function Panel() {
   const { t, dir, lang } = useTranslator();
+
   const [session] = useStored<MackSession>(STORAGE.session, IDLE_SESSION);
   const [transcript] = useStored<TranscriptLine[]>(STORAGE.transcript, NO_LINES);
   const [pushToTalk] = useStored<boolean>(STORAGE.pushToTalk, false);
   const [textInput] = useStored<boolean>(STORAGE.textInput, false);
+  useHoldSpaceToTalk(session.active && pushToTalk && !textInput);
   const [chatHidden, setChatHidden] = useStored<boolean>(STORAGE.collapsed, false);
   const [stored, setStored] = useStored<BarPosition | null>(STORAGE.barPosition, null);
   const [dragged, setDragged] = useState<BarPosition | null>(null);

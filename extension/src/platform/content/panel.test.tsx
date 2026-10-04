@@ -73,16 +73,30 @@ describe("Mack's bar", () => {
     expect(sent).toEqual([]);
   });
 
-  it("records only while the button is held when push to talk is on", async () => {
-    await show({ [STORAGE.pushToTalk]: true });
-    const talk = screen.getByRole("button", { name: "Hold to talk" });
-    talk.setPointerCapture = vi.fn();
-    fireEvent.pointerDown(talk);
-    fireEvent.pointerUp(talk);
+  it("toggles listening with one press of the talk button", async () => {
+    await show({ [STORAGE.pushToTalk]: true, [STORAGE.session]: { active: true, state: "ready" } });
+    const talk = screen.getByRole("button", { name: "Press to talk, or hold the Space bar" });
+    fireEvent.click(talk);
+    expect(sent).toEqual([{ type: "mack:listen" }]);
+  });
+
+  it("records while Space is held anywhere on the page, but not while typing in a field", async () => {
+    await show({ [STORAGE.pushToTalk]: true, [STORAGE.session]: { active: true, state: "ready" } });
+    const down = new KeyboardEvent("keydown", { code: "Space", key: " ", bubbles: true, cancelable: true });
+    document.body.dispatchEvent(down);
+    expect(down.defaultPrevented).toBe(true);
+    document.body.dispatchEvent(new KeyboardEvent("keydown", { code: "Space", key: " ", repeat: true, bubbles: true }));
+    document.body.dispatchEvent(new KeyboardEvent("keyup", { code: "Space", key: " ", bubbles: true }));
     expect(sent).toEqual([
       { type: "mack:talk", held: true },
       { type: "mack:talk", held: false },
     ]);
+    const field = document.createElement("input");
+    document.body.append(field);
+    field.dispatchEvent(new KeyboardEvent("keydown", { code: "Space", key: " ", bubbles: true }));
+    field.dispatchEvent(new KeyboardEvent("keyup", { code: "Space", key: " ", bubbles: true }));
+    expect(sent).toHaveLength(2);
+    field.remove();
   });
 
   it("keeps the settings to voice, language, push to talk and text input", async () => {

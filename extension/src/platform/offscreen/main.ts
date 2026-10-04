@@ -327,6 +327,33 @@ function hold(held: boolean): void {
   status("hearing");
 }
 
+// Tap to talk: listen for one sentence and answer it once the user stops talking.
+// Pressed again before any speech, it stops listening instead.
+const LISTEN_GIVE_UP_MS = 8000;
+let waitingForSpeech = false;
+let listenTimer = 0;
+function listenOnce(): void {
+  if (!listener) return;
+  window.clearTimeout(listenTimer);
+  if (waitingForSpeech) {
+    waitingForSpeech = false;
+    rest();
+    return;
+  }
+  turnId += 1;
+  resting = false;
+  stopSpeech();
+  waitingForSpeech = true;
+  listener.resume();
+  status("listening");
+  listenTimer = window.setTimeout(() => {
+    if (!waitingForSpeech) return;
+    debug("offscreen", "tap to talk: nothing was said, stopping");
+    waitingForSpeech = false;
+    rest();
+  }, LISTEN_GIVE_UP_MS);
+}
+
 const STOP = Symbol("stop");
 
 // Opens the microphone. Returns a note for the user when Mack has to run without
@@ -339,6 +366,8 @@ async function openMicrophone(): Promise<string | undefined | typeof STOP> {
     listener = await startMicListener(chrome.runtime.getURL("mic-worklet.js"), {
       onSpeechStart: () => {
         debug("offscreen", "mic: speech started");
+        waitingForSpeech = false;
+        window.clearTimeout(listenTimer);
         status("hearing");
       },
       onDiscarded: () => {
@@ -443,8 +472,14 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage) => {
       if (guidanceTurn === turnId) stopSpeech();
       break;
     case "mack:talk":
-      debug("offscreen", message.held ? "talk button held" : "talk button released");
+      debug("offscreen", message.held ? "talk key held" : "talk key released");
+      waitingForSpeech = false;
+      window.clearTimeout(listenTimer);
       hold(message.held);
+      break;
+    case "mack:listen":
+      debug("offscreen", "talk button pressed");
+      listenOnce();
       break;
     case "mack:bye":
       debug("offscreen", "turning off");
