@@ -132,6 +132,13 @@ export function setRingAllowed(allowed: boolean): void {
   if (!allowed) highlight(null);
 }
 
+const NOT_TYPED = new Set(["button", "submit", "reset", "image", "checkbox", "radio", "range", "color", "file"]);
+
+function typable(element: Element): boolean {
+  if (element instanceof HTMLInputElement) return !NOT_TYPED.has(element.type);
+  return element instanceof HTMLTextAreaElement || (element instanceof HTMLElement && element.isContentEditable);
+}
+
 export function highlight(elementId: string | null): void {
   window.clearTimeout(highlightTimer);
   target = elementId && ringAllowed ? elementFor(elementId) : null;
@@ -151,7 +158,9 @@ export function highlight(elementId: string | null): void {
   target.scrollIntoView({ block: "center", behavior: reduceMotion ? "auto" : "smooth" });
   ring.style.display = "block";
   if (tag) {
-    tag.textContent = `👆 ${translator(language).t("clickHere")}`;
+    // A box to type in is not a button: the tag says what to do with it.
+    const { t } = translator(language);
+    tag.textContent = typable(target) ? `⌨️ ${t("typeHere")}` : `👆 ${t("clickHere")}`;
     tag.style.display = "block";
   }
   trackTarget();

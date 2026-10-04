@@ -200,6 +200,12 @@ export const MACK_STYLES = `
   position: relative;
   z-index: 1;
 }
+.mack-search[data-highlighted="true"] {
+  border: 4px solid var(--highlight);
+  box-shadow: 0 0 0 3px var(--highlight-edge), 0 0 0 8px var(--highlight), 0 0 30px 10px color-mix(in srgb, var(--highlight) 80%, transparent);
+  animation: mack-glow 1.2s ease-in-out infinite;
+}
+.mack-search-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .mack-task[data-variant="card"][data-highlighted="true"],
 .mack-task[data-variant="row"][data-highlighted="true"] { background: var(--highlight-fill); color: var(--ink); }
 .mack-badge { background: var(--highlight); color: var(--highlight-ink); border: 2px solid var(--highlight-edge); }

@@ -420,6 +420,27 @@ export function startPlatform(deps: Dependencies) {
     if (previousFocus?.isConnected) previousFocus.focus();
     if (!preserveSession) deps.onExit();
   }
+  // Mack's own voice answers can point at, press or search with what the simple view shows.
+  function shownIds(): string[] {
+    if (state.screen.mode !== "simplified") return [];
+    return [...state.screen.sections.flatMap((s) => s.buttons.map((b) => b.actionId)), ...(state.screen.search ? [state.screen.search.actionId] : [])];
+  }
+  function point(id: string): boolean {
+    if (!active || state.busy || !shownIds().includes(id)) return false;
+    guideAbort?.abort(); cancelSpeech(); clearHighlight();
+    commit({ instruction: "", highlightedActionId: id, clarificationOptions: undefined, error: undefined });
+    return true;
+  }
+  function press(id: string): boolean {
+    if (!active || state.busy || actionPending || state.screen.mode !== "simplified" || !shownLabel(id)) return false;
+    action(id);
+    return true;
+  }
+  function searchFor(id: string, text: string): boolean {
+    if (!active || state.busy || actionPending || state.screen.mode !== "simplified" || state.screen.search?.actionId !== id || !text.trim()) return false;
+    search(id, text);
+    return true;
+  }
   function unavailableVoice() {
     commit({ voiceState: "error", error: { code: "voice_unavailable", message: "Voice is not connected yet. You can type your request.", retryable: false } });
   }
@@ -459,5 +480,5 @@ export function startPlatform(deps: Dependencies) {
   window.addEventListener("popstate", urlChanged); window.addEventListener("hashchange", urlChanged);
   const urlPoll = setInterval(urlChanged, 500);
   void refresh();
-  return { exit, refresh, request, getState: () => state, getExtraction: () => extraction };
+  return { exit, refresh, request, point, press, search: searchFor, getState: () => state, getExtraction: () => extraction };
 }

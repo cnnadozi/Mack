@@ -10,6 +10,7 @@ import {
   STORAGE,
   type GuideReply,
   type MackSession,
+  type SimpleOp,
 } from "../messages";
 import { supportedUrl } from "../settings";
 import { shouldContinue } from "./continue";
@@ -133,6 +134,12 @@ export function simpleViewShowing(): boolean {
 
 export function guideInSimpleView(text: string): Promise<GuideReply> {
   return simpleView ? simpleView.guide(text) : Promise.resolve({ ok: false });
+}
+
+export function actInSimpleView(op: SimpleOp, elementId: string, text: string): boolean {
+  const done = simpleView?.act(op, elementId, text) ?? false;
+  debug("content", `simple view: ${op} for "${elementId}"`, done ? "done" : "not on the simple view");
+  return done;
 }
 
 export async function initSimpleView(): Promise<void> {

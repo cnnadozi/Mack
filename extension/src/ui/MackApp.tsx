@@ -198,7 +198,7 @@ function SimplifiedView(props: ViewProps) {
 
         <Guidance {...props} />
 
-        {screen.search && <SearchBox search={screen.search} disabled={state.busy} onSearch={props.onSearch} key={screen.snapshotVersion} />}
+        {screen.search && <SearchBox search={screen.search} disabled={state.busy} highlighted={highlightedActionId === screen.search.actionId} onSearch={props.onSearch} key={screen.snapshotVersion} />}
 
         <div ref={gridRef} className="mack-tasks" key={screen.snapshotVersion}>
           {mainSections.map((section, index) => (
@@ -242,19 +242,31 @@ function SimplifiedView(props: ViewProps) {
 }
 
 // The site's own search, front and centre when searching is what people come to do (e.g. a store).
-function SearchBox(props: { search: SiteSearch; disabled: boolean; onSearch(actionId: string, text: string): void }) {
+function SearchBox(props: { search: SiteSearch; disabled: boolean; highlighted: boolean; onSearch(actionId: string, text: string): void }) {
   const { t } = useTranslator();
-  const { search, disabled, onSearch } = props;
+  const { search, disabled, highlighted, onSearch } = props;
   const inputId = useId();
   const [text, setText] = useState("");
+  const cardRef = useRef<HTMLDivElement>(null);
+  // When Mack points here, the box is ready to type in.
+  useEffect(() => {
+    if (!highlighted) return;
+    cardRef.current?.scrollIntoView?.({ block: "nearest", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+    cardRef.current?.querySelector("input")?.focus({ preventScroll: true });
+  }, [highlighted]);
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (text.trim()) onSearch(search.actionId, text.trim());
   };
   return (
-    <Card className="mack-search" role="search" aria-labelledby={`${inputId}-label`}>
+    <Card ref={cardRef} className="mack-search" role="search" aria-labelledby={`${inputId}-label`} data-highlighted={highlighted || undefined}>
       <form onSubmit={submit} className="mack-search-form">
-        <label id={`${inputId}-label`} htmlFor={inputId}>{search.label}</label>
+        <span className="mack-search-head">
+          <label id={`${inputId}-label`} htmlFor={inputId}>{search.label}</label>
+          {highlighted && (
+            <Badge className="mack-badge h-auto rounded-full px-3 py-1 text-[17px] font-extrabold">{t("typeHere")}</Badge>
+          )}
+        </span>
         <div className="mack-search-row">
           <span className="mack-search-field">
             <Search className="mack-search-icon size-[26px]" strokeWidth={2.4} aria-hidden="true" />

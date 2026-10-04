@@ -15,6 +15,7 @@ import { debug, since } from "../debug";
 import { askGemini, transcribe, type Turn } from "../gemini";
 import { replyCache, replyKey } from "../reply-cache";
 import type {
+  SimpleOp,
   ActResult,
   GuideReply,
   PageAction,
@@ -97,6 +98,21 @@ function messageFrom(error: unknown): string {
 }
 
 // Between turns: hands-free listens for speech, push to talk waits for the button.
+// After Mack asks the user something, the microphone opens by itself as if the
+// talk button had been pressed. Hands-free listening already hears the answer.
+function isQuestion(text: string): boolean {
+  return /[?？؟]\s*["'”’»)]*\s*$/.test(text);
+}
+
+function restAfter(spoken: string, problem?: string): void {
+  if (!problem && pushToTalk && listener && isQuestion(spoken)) {
+    debug("offscreen", "Mack asked a question, listening for the answer");
+    startTap();
+    return;
+  }
+  rest(problem);
+}
+
 function rest(problem?: string): void {
   resting = true;
   const handsFree = listener !== null && !pushToTalk;
@@ -159,6 +175,7 @@ async function answer(asked: Asked): Promise<void> {
   listener?.pause();
   status("thinking");
   let problem: string | undefined;
+  let spoken = "";
   const started = performance.now();
   const getContext = (): Promise<PageContext> =>
     chrome.runtime.sendMessage({ type: "mack:context" } satisfies RuntimeMessage);
@@ -185,11 +202,10 @@ async function answer(asked: Asked): Promise<void> {
     line("user", heard);
 
     const steps: string[] = [];
-    let spoken = "";
     for (;;) {
       // Only the first round can be answered from memory: after a step the page
       // has changed and the model has to look at it again.
-      const key = steps.length === 0 ? replyKey(`${language} ${heard}`, context.page) : null;
+      const key = steps.length === 0 ? replyKey(`${language} ${context.simple ? "simple " : ""}${heard}`, context.page) : null;
       const remembered = key ? replyCache.get(key) : undefined;
       const reply =
         remembered ??
@@ -208,6 +224,15 @@ async function answer(asked: Asked): Promise<void> {
         // The simple view covers the real page, so pointing at something there
         // would show nothing. Role 2's guidance answers on the simple view
         // instead: it highlights the matching button and Mack speaks its instruction.
+        if (context.simple && context.tabId !== null && reply.targetId) {
+          // Best: the simple view shows the same button or search box, so it lights up there.
+          if (await onSimpleView(context.tabId, "point", reply.targetId)) {
+            if (id !== turnId) return;
+            spoken = reply.reply;
+            break;
+          }
+          if (id !== turnId) return;
+        }
         if (context.simple && context.tabId !== null && steps.length === 0 && reply.targetId) {
           guidedRequest = heard;
           const guided = await guideOnSimpleView(context.tabId, heard);
@@ -227,6 +252,35 @@ async function answer(asked: Asked): Promise<void> {
         spoken = TOO_MANY_STEPS;
         break;
       }
+
+      // On the simple view, a click on one of its buttons, or typing into its search
+      // box, is done there: the page that opens then continues in the simple view,
+      // and the simple view says what it is doing.
+      const simpleOp =
+        !context.simple || !("elementId" in step) || !step.elementId
+          ? null
+          : step.kind === "click"
+            ? "press"
+            : step.kind === "type"
+              ? "search"
+              : null;
+      if (
+        simpleOp &&
+        "elementId" in step &&
+        step.elementId &&
+        (await onSimpleView(
+          context.tabId,
+          simpleOp,
+          step.elementId,
+          step.kind === "type" ? step.text : undefined,
+        ))
+      ) {
+        if (id !== turnId) return;
+        if (reply.reply) line("mack", reply.reply, true);
+        history.push({ role: "user", text: heard }, { role: "model", text: reply.reply });
+        return;
+      }
+      if (id !== turnId) return;
 
       status("working");
       // Steps are shown as text only: speaking each one would make a task slow.
@@ -260,11 +314,30 @@ async function answer(asked: Asked): Promise<void> {
   } finally {
     if (id === turnId) {
       debug("offscreen", `answer: turn finished in ${since(started)}`);
-      rest(problem);
+      restAfter(spoken, problem);
     } else {
       debug("offscreen", "answer: turn was interrupted by a newer question");
     }
   }
+}
+
+async function onSimpleView(
+  tabId: number,
+  op: SimpleOp,
+  elementId: string,
+  text?: string,
+): Promise<boolean> {
+  const reply = (await chrome.runtime
+    .sendMessage({
+      type: "mack:simple",
+      tabId,
+      op,
+      elementId,
+      ...(text ? { text } : {}),
+    } satisfies RuntimeMessage)
+    .catch(() => null)) as GuideReply | null;
+  debug("offscreen", `onSimpleView: ${op} "${elementId}"`, reply);
+  return reply?.ok === true;
 }
 
 async function guideOnSimpleView(tabId: number, text: string): Promise<boolean> {
@@ -293,7 +366,7 @@ async function speakGuidance(text: string): Promise<void> {
     debug("offscreen", "speakGuidance: failed", error);
     problem = messageFrom(error);
   }
-  if (id === turnId) rest(problem);
+  if (id === turnId) restAfter(text, problem);
 }
 
 // The voice setting changed: say a short sample so the user hears the new voice.
@@ -346,6 +419,10 @@ function listenOnce(): void {
     listener.finishManual();
     return;
   }
+  startTap();
+}
+function startTap(): void {
+  if (!listener) return;
   turnId += 1;
   resting = false;
   stopSpeech();

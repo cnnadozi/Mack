@@ -7,7 +7,7 @@ import type { ExtractReply, TabMessage } from "../messages";
 import { act } from "./act";
 import { extractPage } from "./extract";
 import { highlight, initOverlay } from "./overlay";
-import { guideInSimpleView, initSimpleView, simpleViewShowing } from "./simple-view";
+import { actInSimpleView, guideInSimpleView, initSimpleView, simpleViewShowing } from "./simple-view";
 
 // The background worker adds this script to tabs that have none; the flag stops a
 // second copy from starting if it is ever added to a tab that already has one.
@@ -36,6 +36,8 @@ if (window.top === window && !scope.__mackContentScript) {
     } else if (message.type === "mack:act") {
       void act(message.step).then(sendResponse);
       return true;
+    } else if (message.type === "mack:simple") {
+      sendResponse({ ok: actInSimpleView(message.op, message.elementId, message.text ?? "") });
     } else if (message.type === "mack:guide") {
       void guideInSimpleView(message.text).then(sendResponse, () => sendResponse({ ok: false }));
       return true;

@@ -339,6 +339,14 @@ chrome.runtime.onMessage.addListener((raw: unknown, sender, sendResponse) => {
     case "mack:act":
       void act(message.tabId, message.step).then(sendResponse);
       return true;
+    case "mack:simple":
+      void sendToTab<GuideReply>(message.tabId, {
+        type: "mack:simple",
+        op: message.op,
+        elementId: message.elementId,
+        ...(message.text ? { text: message.text } : {}),
+      }).then((reply) => sendResponse(reply ?? ({ ok: false } satisfies GuideReply)));
+      return true;
     case "mack:guide":
       void sendToTab<GuideReply>(message.tabId, { type: "mack:guide", text: message.text }).then(
         (reply) => sendResponse(reply ?? ({ ok: false } satisfies GuideReply)),

@@ -9,11 +9,12 @@ import { createGenerateScreen, mountMackApp, type MackAppProps } from "../../ui"
 import { startPlatform } from "../controller";
 import { debug } from "../debug";
 import { createResolveIntent } from "../guidance-adapter";
-import type { GuideReply, RuntimeMessage } from "../messages";
+import type { GuideReply, RuntimeMessage, SimpleOp } from "../messages";
 import { createModelClient } from "../model-client";
 import { PeekReplySchema } from "../protocol";
 import { rememberToContinue } from "./continue";
 import { designCache } from "./design-cache";
+import { elementFor } from "./extract";
 import { followTheme } from "./theme";
 
 const SessionSchema = z.object({
@@ -67,6 +68,8 @@ function tunedModel(model: ModelClient, options: { language: string; fresh: bool
 export interface SimpleView {
   /** Asks Role 2's guidance to show the user where to go, on the simple view. */
   guide(text: string): Promise<GuideReply>;
+  /** Points at, presses or searches with the simple view's match for a page element; false when it shows none. */
+  act(op: SimpleOp, elementId: string, text: string): boolean;
   stop(): void;
 }
 
@@ -95,6 +98,30 @@ function createVoice(): VoiceController {
     },
     dispose: () => undefined,
   };
+}
+
+// Mack's voice answers name elements of the real page; the simple view shows some
+// of them as big buttons or its search box. Finds the one this element stands for.
+function shownIdFor(platform: ReturnType<typeof startPlatform>, elementId: string): string | undefined {
+  const element = elementFor(elementId);
+  if (!element) return undefined;
+  const { screen } = platform.getState();
+  if (screen.mode !== "simplified") return undefined;
+  const shown = [
+    ...(screen.search ? [screen.search.actionId] : []),
+    ...screen.sections.flatMap((section) => section.buttons.map((button) => button.actionId)),
+  ];
+  const { registry, hrefs } = platform.getExtraction();
+  const href = element.closest("a")?.href;
+  let near: string | undefined;
+  for (const id of shown) {
+    const source = registry.get(id);
+    if (source === element) return id;
+    if (near) continue;
+    if (source && (source.contains(element) || element.contains(source))) near = id;
+    else if (href && hrefs.get(id) === href) near = id;
+  }
+  return near;
 }
 
 export async function startSimpleView(options: {
@@ -188,6 +215,15 @@ export async function startSimpleView(options: {
       const state = platform!.getState();
       // When ok, the controller speaks the instruction itself through createVoice.
       return { ok: running && !state.busy && !state.error && state.instruction !== "" };
+    },
+    act(op, elementId, text) {
+      if (!running || !platform) return false;
+      const id = shownIdFor(platform, elementId);
+      if (!id) return false;
+      if (op === "point") return platform.point(id);
+      // The page a press or a search leads to continues in the simple view.
+      rememberToContinue();
+      return op === "press" ? platform.press(id) : platform.search(id, text);
     },
     stop() {
       if (!running) return;

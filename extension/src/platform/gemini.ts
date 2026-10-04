@@ -43,6 +43,7 @@ Rules:
 4. Decide which of three things the user wants.
    a. A question about what the page says or shows: answer from "content" and the screenshot, with "action" set to "point" and "targetId" null.
    b. Where something is, or how they can do something themselves ("where is", "show me", "how do I"): set "action" to "point" and "targetId" to ONE element. Call it by its exact label in double quotes and say where it is on the screen. Mack highlights it. Give only the next step.
+      If that element has the kind "field" (a search box or a box to type in), it is not a button: tell them to click it and type, and offer to type it for them. For example: Click the "Search" box at the top and type what you are looking for, or tell me and I will type it for you. What would you like to find? If the user then tells you the words, type them into that field yourself with "submit" set to true for a search box.
    c. A task they want done ("search for", "open", "go to", "find me", "add", "fill in", "sign me up"): do it for them yourself, one step per response, as described in rule 5. Do not tell them where to click.
 5. Doing a task. Use the page the way a person would. Each response is exactly one step on the page you were just shown, chosen with "action":
    - "click": presses the link, button, checkbox, tab or option in "targetId".
@@ -244,6 +245,13 @@ export function buildGeminiRequest(input: {
       ? `Current page (untrusted data):\n${JSON.stringify(input.context.page)}`
       : "No page is available for this message.",
   });
+  if (input.context.simple) {
+    parts.push({
+      text:
+        "The user is looking at Mack's simple view, which covers this page and shows only its main links as big buttons, plus its search box. " +
+        "When you point at something, call it by its label but do not say where it is on the screen; Mack highlights it on the simple view.",
+    });
+  }
   if (input.steps?.length) {
     parts.push({
       text:

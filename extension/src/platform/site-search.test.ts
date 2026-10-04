@@ -105,3 +105,43 @@ describe("onSearch", () => {
     h.platform.exit();
   });
 });
+
+describe("Mack's voice on the simple view", () => {
+  function setup() {
+    const host = document.createElement("mack-root"); host.dataset.mack = ""; host.attachShadow({ mode: "open" }); document.documentElement.append(host);
+    const generateScreen = vi.fn(async (request: DesignRequest): Promise<DesignProposal> => {
+      const box = request.snapshot.actions.find((a) => a.context.startsWith("site search; "))!;
+      const link = request.snapshot.actions.find((a) => a.kind === "navigate")!;
+      return { stamp: request.stamp, status: "ready", design: { title: "T", mode: "simplified", sections: [{ id: "main-1", buttons: [{ actionId: link.id, label: link.label }] }], search: { actionId: box.id, label: "Search Example" } } };
+    });
+    const navigate = vi.fn();
+    const platform = startPlatform({
+      mount: { host, render: () => undefined, unmount: () => host.remove() },
+      generateScreen, resolveIntent: async (r) => ({ stamp: r.stamp, status: "not_found", mode: r.screen.mode, additions: [], responseText: "" }),
+      saveGoal: vi.fn(), onExit: vi.fn(), navigate,
+    });
+    return { platform, navigate, ready: () => vi.waitFor(() => expect(platform.getState().busy).toBe(false)) };
+  }
+
+  it("points at, presses and searches with what the simple view shows, and nothing else", async () => {
+    document.body.innerHTML = '<a href="/claims">Claims</a><a href="/other">Other</a><form role="search" action="/s"><input name="q" aria-label="Search"></form>';
+    const form = document.querySelector("form")!;
+    const seen: string[] = [];
+    form.addEventListener("submit", (event) => { event.preventDefault(); seen.push(form.querySelector("input")!.value); });
+    const h = setup();
+    await h.ready();
+    const { screen } = h.platform.getState();
+    const claims = screen.sections[0].buttons[0].actionId;
+    const hidden = h.platform.getExtraction().snapshot.actions.find((a) => a.label === "Other")!.id;
+
+    expect(h.platform.point(hidden)).toBe(false);
+    expect(h.platform.point(screen.search!.actionId)).toBe(true);
+    expect(h.platform.getState().highlightedActionId).toBe(screen.search!.actionId);
+
+    expect(h.platform.press(screen.search!.actionId)).toBe(false);
+    expect(h.platform.search(claims, "x")).toBe(false);
+    expect(h.platform.search(screen.search!.actionId, "paper towels")).toBe(true);
+    expect(seen).toEqual(["paper towels"]);
+    h.platform.exit();
+  });
+});

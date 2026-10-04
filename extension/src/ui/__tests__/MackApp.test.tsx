@@ -238,6 +238,14 @@ describe("MackApp", () => {
     expect(props.onSearch).toHaveBeenCalledWith("a6", "paper towels");
   });
 
+  it("lights up the search box and says to type when Mack points at it", () => {
+    setup({ ...uiFixtures.manyGrouped, highlightedActionId: "a6", screen: { ...uiFixtures.manyGrouped.screen, search: { actionId: "a6", label: "Search Costco" } } });
+    const box = screen.getByRole("search");
+    expect(box.getAttribute("data-highlighted")).toBe("true");
+    within(box).getByText("Type here");
+    expect(document.activeElement).toBe(within(box).getByLabelText("Search Costco"));
+  });
+
   it("shows no search box when the design has none", () => {
     setup(uiFixtures.manyGrouped);
     expect(screen.queryByRole("search")).toBeNull();

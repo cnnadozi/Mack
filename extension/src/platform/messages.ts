@@ -65,6 +65,12 @@ export interface GuideReply {
   ok: boolean;
 }
 
+/**
+ * Mack's own answer carried out on the simple view instead of the covered page:
+ * point at the matching big button or search box, press that button, or search.
+ */
+export type SimpleOp = "point" | "press" | "search";
+
 /** One thing Mack does on the page for the user. */
 export const PRESS_KEYS = [
   "Enter",
@@ -209,6 +215,8 @@ export type RuntimeMessage =
   | { type: "mack:halt" }
   /** Offscreen to a tab: let Role 2's guidance answer on the simple view. */
   | { type: "mack:guide"; tabId: number; text: string }
+  /** Offscreen to a tab: do this on the simple view, for the page element with this id. Answered with a GuideReply. */
+  | { type: "mack:simple"; tabId: number; op: SimpleOp; elementId: string; text?: string }
   /** Role 4's platform to the offscreen document: speak this instruction, or stop speaking it. */
   | { type: "mack:say"; text: string }
   | { type: "mack:hush" }
@@ -228,4 +236,5 @@ export type TabMessage =
   | { type: "mack:extract" }
   | { type: "mack:highlight"; elementId: string | null }
   | { type: "mack:act"; step: ContentAction }
-  | { type: "mack:guide"; text: string };
+  | { type: "mack:guide"; text: string }
+  | { type: "mack:simple"; op: SimpleOp; elementId: string; text?: string };
