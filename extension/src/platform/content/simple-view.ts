@@ -10,6 +10,7 @@ import {
   STORAGE,
   type GuideReply,
   type MackSession,
+  type PageSnapshot,
   type SimpleOp,
 } from "../messages";
 import { supportedUrl } from "../settings";
@@ -134,6 +135,18 @@ export function simpleViewShowing(): boolean {
 
 export function guideInSimpleView(text: string): Promise<GuideReply> {
   return simpleView ? simpleView.guide(text) : Promise.resolve({ ok: false });
+}
+
+/** The page as Mack's voice sees it: with the simple view up, its buttons come first. */
+export function withSimpleView(page: PageSnapshot): PageSnapshot {
+  const shown = covering ? simpleView?.controls() : undefined;
+  if (!shown?.elements.length) return page;
+  const listed = shown.elements.map((element) => `[${element.id} ${element.kind}: ${element.label}]`).join(" ");
+  return {
+    ...page,
+    elements: [...shown.elements, ...page.elements],
+    content: `# Simple view: ${shown.title}\n${listed}\n# The original page under it\n${page.content}`,
+  };
 }
 
 export function actInSimpleView(op: SimpleOp, elementId: string, text: string): boolean {

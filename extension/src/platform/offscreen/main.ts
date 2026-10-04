@@ -269,7 +269,9 @@ async function answer(asked: Asked): Promise<void> {
         !context.simple || !("elementId" in step) || !step.elementId
           ? null
           : step.kind === "click"
-            ? "press"
+            ? context.page?.elements.find((element) => element.id === step.elementId)?.kind === "field"
+              ? "point"
+              : "press"
             : step.kind === "type"
               ? "search"
               : null;

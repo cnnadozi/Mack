@@ -17,8 +17,14 @@ import {
   type ScrollDirection,
 } from "./messages";
 
-// Used for transcription and for Mack's answers.
+// Mack's answers. Of the models this key offered (October 2026), 3.8 Flash picked the
+// right control every time in a simple-view test at about 1.2 s; 3.1 Pro was as
+// accurate but over twice as slow.
 export const GEMINI_MODEL = "gemini-3.8-flash";
+// Writing down what was said. 3.5 Flash was as accurate as 3.8 Flash on noisy
+// recordings and about half a second faster, which the user waits through every turn.
+export const TRANSCRIBE_MODEL = "gemini-3.5-flash";
+const TRANSCRIPT_MAX_TOKENS = 1024;
 // The model reasons before it answers unless told how much to. "low" answered a
 // small request in about a quarter of the default's time when measured; these
 // calls (write down what was said, pick the next step) do not need more.
@@ -202,27 +208,31 @@ export async function transcribe(input: {
   audioWavBase64: string;
   signal?: AbortSignal;
 }): Promise<string> {
-  const body = await generate(
-    GEMINI_MODEL,
-    input.apiKey,
-    {
-      systemInstruction: { parts: [{ text: TRANSCRIBE_PROMPT }] },
-      contents: [
-        {
-          role: "user",
-          parts: [{ inlineData: { mimeType: "audio/wav", data: input.audioWavBase64 } }],
-        },
-      ],
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: TRANSCRIPT_SCHEMA,
-        temperature: 0,
-        thinkingConfig: THINKING,
+  const request = {
+    systemInstruction: { parts: [{ text: TRANSCRIBE_PROMPT }] },
+    contents: [
+      {
+        role: "user",
+        parts: [{ inlineData: { mimeType: "audio/wav", data: input.audioWavBase64 } }],
       },
+    ],
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: TRANSCRIPT_SCHEMA,
+      temperature: 0,
+      thinkingConfig: THINKING,
+      // A model can occasionally run on and on; a sentence never needs this many.
+      maxOutputTokens: TRANSCRIPT_MAX_TOKENS,
     },
-    input.signal,
-  );
-  const transcript = clean(answerJson(body).transcript);
+  };
+  let transcript: string;
+  try {
+    transcript = clean(answerJson(await generate(TRANSCRIBE_MODEL, input.apiKey, request, input.signal)).transcript);
+  } catch (error) {
+    if (input.signal?.aborted) throw error;
+    debug("gemini", `transcribe: ${TRANSCRIBE_MODEL} failed, trying ${GEMINI_MODEL}`, error);
+    transcript = clean(answerJson(await generate(GEMINI_MODEL, input.apiKey, request, input.signal)).transcript);
+  }
   debug("gemini", "transcribe:", transcript === "" ? "(no clear speech)" : transcript);
   return transcript;
 }
@@ -248,7 +258,9 @@ export function buildGeminiRequest(input: {
   if (input.context.simple) {
     parts.push({
       text:
-        "The user is looking at Mack's simple view, which covers this page and shows only its main links as big buttons, plus its search box. " +
+        "The user is looking at Mack's simple view, which covers the original page and shows its main links as big buttons, plus its search box. The screenshot shows the simple view. " +
+        'Its buttons and search box are the elements whose region is "simple view" (their ids start with "sv-"). When the user asks about something they see, look for it there first, and use that id to point at it, click it or type into it. ' +
+        "The other elements belong to the original page underneath; use them only when the simple view has nothing that fits. " +
         "When you point at something, call it by its label but do not say where it is on the screen; Mack highlights it on the simple view.",
     });
   }
@@ -282,6 +294,8 @@ export function buildGeminiRequest(input: {
       responseSchema: REPLY_SCHEMA,
       temperature: 0.3,
       thinkingConfig: THINKING,
+      // Thinking counts toward this too; it only stops a reply that has run away.
+      maxOutputTokens: 4096,
     },
   };
 }

@@ -9,7 +9,13 @@ import { createGenerateScreen, mountMackApp, type MackAppProps } from "../../ui"
 import { startPlatform } from "../controller";
 import { debug } from "../debug";
 import { createResolveIntent } from "../guidance-adapter";
-import type { GuideReply, RuntimeMessage, SimpleOp } from "../messages";
+import {
+  SIMPLE_VIEW_ID_PREFIX,
+  type GuideReply,
+  type PageElement,
+  type RuntimeMessage,
+  type SimpleOp,
+} from "../messages";
 import { createModelClient } from "../model-client";
 import { PeekReplySchema } from "../protocol";
 import { rememberToContinue } from "./continue";
@@ -70,6 +76,8 @@ export interface SimpleView {
   guide(text: string): Promise<GuideReply>;
   /** Points at, presses or searches with the simple view's match for a page element; false when it shows none. */
   act(op: SimpleOp, elementId: string, text: string): boolean;
+  /** What the simple view shows, for Mack's voice; empty until it is up. */
+  controls(): { title: string; elements: PageElement[] };
   stop(): void;
 }
 
@@ -218,12 +226,30 @@ export async function startSimpleView(options: {
     },
     act(op, elementId, text) {
       if (!running || !platform) return false;
-      const id = shownIdFor(platform, elementId);
+      const id = elementId.startsWith(SIMPLE_VIEW_ID_PREFIX)
+        ? elementId.slice(SIMPLE_VIEW_ID_PREFIX.length)
+        : shownIdFor(platform, elementId);
       if (!id) return false;
       if (op === "point") return platform.point(id);
       // The page a press or a search leads to continues in the simple view.
       rememberToContinue();
       return op === "press" ? platform.press(id) : platform.search(id, text);
+    },
+    controls() {
+      const { screen } = platform!.getState();
+      if (!running || screen.mode !== "simplified") return { title: "", elements: [] };
+      const region = "simple view";
+      return {
+        title: screen.title,
+        elements: [
+          ...(screen.search
+            ? [{ id: SIMPLE_VIEW_ID_PREFIX + screen.search.actionId, kind: "field" as const, label: screen.search.label, region }]
+            : []),
+          ...screen.sections.flatMap((section) =>
+            section.buttons.map((button) => ({ id: SIMPLE_VIEW_ID_PREFIX + button.actionId, kind: "button" as const, label: button.label, region })),
+          ),
+        ],
+      };
     },
     stop() {
       if (!running) return;

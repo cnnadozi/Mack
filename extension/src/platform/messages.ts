@@ -25,6 +25,9 @@ export interface TranscriptLine {
   step?: boolean;
 }
 
+/** Ids of the simple view's own buttons and search box, as Mack's voice sees them. */
+export const SIMPLE_VIEW_ID_PREFIX = "sv-";
+
 export interface PageElement {
   id: string;
   kind: "link" | "button" | "field";

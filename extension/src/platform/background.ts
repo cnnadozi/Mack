@@ -172,8 +172,8 @@ async function pageContext(): Promise<PageContext> {
   const context: PageContext = {
     tabId: tab.id,
     page,
-    // A screenshot taken now would show the simple view, not the page the elements are from.
-    screenshot: page && !simple ? await screenshot(tab.windowId) : null,
+    // With the simple view up, the screenshot shows it, and its buttons are listed first in the page.
+    screenshot: page ? await screenshot(tab.windowId) : null,
     simple,
   };
   debug("background", "pageContext:", {

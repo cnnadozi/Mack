@@ -21,7 +21,7 @@ or a real sign-in.
 
 ## Model and credentials
 
-Provider: Gemini `generateContent` (v1beta), default model `gemini-3.8-flash`.
+Provider: Gemini `generateContent` (v1beta), default model `gemini-3.8-flash`; Mack's speech-to-text uses `gemini-3.5-flash` for speed.
 The request uses an `x-goog-api-key` header, a `systemInstruction`, the payload
 as JSON text, and `generationConfig.responseMimeType: "application/json"`.
 Design calls also send `responseJsonSchema`. Design and guidance share one

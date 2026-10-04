@@ -7,7 +7,13 @@ import type { ExtractReply, TabMessage } from "../messages";
 import { act } from "./act";
 import { extractPage } from "./extract";
 import { highlight, initOverlay } from "./overlay";
-import { actInSimpleView, guideInSimpleView, initSimpleView, simpleViewShowing } from "./simple-view";
+import {
+  actInSimpleView,
+  guideInSimpleView,
+  initSimpleView,
+  simpleViewShowing,
+  withSimpleView,
+} from "./simple-view";
 
 // The background worker adds this script to tabs that have none; the flag stops a
 // second copy from starting if it is ever added to a tab that already has one.
@@ -23,7 +29,7 @@ if (window.top === window && !scope.__mackContentScript) {
     if (message.type === "mack:ping") {
       sendResponse(true);
     } else if (message.type === "mack:extract") {
-      const reply: ExtractReply = { page: extractPage(), simple: simpleViewShowing() };
+      const reply: ExtractReply = { page: withSimpleView(extractPage()), simple: simpleViewShowing() };
       debug(
         "content",
         `extract: ${reply.page.elements.length} elements, ${reply.page.headings.length} headings`,
