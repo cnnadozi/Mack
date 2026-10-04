@@ -3,14 +3,13 @@
 //   background  chrome://extensions > Mack > "service worker"
 //   offscreen   chrome://extensions > Mack > "offscreen.html" (only while talking)
 //   content     the website's own DevTools console
-//   popup       right-click the popup > Inspect
 //
 // Never pass an API key, base64 audio or screenshot data, or a form field's value:
 // log sizes and counts instead.
 
 const ENABLED = true;
 
-export type DebugScope = "background" | "offscreen" | "gemini" | "content" | "popup" | "permission";
+export type DebugScope = "background" | "offscreen" | "gemini" | "content" | "permission";
 
 export function debug(scope: DebugScope, message: string, ...details: unknown[]): void {
   if (!ENABLED) return;

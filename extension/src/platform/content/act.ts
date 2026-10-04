@@ -14,7 +14,7 @@ import { elementFor } from "./extract";
 import { highlight } from "./overlay";
 
 // Long enough to see the ring land on the element before the page reacts.
-const SHOW_BEFORE_ACTING_MS = 700;
+const SHOW_BEFORE_ACTING_MS = 400;
 const SCROLL_PAGE_FRACTION = 0.8;
 
 const SENSITIVE_LABEL =

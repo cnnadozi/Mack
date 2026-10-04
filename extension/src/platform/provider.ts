@@ -78,6 +78,9 @@ export function geminiBody(input: ModelInput) {
       responseMimeType: "application/json",
       ...(input.task === "design" ? { responseJsonSchema: DESIGN_SCHEMA } : {}),
       temperature: 0.2,
+      // Choosing and labelling a page's real actions needs little reasoning, and
+      // the default made each design several seconds slower.
+      thinkingConfig: { thinkingLevel: "low" },
     },
   };
 }

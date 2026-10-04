@@ -8,6 +8,7 @@ const guide = vi.fn(async () => ({ ok: true }));
 const startSimpleView = vi.fn(
   async (options: {
     language: string;
+    fresh: boolean;
     onShowOriginal(): void;
     onModeChange(simple: boolean): void;
   }) => {
@@ -104,6 +105,9 @@ describe("simple view on a page", () => {
     await settle();
     expect(stopSimple).toHaveBeenCalledTimes(1);
     expect(startSimpleView).toHaveBeenCalledTimes(2);
+    // The first may reuse a remembered design; asking again must not.
+    expect(startSimpleView.mock.calls[0]![0].fresh).toBe(false);
+    expect(startSimpleView.mock.calls[1]![0].fresh).toBe(true);
     expect(view.simpleViewState()).toMatchObject({ showing: true });
   });
 

@@ -25,7 +25,7 @@ const OFFSCREEN_PATH = "offscreen.html";
 const MAX_LINES = 30;
 const SCREENSHOT_MAX_WIDTH = 1280;
 // After Mack clicks or types, the page needs a moment to react before it is read again.
-const SETTLE_MS = 900;
+const SETTLE_MS = 600;
 const MAX_LOAD_WAIT_MS = 8000;
 const WAIT_STEP_MS = 2000;
 
@@ -297,15 +297,6 @@ function showOnIcon(session: MackSession): void {
   });
 }
 
-async function sync(): Promise<void> {
-  const stored = await chrome.storage.local.get(STORAGE.session);
-  const session = stored[STORAGE.session] as MackSession | undefined;
-  if (session?.active && !(await hasOffscreen())) {
-    debug("background", "sync: session was active but the offscreen document is gone, resetting");
-    await setSession(IDLE_SESSION);
-  }
-}
-
 async function isActive(): Promise<boolean> {
   const stored = await chrome.storage.local.get(STORAGE.session);
   return (stored[STORAGE.session] as MackSession | undefined)?.active === true;
@@ -331,9 +322,6 @@ chrome.runtime.onMessage.addListener((raw: unknown, sender, sendResponse) => {
       return false;
     case "mack:stop":
       void stop();
-      return false;
-    case "mack:sync":
-      void sync();
       return false;
     case "mack:status":
       if (message.session.active) void setSession(message.session);

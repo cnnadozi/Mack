@@ -199,7 +199,6 @@ export type RuntimeMessage =
   /** Chrome has not been asked for the microphone yet; only a visible tab can ask. */
   | { type: "mack:need-microphone" }
   | { type: "mack:stop" }
-  | { type: "mack:sync" }
   | { type: "mack:status"; session: MackSession }
   | { type: "mack:line"; line: TranscriptLine }
   | { type: "mack:context" }

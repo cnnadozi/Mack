@@ -81,7 +81,7 @@ function stop(): void {
   setCovering(false);
 }
 
-async function start(): Promise<void> {
+async function start(fresh: boolean): Promise<void> {
   stop();
   const mine = generation;
   try {
@@ -93,6 +93,7 @@ async function start(): Promise<void> {
     if (mine !== generation) return;
     const started = await host.startSimpleView({
       language: readLanguage(stored[STORAGE.language]),
+      fresh,
       onShowOriginal: removeSimpleView,
       onModeChange: setCovering,
     });
@@ -112,8 +113,10 @@ async function start(): Promise<void> {
 /** Makes the simple view for this page, replacing the one that is up, if any. */
 export function createSimpleView(): void {
   if (!active || !available) return;
+  // Pressing the button while a simple view is up asks for a new design.
+  const fresh = simpleView !== null;
   wanted = true;
-  void start();
+  void start(fresh);
   publish();
 }
 

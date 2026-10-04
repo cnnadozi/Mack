@@ -45,8 +45,6 @@ export type MackAppProps = LensAppProps & {
    * request bar is left out, and on the original page only a small guide is shown.
    */
   embedded?: boolean;
-  /** One wide column of buttons, for the simplest screen. */
-  singleColumn?: boolean;
   /**
    * Detail from the extension that turns the screen into a redesign of the page
    * (see details.ts and RichView.tsx). Without it the plain list of buttons is shown.
@@ -156,7 +154,6 @@ function SimplifiedView(props: MackAppProps) {
     highlightedActionId,
     badgeId: `${badgeId}-badge`,
     onAction,
-    singleColumn: props.singleColumn,
   };
 
   useEffect(() => setShowMore(false), [screen.snapshotVersion]);
@@ -282,7 +279,6 @@ function SectionView(props: {
   idPrefix: string;
   highlightedActionId?: string;
   badgeId: string;
-  singleColumn?: boolean;
   /** "lead" makes the section's first button the one primary next step. */
   variant: "lead" | "card" | "row";
   onAction(id: string): void;
@@ -301,12 +297,7 @@ function SectionView(props: {
       ) : (
         index > 0 && <h2 className="sr-only">More actions</h2>
       )}
-      <ul
-        className={cn(
-          "m-0 grid list-none grid-cols-1 gap-3 p-0",
-          !props.singleColumn && "sm:grid-cols-2",
-        )}
-      >
+      <ul className="m-0 grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2">
         {section.buttons.map((button, position) => (
           <li key={button.actionId}>
             <TaskButtonView

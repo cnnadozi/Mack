@@ -17,8 +17,12 @@ import {
   type ScrollDirection,
 } from "./messages";
 
-export const GEMINI_MODEL = "gemini-3.5-flash";
-const TRANSCRIBE_MODEL = "gemini-3.5-flash-lite";
+// Used for transcription and for Mack's answers.
+export const GEMINI_MODEL = "gemini-3.8-flash";
+// The model reasons before it answers unless told how much to. "low" answered a
+// small request in about a quarter of the default's time when measured; these
+// calls (write down what was said, pick the next step) do not need more.
+export const THINKING = { thinkingLevel: "low" } as const;
 
 const MAX_HISTORY_TURNS = 8;
 
@@ -197,7 +201,7 @@ export async function transcribe(input: {
   signal?: AbortSignal;
 }): Promise<string> {
   const body = await generate(
-    TRANSCRIBE_MODEL,
+    GEMINI_MODEL,
     input.apiKey,
     {
       systemInstruction: { parts: [{ text: TRANSCRIBE_PROMPT }] },
@@ -211,6 +215,7 @@ export async function transcribe(input: {
         responseMimeType: "application/json",
         responseSchema: TRANSCRIPT_SCHEMA,
         temperature: 0,
+        thinkingConfig: THINKING,
       },
     },
     input.signal,
@@ -267,6 +272,7 @@ export function buildGeminiRequest(input: {
       responseMimeType: "application/json",
       responseSchema: REPLY_SCHEMA,
       temperature: 0.3,
+      thinkingConfig: THINKING,
     },
   };
 }

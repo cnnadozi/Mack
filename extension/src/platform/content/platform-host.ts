@@ -7,9 +7,9 @@ import { z } from "zod";
 import type { LensAppProps, ModelClient, VoiceController } from "../../../../shared/contracts";
 import {
   createGenerateScreen,
-  ICON_NAMES,
   mountMackApp,
   readDetails,
+  type MackAppProps,
   type ScreenDetails,
 } from "../../ui";
 import { startPlatform } from "../controller";
@@ -19,7 +19,9 @@ import type { GuideReply, RuntimeMessage } from "../messages";
 import { createModelClient } from "../model-client";
 import { PeekReplySchema } from "../protocol";
 import { rememberToContinue } from "./continue";
+import { designCache } from "./design-cache";
 import { pictureFor, siteLook } from "./page-look";
+import { buttonWords, pageFacts } from "./screen-words";
 import { followTheme } from "./theme";
 
 const SessionSchema = z.object({
@@ -30,18 +32,16 @@ const SessionSchema = z.object({
 
 // Longer than the background worker's own limit for one model request.
 const GUIDE_WAIT_MS = 30_000;
+const PEEK_WAIT_MS = 1500;
 
 // Added to Role 3's design prompt. The simple view is a redesign of the whole
 // page, so it asks for more than Role 3's short menu: everything the page offers,
 // organised the way this page is, with the detail to present it well.
 const RICH_DESIGN = `This screen is a full, well-organised redesign of the page, not a short menu. This overrides the limits above on how many buttons to show:
 - Cover everything a visitor can do or reach from this page. Put the main things in "main" sections and the rest in "more" sections. Group related actions under clear headings that reflect how THIS page is organised, for example its own product categories, departments or topics. Up to 40 buttons in total.
-- Add "summary": one or two plain sentences saying what this page is and what the visitor can do here.
-- Add "highlights": up to 6 key facts that the page itself states and a visitor would look for, such as opening hours, a price, a phone number, a deadline or a delivery time. Each is {"title","text"}. Use only facts present in the snapshot; use an empty list when there are none.
-- Give each section a "description": one short sentence about what is in it.
-- Give each button a "description": one short sentence saying what the visitor will find there or what happens, based on the snapshot, and an "icon": the one of ${ICON_NAMES.join(", ")} that fits it best.
 - If page.searchFields lists a search box, always set "search" to it.
-- Prefer status "ready". Use "use_original" only when the page's main purpose is filling in a form that asks for private details.`;
+- Prefer status "ready". Use "use_original" only when the page's main purpose is filling in a form that asks for private details.
+- Reply with the layout only: no summary, highlights, descriptions or icons. Those are written separately.`;
 
 // What is added to Role 3's design prompt and Role 2's guidance prompt.
 function extraInstructions(task: "design" | "guide", language: string): string {
@@ -63,17 +63,25 @@ function extraInstructions(task: "design" | "guide", language: string): string {
 // grounding keeps only the contract's fields, and the detail is in the rest.
 function tunedModel(
   model: ModelClient,
-  language: string,
+  options: { language: string; fresh: boolean },
   onDesign: (raw: unknown) => void,
 ): ModelClient {
+  // "Recreate" must give a new design; only the first one may come from memory.
+  let mayReuse = !options.fresh;
   return {
     generateJSON: async (input, signal) => {
-      const extra = extraInstructions(input.task, language);
-      const result = await model.generateJSON(
-        extra ? { ...input, system: `${input.system}\n\n${extra}` } : input,
-        signal,
-      );
-      if (input.task === "design") onDesign(result);
+      const extra = extraInstructions(input.task, options.language);
+      const request = extra ? { ...input, system: `${input.system}\n\n${extra}` } : input;
+      if (input.task !== "design") return model.generateJSON(request, signal);
+
+      const cache = designCache(request.system, request.payload);
+      const remembered = mayReuse ? cache.get() : undefined;
+      mayReuse = false;
+      if (remembered)
+        debug("content", "simple view: reusing the design made for this page earlier");
+      const result = remembered ?? (await model.generateJSON(request, signal));
+      if (!remembered) cache.set(result);
+      onDesign(result);
       return result;
     },
   };
@@ -115,6 +123,8 @@ function createVoice(): VoiceController {
 export async function startSimpleView(options: {
   /** The language to write the simple view in; "" is English. */
   language: string;
+  /** Ask the model again even if a design for this page is remembered. */
+  fresh: boolean;
   /** The user pressed "Original page", or the tab moved to a page this view is not for. */
   onShowOriginal(): void;
   /** Whether the simple view is covering the page right now. */
@@ -130,13 +140,56 @@ export async function startSimpleView(options: {
   };
   if (returned) saveGoal("");
 
-  // The site's own look is read once; the model's detail arrives with each design.
+  // The site's own look is read once. The model's detail arrives in pieces: with
+  // the design, and from the two requests for words that follow it.
   const site = siteLook();
+  const rawModel = createModelClient();
+  const words = new AbortController();
+  const wordOptions = {
+    model: rawModel,
+    language: options.language,
+    fresh: options.fresh,
+    signal: words.signal,
+  };
   let fromModel: ScreenDetails = {};
-  const model = tunedModel(createModelClient(), options.language, (raw) => {
-    fromModel = readDetails(raw);
-  });
+  let redraw = (): void => undefined;
+  const addDetails = (more: ScreenDetails): void => {
+    const actions = { ...fromModel.actions };
+    for (const [id, detail] of Object.entries(more.actions ?? {}))
+      actions[id] = { ...actions[id], ...detail };
+    fromModel = {
+      summary: more.summary ?? fromModel.summary,
+      highlights: more.highlights?.length ? more.highlights : fromModel.highlights,
+      sections: { ...fromModel.sections, ...more.sections },
+      actions,
+    };
+    redraw();
+  };
+  const model = tunedModel(rawModel, options, (raw) => addDetails(readDetails(raw)));
   let platform: ReturnType<typeof startPlatform> | undefined;
+
+  // Asks for the words once per reading of the page: the facts as soon as the
+  // page has been read, the descriptions as soon as there are buttons to describe.
+  const asked = { snapshot: "", buttons: false };
+  const askForWords = (props: LensAppProps): void => {
+    const { screen, busy } = props.state;
+    const snapshot = platform?.getExtraction()?.snapshot;
+    if (!snapshot || screen.mode !== "simplified") return;
+    const failed = (what: string) => (error: unknown) => {
+      if (!words.signal.aborted) debug("content", `simple view: no ${what} for this page`, error);
+    };
+    if (screen.snapshotVersion === snapshot.version && asked.snapshot !== snapshot.version) {
+      asked.snapshot = snapshot.version;
+      asked.buttons = false;
+      fromModel = {};
+      pageFacts(snapshot, wordOptions).then(addDetails, failed("summary"));
+    }
+    const ready = !busy && screen.sections.some((section) => section.buttons.length > 0);
+    if (ready && asked.snapshot === snapshot.version && !asked.buttons) {
+      asked.buttons = true;
+      buttonWords(snapshot, screen, wordOptions).then(addDetails, failed("descriptions"));
+    }
+  };
 
   // Joins the model's detail with what the page itself provides for the buttons on screen.
   const detailsFor = (props: LensAppProps): ScreenDetails => {
@@ -155,30 +208,36 @@ export async function startSimpleView(options: {
   };
 
   const inner = mountMackApp();
+  const viewProps = (props: LensAppProps): MackAppProps => ({
+    ...props,
+    embedded: true,
+    details: detailsFor(props),
+    onShowOriginal: options.onShowOriginal,
+    // The page a card or a search leads to continues in the simple view.
+    onAction: (id) => {
+      rememberToContinue();
+      props.onAction(id);
+    },
+    onSearch: (id, text) => {
+      rememberToContinue();
+      props.onSearch(id, text);
+    },
+  });
   const stopTheme = followTheme(inner.host);
   let running = true;
   platform = startPlatform({
     mount: {
       host: inner.host,
       render: (props: LensAppProps) => {
+        redraw = () => {
+          if (running) inner.render(viewProps(props));
+        };
         options.onModeChange(props.state.screen.mode === "simplified");
-        inner.render({
-          ...props,
-          embedded: true,
-          details: detailsFor(props),
-          onShowOriginal: options.onShowOriginal,
-          // The page a card or a search leads to continues in the simple view.
-          onAction: (id) => {
-            rememberToContinue();
-            props.onAction(id);
-          },
-          onSearch: (id, text) => {
-            rememberToContinue();
-            props.onSearch(id, text);
-          },
-        });
+        askForWords(props);
+        inner.render(viewProps(props));
       },
       unmount: () => {
+        words.abort();
         stopTheme();
         inner.unmount();
       },
@@ -191,8 +250,15 @@ export async function startSimpleView(options: {
     createVoice,
     initialGoal: returned ? undefined : session.goal,
     saveGoal,
-    peek: async (urls) =>
-      PeekReplySchema.parse(await chrome.runtime.sendMessage({ type: "mack:peek", urls })).pages,
+    // Looking one click ahead adds shortcut links, but the design must not wait
+    // long for slow pages: whatever has not arrived in time is left out.
+    peek: (urls) =>
+      Promise.race([
+        chrome.runtime
+          .sendMessage({ type: "mack:peek", urls })
+          .then((reply) => PeekReplySchema.parse(reply).pages),
+        new Promise<[]>((resolve) => window.setTimeout(() => resolve([]), PEEK_WAIT_MS)),
+      ]),
     // "Exit Mack" in the simple view turns Mack off, like the X on the panel.
     onExit: () => {
       running = false;
