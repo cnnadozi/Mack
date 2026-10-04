@@ -1,10 +1,17 @@
 {
   "manifest_version": 3,
   "name": "Mack",
-  "version": "0.1.0",
-  "description": "Mack Chrome extension starter.",
+  "version": "0.4.0",
+  "minimum_chrome_version": "120",
+  "description": "Simplify real website actions with AI guidance.",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": [
+    "https://*/*",
+    "https://generativelanguage.googleapis.com/*"
+  ],
+  "background": { "service_worker": "service-worker.js", "type": "module" },
+  "options_ui": { "page": "options.html", "open_in_tab": true },
   "action": {
-    "default_title": "Mack",
-    "default_popup": "popup.html"
+    "default_title": "Activate Mack"
   }
 }
