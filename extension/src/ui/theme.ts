@@ -76,9 +76,21 @@ export function paletteFor(brand?: string, mode: ThemeMode = "light"): Palette {
   };
 }
 
+// A red brand would swallow the red head rule that marks the pulled-up card.
+function reddish(hex?: string): boolean {
+  const rgb = toRgb(hex ?? "");
+  if (!rgb) return false;
+  const [r, g, b] = rgb.map((v) => v / 255) as Rgb;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  if (max - min < 0.25 || max !== r) return false;
+  const hue = (60 * ((g - b) / (max - min)) + 360) % 360;
+  return hue < 30 || hue > 330;
+}
+
 export function themeStyle(brand?: string, mode: ThemeMode = "light"): CSSProperties {
   const p = paletteFor(brand, mode);
   return {
+    ...(reddish(brand) ? { "--head-rule": "var(--ink)" } : {}),
     "--brand": p.accent,
     "--on-brand": p.onAccent,
     "--brand-soft": p.accentSoft,

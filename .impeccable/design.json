@@ -1,0 +1,447 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-04T00:00:00Z",
+  "title": "Design System: Mack",
+  "extensions": {
+    "colorMeta": {
+      "site-brand-default": {
+        "role": "primary",
+        "displayName": "Site Brand (default blue)",
+        "canonical": "oklch(49.1% 0.181 262.8)",
+        "tonalRamp": [
+          "#00003c",
+          "#001a69",
+          "#0f3b9a",
+          "#2b5dca",
+          "#5585e6",
+          "#80acff",
+          "#a9d1ff",
+          "#ccefff"
+        ],
+        "note": "Runtime value: the visited site's colour, adjusted by theme.ts to 4.5:1. This default is used only when a site has none."
+      },
+      "on-site-brand": {
+        "role": "primary",
+        "displayName": "On Site Brand",
+        "note": "White in light mode; in dark mode near-black (#0f1115) when that contrasts better with the lightened brand."
+      },
+      "head-rule-red": {
+        "role": "secondary",
+        "displayName": "Head Rule Red",
+        "canonical": "oklch(55.5% 0.184 28.5)",
+        "tonalRamp": [
+          "#2b0000",
+          "#560000",
+          "#840908",
+          "#b52c23",
+          "#dd574a",
+          "#fe8677",
+          "#ffb0a1",
+          "#ffd2c4"
+        ],
+        "darkValue": "#ef6b5f"
+      },
+      "highlight-yellow": {
+        "role": "tertiary",
+        "displayName": "Highlight Yellow",
+        "canonical": "oklch(88.5% 0.181 94.8)",
+        "tonalRamp": [
+          "#120a00",
+          "#312500",
+          "#554300",
+          "#7b6400",
+          "#a38700",
+          "#cdab00",
+          "#f6ce04",
+          "#ffec53"
+        ]
+      },
+      "highlight-edge": {
+        "role": "tertiary",
+        "displayName": "Highlight Edge",
+        "darkValue": "#ffffff"
+      },
+      "highlight-ink": {
+        "role": "tertiary",
+        "displayName": "Highlight Ink"
+      },
+      "highlight-fill": {
+        "role": "tertiary",
+        "displayName": "Highlight Fill",
+        "darkValue": "#4a3d00"
+      },
+      "focus-amber": {
+        "role": "tertiary",
+        "displayName": "Focus Amber",
+        "canonical": "oklch(55.5% 0.146 49.0)",
+        "tonalRamp": [
+          "#240000",
+          "#4b0d00",
+          "#752a00",
+          "#a24700",
+          "#c96d37",
+          "#ea9769",
+          "#ffbd96",
+          "#ffdebb"
+        ],
+        "darkValue": "#fbbf24"
+      },
+      "danger-red": {
+        "role": "tertiary",
+        "displayName": "Danger Red",
+        "canonical": "oklch(50.0% 0.182 29.5)",
+        "tonalRamp": [
+          "#2d0000",
+          "#580000",
+          "#870000",
+          "#b7281d",
+          "#d85d4d",
+          "#f88a7a",
+          "#ffb4a4",
+          "#ffd6c7"
+        ],
+        "darkValue": "#f87171"
+      },
+      "danger-wash": {
+        "role": "tertiary",
+        "displayName": "Danger Wash",
+        "darkValue": "#3b1416"
+      },
+      "card-stock": {
+        "role": "neutral",
+        "displayName": "Card Stock",
+        "tonalRamp": [
+          "#16181c",
+          "#2e3238",
+          "#565c66",
+          "#8a9099",
+          "#c5c9d0",
+          "#e4e6ea",
+          "#f1f2f4",
+          "#ffffff"
+        ],
+        "darkValue": "#202328"
+      },
+      "tin": {
+        "role": "neutral",
+        "displayName": "Tin",
+        "tonalRamp": [
+          "#16181c",
+          "#2e3238",
+          "#565c66",
+          "#8a9099",
+          "#c5c9d0",
+          "#e4e6ea",
+          "#f1f2f4",
+          "#ffffff"
+        ],
+        "darkValue": "#131518"
+      },
+      "tab-grey": {
+        "role": "neutral",
+        "displayName": "Tab Grey",
+        "tonalRamp": [
+          "#16181c",
+          "#2e3238",
+          "#565c66",
+          "#8a9099",
+          "#c5c9d0",
+          "#e4e6ea",
+          "#f1f2f4",
+          "#ffffff"
+        ],
+        "darkValue": "#2a2e34"
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "tonalRamp": [
+          "#16181c",
+          "#2e3238",
+          "#565c66",
+          "#8a9099",
+          "#c5c9d0",
+          "#e4e6ea",
+          "#f1f2f4",
+          "#ffffff"
+        ],
+        "darkValue": "#3c414a"
+      },
+      "field-edge": {
+        "role": "neutral",
+        "displayName": "Field Edge",
+        "tonalRamp": [
+          "#16181c",
+          "#2e3238",
+          "#565c66",
+          "#8a9099",
+          "#c5c9d0",
+          "#e4e6ea",
+          "#f1f2f4",
+          "#ffffff"
+        ],
+        "darkValue": "#6c727c"
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Ink Muted",
+        "tonalRamp": [
+          "#16181c",
+          "#2e3238",
+          "#565c66",
+          "#8a9099",
+          "#c5c9d0",
+          "#e4e6ea",
+          "#f1f2f4",
+          "#ffffff"
+        ],
+        "darkValue": "#a7adb6"
+      },
+      "ink-soft": {
+        "role": "neutral",
+        "displayName": "Ink Soft",
+        "tonalRamp": [
+          "#16181c",
+          "#2e3238",
+          "#565c66",
+          "#8a9099",
+          "#c5c9d0",
+          "#e4e6ea",
+          "#f1f2f4",
+          "#ffffff"
+        ],
+        "darkValue": "#d9dce1"
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "tonalRamp": [
+          "#16181c",
+          "#2e3238",
+          "#565c66",
+          "#8a9099",
+          "#c5c9d0",
+          "#e4e6ea",
+          "#f1f2f4",
+          "#ffffff"
+        ],
+        "darkValue": "#f3f4f6"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Page title on the lid; 26px at 560px and below, 21px in the guide panel."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Pulled-up next-step card label; 25px at 560px and below."
+      },
+      "instruction": {
+        "displayName": "Instruction",
+        "purpose": "What Mack says now, plain on the ground; 21px in the guide panel."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Task card labels (22px for More options rows)."
+      },
+      "tab": {
+        "displayName": "Tab",
+        "purpose": "Divider-tab section names and the site search label; 20px at 560px and below."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Status, empty and error text, request labels. The 20px floor for essential text."
+      }
+    },
+    "fontStatus": "Display and UI face is the platform system sans. Bundling Atkinson Hyperlegible Next is proposed and awaits the user's permission.",
+    "shadows": [
+      {
+        "name": "highlight-ring",
+        "value": "0 0 0 3px var(--highlight-edge), 0 0 0 8px var(--highlight), 0 0 30px 10px color-mix(in srgb, var(--highlight) 80%, transparent)",
+        "purpose": "The \"Next step\" state on a task card or the search card; pulses to 0 0 0 12px / 0 0 48px 20px."
+      },
+      {
+        "name": "floating-panel",
+        "value": "0 18px 40px -12px rgba(0, 0, 0, 0.4), 0 4px 10px -2px rgba(0, 0, 0, 0.18)",
+        "purpose": "Guide panel only, separating it from the third-party page beneath."
+      }
+    ],
+    "motion": [
+      {
+        "name": "pull-up",
+        "value": "translateY(36px) to none, 0.8s cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "The next-step card entering, pulled up out of the box."
+      },
+      {
+        "name": "highlight-glow",
+        "value": "1.2s ease-in-out infinite",
+        "purpose": "Pulse of the highlight ring."
+      },
+      {
+        "name": "skeleton-shimmer",
+        "value": "1.2s ease-in-out infinite",
+        "purpose": "Loading cards."
+      },
+      {
+        "name": "spinner",
+        "value": "0.9s linear infinite",
+        "purpose": "Busy status."
+      },
+      {
+        "name": "state-quick",
+        "value": "0.15s ease",
+        "purpose": "Card border on hover and the More options chevron rotation."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "all animation and transition off",
+        "purpose": "Under prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "compact",
+        "value": "560px",
+        "purpose": "Smaller title, tab and next-step label; tighter tab stagger."
+      }
+    ],
+    "darkMode": "Same token names; the frontmatter's dark-* keys replace the light ramp and signals when data-theme=\"dark\"."
+  },
+  "components": [
+    {
+      "name": "Lid",
+      "kind": "nav",
+      "refersTo": "lid",
+      "description": "Full-width strip in the site's colour with the logo chip, page title and outlined on-brand controls.",
+      "html": "<header class=\"ds-lid\"><button class=\"ds-lid-btn\" aria-label=\"Previous page\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m12 19-7-7 7-7\"/><path d=\"M19 12H5\"/></svg></button><div class=\"ds-lid-heading\"><span class=\"ds-logo-chip\">Store</span><h1 class=\"ds-lid-title\">Find a doctor</h1></div><button class=\"ds-lid-btn ds-lid-text\">Original page</button></header>",
+      "css": ".ds-lid{display:flex;flex-wrap:wrap;align-items:center;gap:14px;padding:16px 20px;background:#2457c5;color:#fff;font-family:ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif} .ds-lid-heading{flex:1 1 240px;min-width:0} .ds-logo-chip{display:inline-flex;align-items:center;min-height:44px;padding:6px 12px;border-radius:10px;background:#fff;color:#16181c;font-size:17px;font-weight:800;margin-bottom:8px} .ds-lid-title{margin:0;font-size:32px;line-height:1.12;font-weight:800;letter-spacing:-0.01em;color:#fff} .ds-lid-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:48px;min-width:48px;padding:0 12px;border-radius:9px;border:2px solid rgba(255,255,255,0.6);background:transparent;color:#fff;font:600 19px/1 ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;cursor:pointer} .ds-lid-btn:hover{background:rgba(255,255,255,0.14)} .ds-lid-btn:focus-visible{outline:4px solid #fff;outline-offset:3px}"
+    },
+    {
+      "name": "Divider Tab",
+      "kind": "custom",
+      "refersTo": "divider-tab",
+      "description": "Section name on a site-colour tab with top corners only, sitting on a 3px site-colour underline; staggered by section.",
+      "html": "<div class=\"ds-divider\"><h2 class=\"ds-tab\">Find a doctor</h2></div><div class=\"ds-divider ds-divider-2\"><h2 class=\"ds-tab\">Your plan</h2></div>",
+      "css": ".ds-divider{display:flex;border-bottom:3px solid #2457c5;margin-bottom:14px;font-family:ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif} .ds-tab{margin:0;max-width:78%;padding:9px 22px 7px;border-radius:7px 7px 0 0;background:#2457c5;color:#fff;font-size:22px;line-height:1.25;font-weight:750} .ds-divider-2 .ds-tab{margin-inline-start:9%}"
+    },
+    {
+      "name": "Pulled-up Task Card",
+      "kind": "card",
+      "refersTo": "task-card-primary",
+      "description": "The one next step: full width, 2px ink edge, 8px red head rule, 28px label.",
+      "html": "<button class=\"ds-task-primary\"><svg width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/></svg><span class=\"ds-task-label\">Search for a doctor near you</span><svg width=\"26\" height=\"26\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12h14\"/><path d=\"m12 5 7 7-7 7\"/></svg></button>",
+      "css": ".ds-task-primary{display:flex;align-items:center;gap:16px;width:100%;min-height:104px;padding:24px 24px 20px;background:#fff;color:#16181c;border:2px solid #16181c;border-top:8px solid #c8372d;border-radius:5px;font:700 28px/1.25 ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;text-align:left;cursor:pointer} .ds-task-primary .ds-task-label{flex:1} .ds-task-primary:focus-visible{outline:4px solid #b45309;outline-offset:3px}"
+    },
+    {
+      "name": "Task Card",
+      "kind": "card",
+      "refersTo": "task-card",
+      "description": "Flat card stock with a hairline edge, plain line icon and trailing arrow in ink-muted.",
+      "html": "<button class=\"ds-task\"><svg width=\"26\" height=\"26\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/></svg><span class=\"ds-task-label\">Find a doctor in your plan</span><svg width=\"26\" height=\"26\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12h14\"/><path d=\"m12 5 7 7-7 7\"/></svg></button>",
+      "css": ".ds-task{display:flex;align-items:center;gap:16px;width:100%;min-height:76px;padding:16px 20px 14px;background:#fff;color:#16181c;border:1px solid #c5c9d0;border-radius:5px;font:600 24px/1.25 ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;text-align:left;cursor:pointer;transition:border-color .15s ease} .ds-task svg{color:#565c66;flex:none} .ds-task .ds-task-label{flex:1} .ds-task:hover{border-color:#565c66} .ds-task:focus-visible{outline:4px solid #b45309;outline-offset:3px}"
+    },
+    {
+      "name": "Highlighted Task (Next step)",
+      "kind": "card",
+      "refersTo": "task-card-highlighted",
+      "description": "Mack's pointer: yellow ring with a contrasting edge, pulsing glow and a text badge.",
+      "html": "<button class=\"ds-task-hl\"><span class=\"ds-task-label\">Refill a prescription</span><span class=\"ds-badge\">Next step</span></button>",
+      "css": ".ds-task-hl{display:flex;align-items:center;gap:16px;width:100%;min-height:76px;padding:16px 20px 14px;background:#fff3a3;color:#16181c;border:4px solid #ffd60a;border-radius:5px;box-shadow:0 0 0 3px #111111,0 0 0 8px #ffd60a,0 0 30px 10px rgba(255,214,10,.8);font:600 24px/1.25 ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;text-align:left;animation:ds-glow 1.2s ease-in-out infinite} .ds-task-hl .ds-task-label{flex:1} .ds-badge{background:#ffd60a;color:#111111;border:2px solid #111111;border-radius:9999px;padding:4px 12px;font:800 17px/1 ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif} @keyframes ds-glow{50%{box-shadow:0 0 0 3px #111111,0 0 0 12px #ffd60a,0 0 48px 20px #ffd60a}} @media (prefers-reduced-motion:reduce){.ds-task-hl{animation:none}}"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Filled site-colour submit (Send, Search).",
+      "html": "<button class=\"ds-btn-primary\">Send</button>",
+      "css": ".ds-btn-primary{height:56px;padding:0 24px;border:0;border-radius:9px;background:#2457c5;color:#fff;font:700 20px/1 ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;cursor:pointer} .ds-btn-primary:hover{background:color-mix(in srgb,#2457c5 90%,transparent)} .ds-btn-primary:focus-visible{outline:4px solid #b45309;outline-offset:3px} .ds-btn-primary:disabled{opacity:.5;cursor:default}"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Large outlined control (Speak, Repeat, Try again, Move panel).",
+      "html": "<button class=\"ds-btn-outline\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z\"/><path d=\"M19 10v2a7 7 0 0 1-14 0v-2\"/><line x1=\"12\" x2=\"12\" y1=\"19\" y2=\"22\"/></svg>Speak</button>",
+      "css": ".ds-btn-outline{display:inline-flex;align-items:center;gap:8px;height:48px;padding:0 16px;border:2px solid #8a9099;border-radius:9px;background:#fff;color:#16181c;font:600 19px/1 ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;cursor:pointer} .ds-btn-outline:hover{background:#f1f2f4} .ds-btn-outline:focus-visible{outline:4px solid #b45309;outline-offset:3px}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Request and search field: 56px, 2px edge, 22px text.",
+      "html": "<label class=\"ds-field-label\" for=\"ds-f\">What do you want to do?</label><input id=\"ds-f\" class=\"ds-input\" placeholder=\"Type or speak\">",
+      "css": ".ds-field-label{display:block;margin-bottom:10px;font:750 20px/1.4 ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;color:#16181c} .ds-input{width:100%;height:56px;padding:0 16px;border:2px solid #8a9099;border-radius:9px;background:#fff;color:#16181c;font:400 22px/1 ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif} .ds-input::placeholder{color:#565c66} .ds-input:focus-visible{outline:4px solid #b45309;outline-offset:3px}"
+    },
+    {
+      "name": "More Options Tab",
+      "kind": "button",
+      "refersTo": "more-tab",
+      "description": "The back of the box: a plain grey tab on a field-edge underline that expands the remaining rows.",
+      "html": "<div class=\"ds-more\"><button class=\"ds-more-tab\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m9 18 6-6-6-6\"/></svg>More options (3)</button></div>",
+      "css": ".ds-more{display:flex;border-bottom:3px solid #8a9099} .ds-more-tab{display:inline-flex;align-items:center;gap:8px;min-height:56px;padding:0 20px;border:0;border-radius:7px 7px 0 0;background:#e4e6ea;color:#16181c;font:700 20px/1 ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;cursor:pointer} .ds-more-tab:hover{background:#c5c9d0} .ds-more-tab:focus-visible{outline:4px solid #b45309;outline-offset:3px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Recipe Card Box",
+    "overview": "Every website Mack simplifies becomes a kitchen index-card box. The lid is a full-width strip in the site's own colour carrying the site's logo on a white chip, the page title and the controls. Inside, flat white card stock sits on a cool grey tin, and the one card to do now is already pulled up out of the box, marked by a single straight red rule across its top. Everything else is filed behind staggered divider tabs that also wear the site's colour; \"More options\" is the back of the box, a plain grey tab, collapsed.\n\nThe world is flat, quiet and large. Greys never improvise: each one is a step of a fixed eight-step ramp, and the site's colour is allowed in exactly two places (the lid and the tabs, plus filled submit buttons). Cards share one scale and baseline and stack as full-width rows in one centred column, so the eye travels down a single reading spine. When Mack points at something, the yellow highlight ring takes over and the rest of the box steps back.\n\nThis world deliberately refuses the category default: a tinted page of same-size rounded icon-tile cards with soft shadows. There are no icon tiles, no soft shadows on cards, no gradients and no decorative accents.",
+    "keyCharacteristics": [
+      "Site colour on the lid and divider tabs only; Mack's own materials (card stock, tin, ink, red rule) everywhere else.",
+      "One pulled-up next-step card with a heavy ink edge and an 8px red head rule.",
+      "Flat card stock with hairline edges; depth comes from tone and borders, not shadows.",
+      "A fixed grey ramp, re-stepped for dark mode rather than inverted ad hoc.",
+      "Large type throughout (20px body, 24px card labels, 28px next step).",
+      "The yellow \"Next step\" highlight never relies on colour alone: ring, contrasting edge, glow and a text badge."
+    ],
+    "rules": [
+      {
+        "name": "The Lid and Tabs Rule",
+        "body": "The site's colour appears only on the lid strip, the divider tabs with their underline, and filled submit buttons. Cards, the ground, icons and text never take it.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Ramp Rule",
+        "body": "Every grey is a step of the fixed eight-step ramp. No in-between greys, no tinted greys, no opacity-made greys (the one exception is the deliberate 0.55 dim while Mack points).",
+        "section": "colors"
+      },
+      {
+        "name": "The Red Brand Rule",
+        "body": "When the site's own colour is reddish (hue under 30° or over 330° with real saturation), the head rule switches from red to ink so the pulled-up card stays distinct from the lid.",
+        "section": "colors"
+      },
+      {
+        "name": "The Twenty Floor Rule",
+        "body": "Nothing a user must read to act is set below 20px; card labels sit at 22 to 28px.",
+        "section": "typography"
+      },
+      {
+        "name": "The Stock-in-a-Tin Rule",
+        "body": "Cards inside the box never carry a shadow. If something needs to stand out, it gets a heavier edge, a rule, or the highlight state.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Step-Back Rule",
+        "body": "While Mack points, every other card, the search card and the instruction fade to 0.55 opacity, and divider tabs turn tab-grey with ink-muted labels instead of fading, so their text keeps full contrast.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do put the site's colour only on the lid, the divider tabs and their underline, and filled submit buttons (The Lid and Tabs Rule).",
+      "Do take every grey from the eight-step ramp, using the `dark-*` steps in dark mode.",
+      "Do mark the pulled-up card with the 8px head rule and a 2px ink edge, and switch the rule to ink when the site's colour is reddish.",
+      "Do keep cards flat card stock with 1px hairline edges and 5px corners.",
+      "Do keep the \"Next step\" highlight as ring, contrasting edge, glow and text badge together, so it never relies on colour alone.",
+      "Do dim everything else to 0.55 while Mack points, and grey the tabs instead of fading them.",
+      "Do keep essential text at 20px or larger and task targets at 64px or taller.",
+      "Do turn off all animation and transition under `prefers-reduced-motion`, and give tabs, the lid, the primary card and the badge real borders under `forced-colors`."
+    ],
+    "donts": [
+      "Don't put icons on tinted tiles or in coloured circles; icons are plain line glyphs.",
+      "Don't add soft drop shadows to cards inside the box; the floating guide panel is the only shadowed surface besides the highlight ring.",
+      "Don't tint the page ground or the cards with the site's colour.",
+      "Don't make all cards the same as the next step; only one card is pulled up.",
+      "Don't add a \"Simplified by Mack\" or Mack-branded label; the site's logo or name identifies the page.",
+      "Don't change the highlight yellow or weaken the ring for aesthetic reasons."
+    ]
+  }
+}

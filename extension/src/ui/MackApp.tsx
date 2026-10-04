@@ -37,7 +37,7 @@ const VOICE_STATUS: Record<VoiceState, MessageKey | undefined> = {
 const CONTROL = "h-12 px-4 text-[19px] font-semibold rounded-xl [&_svg]:size-[22px]";
 const FIELD = "h-14 rounded-xl border-2 px-4 text-[22px] md:text-[22px] bg-card";
 
-function IconButton(props: { icon: LucideIcon; label: string; onClick(): void; expanded?: boolean; controls?: string }) {
+function IconButton(props: { icon: LucideIcon; label: string; onClick(): void; expanded?: boolean; controls?: string; className?: string }) {
   const Glyph = props.icon;
   return (
     <Tooltip>
@@ -46,7 +46,7 @@ function IconButton(props: { icon: LucideIcon; label: string; onClick(): void; e
           type="button"
           variant="outline"
           size="icon"
-          className="size-12 shrink-0 rounded-xl border-2 [&_svg]:size-6"
+          className={cn("size-12 shrink-0 rounded-xl border-2 [&_svg]:size-6", props.className)}
           aria-label={props.label}
           aria-expanded={props.expanded}
           aria-controls={props.controls}
@@ -60,9 +60,9 @@ function IconButton(props: { icon: LucideIcon; label: string; onClick(): void; e
   );
 }
 
-function ThemeToggle({ mode, onToggle }: { mode: ThemeMode; onToggle(): void }) {
+function ThemeToggle({ mode, onToggle, className }: { mode: ThemeMode; onToggle(): void; className?: string }) {
   const { t } = useTranslator();
-  return <IconButton icon={mode === "dark" ? Sun : Moon} label={mode === "dark" ? t("lightMode") : t("darkMode")} onClick={onToggle} />;
+  return <IconButton icon={mode === "dark" ? Sun : Moon} label={mode === "dark" ? t("lightMode") : t("darkMode")} onClick={onToggle} className={className} />;
 }
 
 // The site's own logo, or its name when it has none, keeps users sure they are still on that site.
@@ -160,9 +160,10 @@ function SimplifiedView(props: ViewProps) {
   const { state, onAction, onPreviousPage, onShowOriginal, onExit, mode, onToggleMode } = props;
   const { screen, highlightedActionId } = state;
   const badgeId = useId();
-  const gridRef = useRef<HTMLDivElement>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
   const buttonCount = screen.sections.reduce((n, s) => n + s.buttons.length, 0);
   const mainSections = screen.sections.filter((section) => !isMoreSection(section));
+  const lead = mainSections[0]?.buttons[0];
   const moreSections = screen.sections.filter(isMoreSection);
   const moreCount = moreSections.reduce((n, s) => n + s.buttons.length, 0);
   const [showMore, setShowMore] = useState(false);
@@ -175,7 +176,7 @@ function SimplifiedView(props: ViewProps) {
 
   useEffect(() => {
     if (!highlightedActionId) return;
-    const target = Array.from(gridRef.current?.querySelectorAll<HTMLElement>("[data-action-id]") ?? []).find(
+    const target = Array.from(shellRef.current?.querySelectorAll<HTMLElement>("[data-action-id]") ?? []).find(
       (el) => el.dataset.actionId === highlightedActionId,
     );
     target?.scrollIntoView?.({ block: "nearest", behavior: prefersReducedMotion() ? "auto" : "smooth" });
@@ -183,25 +184,33 @@ function SimplifiedView(props: ViewProps) {
 
   return (
     <section className="mack-overlay" aria-label={t("simplifiedView")}>
-      <div className="mack-shell" data-embedded={props.embedded || undefined}>
-        <Card className="mack-header">
-          <IconButton icon={ArrowLeft} label={t("previousPage")} onClick={onPreviousPage} />
+      <header className="mack-lid">
+        <div className="mack-lid-inner">
+          <IconButton icon={ArrowLeft} label={t("previousPage")} onClick={onPreviousPage} className="mack-lid-control" />
           <div className="mack-heading">
             <Brand logo={state.siteLogo} name={state.siteName} />
             <h1 className="mack-title">{screen.title}</h1>
           </div>
           <div className="mack-toolbar" role="toolbar" aria-label={t("controls")}>
-            <ThemeToggle mode={mode} onToggle={onToggleMode} />
-            <Button type="button" variant="outline" className={cn(CONTROL, "border-2")} onClick={onShowOriginal}>{t("originalPage")}</Button>
-            <Button type="button" variant="outline" className={cn(CONTROL, "border-2")} onClick={onExit}>{t("exitMack")}</Button>
+            <ThemeToggle mode={mode} onToggle={onToggleMode} className="mack-lid-control" />
+            <Button type="button" variant="outline" className={cn(CONTROL, "mack-lid-control border-2")} onClick={onShowOriginal}>{t("originalPage")}</Button>
+            <Button type="button" variant="outline" className={cn(CONTROL, "mack-lid-control border-2")} onClick={onExit}>{t("exitMack")}</Button>
           </div>
-        </Card>
+        </div>
+      </header>
+      <div ref={shellRef} className="mack-shell" data-embedded={props.embedded || undefined}>
+        {/* The single most likely next step, pulled up out of the box above everything else. */}
+        {lead && (
+          <div className="mack-primary-slot">
+            <TaskButtonView key={lead.actionId} button={lead} variant="primary" order={0} highlighted={lead.actionId === highlightedActionId} badgeId={`${badgeId}-badge`} onAction={onAction} />
+          </div>
+        )}
 
         <Guidance {...props} />
 
         {screen.search && <SearchBox search={screen.search} disabled={state.busy} highlighted={highlightedActionId === screen.search.actionId} onSearch={props.onSearch} key={screen.snapshotVersion} />}
 
-        <div ref={gridRef} className="mack-tasks" key={screen.snapshotVersion}>
+        <div className="mack-tasks" key={screen.snapshotVersion}>
           {mainSections.map((section, index) => (
             <SectionView
               key={section.id}
@@ -209,20 +218,22 @@ function SimplifiedView(props: ViewProps) {
               index={index}
               idPrefix={badgeId}
               variant="main"
-              withPrimary={index === 0}
+              skipFirst={index === 0}
               {...sectionProps}
             />
           ))}
           {moreSections.length > 0 && (
             <Collapsible open={moreOpen} onOpenChange={setShowMore} className="mack-more">
-              <CollapsibleTrigger asChild>
-                <Button type="button" variant="ghost" className={cn(CONTROL, "mack-more-toggle h-14 self-start px-3 text-[20px] font-bold text-primary hover:text-primary")}>
-                  <span className="mack-chevron" data-open={moreOpen || undefined}>
-                    <ChevronRight strokeWidth={2.6} aria-hidden="true" />
-                  </span>
-                  {moreOpen ? t("fewerOptions") : t("moreOptions", { n: moreCount })}
-                </Button>
-              </CollapsibleTrigger>
+              <div className="mack-divider" data-kind="more">
+                <CollapsibleTrigger asChild>
+                  <Button type="button" variant="ghost" className="mack-more-toggle h-auto min-h-14 gap-2 px-5 text-[20px] font-bold [&_svg]:size-[22px]">
+                    <span className="mack-chevron" data-open={moreOpen || undefined}>
+                      <ChevronRight strokeWidth={2.6} aria-hidden="true" />
+                    </span>
+                    {moreOpen ? t("fewerOptions") : t("moreOptions", { n: moreCount })}
+                  </Button>
+                </CollapsibleTrigger>
+              </div>
               <CollapsibleContent className="mack-more-list">
                 {moreSections.map((section, index) => (
                   <SectionView key={section.id} section={section} index={index + 1} idPrefix={badgeId} variant="more" {...sectionProps} />
@@ -296,7 +307,7 @@ function LoadingCards() {
   return (
     <div className="mack-loading" aria-hidden="true" data-testid="mack-loading">
       <span className="mack-skeleton mack-skeleton--primary" />
-      <div className="mack-grid">
+      <div className="mack-cards">
         <span className="mack-skeleton" />
         <span className="mack-skeleton" />
         <span className="mack-skeleton" />
@@ -313,16 +324,17 @@ function SectionView(props: {
   index: number;
   idPrefix: string;
   variant: "main" | "more";
-  withPrimary?: boolean;
+  /** The first button is already shown pulled up above the box. */
+  skipFirst?: boolean;
   highlightedActionId?: string;
   badgeId: string;
   onAction(id: string): void;
 }) {
   const { t } = useTranslator();
-  const { section, index, idPrefix, variant, withPrimary, highlightedActionId, badgeId, onAction } = props;
+  const { section, index, idPrefix, variant, skipFirst, highlightedActionId, badgeId, onAction } = props;
   const headingId = `${idPrefix}-${section.id}`;
-  // The first button of the first main section is the single most likely next step, so it leads visually.
-  const [primary, ...rest] = withPrimary ? section.buttons : [undefined, ...section.buttons];
+  const rest = skipFirst ? section.buttons.slice(1) : section.buttons;
+  if (rest.length === 0) return null;
   const restVariant: Variant = variant === "more" ? "row" : "card";
   const task = (button: TaskButton, kind: Variant, order: number) => (
     <TaskButtonView
@@ -337,13 +349,14 @@ function SectionView(props: {
   return (
     <section className="mack-section" data-variant={variant} aria-labelledby={section.heading ? headingId : undefined}>
       {section.heading ? (
-        <h2 id={headingId}>{section.heading}</h2>
+        <div className="mack-divider" style={{ "--tab": index % 4 } as CSSProperties}>
+          <h2 id={headingId} className="mack-tab">{section.heading}</h2>
+        </div>
       ) : (
         index > 0 && <h2 className="mack-visually-hidden">{t("moreActions")}</h2>
       )}
-      {primary && <div className="mack-primary-slot">{task(primary, "primary", 0)}</div>}
       {rest.length > 0 && (
-        <ul className={restVariant === "row" ? "mack-list" : "mack-grid"}>
+        <ul className="mack-cards">
           {rest.map((button, i) => button && <li key={button.actionId}>{task(button, restVariant, i + 1)}</li>)}
         </ul>
       )}
@@ -352,19 +365,10 @@ function SectionView(props: {
 }
 
 // Three tiers on shadcn's Button: the filled primary next step, outlined cards, and quiet ghost rows.
-const TASK_STYLE: Record<Variant, { variant: "default" | "outline" | "ghost"; className: string }> = {
-  primary: {
-    variant: "default",
-    className: "min-h-[88px] gap-4 rounded-2xl px-6 py-4 text-[26px] font-bold shadow-lg hover:bg-primary hover:brightness-95",
-  },
-  card: {
-    variant: "outline",
-    className: "min-h-[72px] gap-3.5 rounded-2xl border-2 bg-card px-5 py-3.5 text-2xl font-semibold shadow-sm hover:border-primary hover:bg-card hover:shadow-md",
-  },
-  row: {
-    variant: "ghost",
-    className: "min-h-16 gap-3.5 rounded-none px-5 py-2.5 text-[22px] font-semibold hover:bg-accent hover:text-foreground",
-  },
+const TASK_STYLE: Record<Variant, { variant: "outline"; className: string }> = {
+  primary: { variant: "outline", className: "min-h-[104px] gap-4 px-6 pt-6 pb-5 text-[28px] font-bold" },
+  card: { variant: "outline", className: "min-h-[76px] gap-4 px-5 pt-4 pb-3.5 text-2xl font-semibold" },
+  row: { variant: "outline", className: "min-h-[68px] gap-4 px-5 pt-3.5 pb-3 text-[22px] font-semibold" },
 };
 
 function TaskButtonView(props: {
@@ -378,7 +382,7 @@ function TaskButtonView(props: {
   const { t } = useTranslator();
   const { button, variant, order, highlighted, badgeId, onAction } = props;
   const Glyph = taskIcon(button.label);
-  const Trail = variant === "row" ? ChevronRight : ArrowRight;
+  const Trail = ArrowRight;
   const look = TASK_STYLE[variant];
   return (
     <Button
@@ -392,14 +396,15 @@ function TaskButtonView(props: {
       style={{ "--order": order } as CSSProperties}
       onClick={() => onAction(button.actionId)}
     >
+      {/* No matching task icon: the slot stays empty, since a leading arrow would only repeat the trailing one. */}
       <span className="mack-task-icon" aria-hidden="true">
-        <Glyph className={variant === "primary" ? "size-[30px]" : "size-[26px]"} strokeWidth={2.2} />
+        {Glyph !== ArrowRight && <Glyph className={variant === "primary" ? "size-[32px]" : "size-[26px]"} strokeWidth={2} />}
       </span>
       <span className="mack-task-label">{button.label}</span>
       {highlighted ? (
         <Badge id={badgeId} className="mack-badge h-auto rounded-full px-3 py-1 text-[17px] font-extrabold">{t("nextStep")}</Badge>
       ) : (
-        variant !== "card" && <Trail className="mack-task-trail size-[26px]" strokeWidth={2.4} aria-hidden="true" />
+        <Trail className="mack-task-trail size-[26px]" strokeWidth={2.4} aria-hidden="true" />
       )}
     </Button>
   );
@@ -418,8 +423,8 @@ function OriginalPanel(props: ViewProps) {
 
   return (
     <Card className="mack-panel" data-dock={dock} data-collapsed={collapsed || undefined} role="complementary" aria-label={t("mackGuide")}>
-      <header className="mack-panel-header">
-        <IconButton icon={ArrowLeft} label={t("previousPage")} onClick={onPreviousPage} />
+      <header className="mack-panel-header mack-lid">
+        <IconButton icon={ArrowLeft} label={t("previousPage")} onClick={onPreviousPage} className="mack-lid-control" />
         <div className="mack-heading">
           <Brand logo={state.siteLogo} name={state.siteName} />
           <h1 className="mack-title">{state.screen.title}</h1>
@@ -431,9 +436,10 @@ function OriginalPanel(props: ViewProps) {
             expanded={!collapsed}
             controls={bodyId}
             onClick={() => setCollapsed(!collapsed)}
+            className="mack-lid-control"
           />
-          <IconButton icon={Maximize2} label={t("fullScreen")} onClick={onBack} />
-          <IconButton icon={X} label={t("exitMack")} onClick={onExit} />
+          <IconButton icon={Maximize2} label={t("fullScreen")} onClick={onBack} className="mack-lid-control" />
+          <IconButton icon={X} label={t("exitMack")} onClick={onExit} className="mack-lid-control" />
         </div>
       </header>
       {!collapsed && (
