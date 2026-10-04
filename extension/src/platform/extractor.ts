@@ -1,4 +1,4 @@
-import type { PageSnapshot, SourceAction } from "../../../shared/contracts";
+import type { PageSnapshot, SiteLogo, SourceAction } from "../../../shared/contracts";
 import { sameSite, UNSAFE_LINK } from "./settings";
 
 export const MACK_SELECTOR = "mack-root[data-mack], [data-mack-platform]";
@@ -240,4 +240,99 @@ export function brandColor(): string | undefined {
   let best: string | undefined;
   for (const [color, weight] of weights) if (!best || weight > weights.get(best)!) best = color;
   return best;
+}
+
+const LOGO_WORDS = /logo|brand/i;
+const MAX_LOGO_BYTES = 150_000;
+const SVG_PAINT = ["fill", "stroke", "stroke-width", "opacity", "fill-opacity", "stroke-opacity", "fill-rule", "clip-rule"] as const;
+
+function logoLabel(element: Element): string {
+  for (let node: Element | null = element, depth = 0; node && depth < 4; node = node.parentElement, depth++) {
+    const label = node.getAttribute("alt") || node.getAttribute("aria-label") || node.querySelector(":scope > title")?.textContent;
+    if (label?.trim()) return clean(label.replace(/\s*logo\s*$/i, ""), 120);
+  }
+  return "";
+}
+
+function backgroundBehind(element: Element): string {
+  for (let node: Element | null = element; node; node = node.parentElement) {
+    const color = parseColor(getComputedStyle(node).backgroundColor);
+    if (color && color.alpha >= 0.5) return toHex(color.rgb);
+  }
+  return "#ffffff";
+}
+
+function isHomeLink(anchor: HTMLAnchorElement | null): boolean {
+  if (!anchor) return false;
+  try {
+    const url = new URL(anchor.getAttribute("href") ?? "", location.href);
+    return url.origin === location.origin && (url.pathname === "/" || url.pathname === "");
+  } catch { return false; }
+}
+
+// SVG shown through <img> never runs scripts or handlers, but it also loses page CSS, so computed paint is copied inline.
+function svgDataUrl(svg: SVGSVGElement): string | undefined {
+  const ids = new Set(Array.from(svg.querySelectorAll("[id]"), (el) => el.id));
+  const external = Array.from(svg.querySelectorAll("use")).some((use) => {
+    const ref = use.getAttribute("href") ?? use.getAttribute("xlink:href") ?? "";
+    return !ref.startsWith("#") || !ids.has(ref.slice(1));
+  });
+  if (external) return undefined;
+  const clone = svg.cloneNode(true) as SVGSVGElement;
+  const originals = [svg, ...Array.from(svg.querySelectorAll("*"))];
+  const copies = [clone, ...Array.from(clone.querySelectorAll("*"))];
+  originals.forEach((original, i) => {
+    const copy = copies[i];
+    if (!copy) return;
+    const style = getComputedStyle(original);
+    for (const prop of SVG_PAINT) {
+      const value = style.getPropertyValue(prop);
+      if (value && value !== "normal") copy.setAttribute(prop, value === "currentcolor" || value === "currentColor" ? style.color : value);
+    }
+  });
+  clone.querySelectorAll("script, foreignObject").forEach((el) => el.remove());
+  for (const el of [clone, ...Array.from(clone.querySelectorAll("*"))]) {
+    for (const attr of Array.from(el.attributes)) if (/^on/i.test(attr.name)) el.removeAttribute(attr.name);
+  }
+  // Logos are often sized by page CSS (width="0", padding tricks), which an image cannot see; use the rendered size.
+  const box = svg.getBoundingClientRect();
+  clone.setAttribute("width", String(Math.max(1, Math.round(box.width))));
+  clone.setAttribute("height", String(Math.max(1, Math.round(box.height))));
+  clone.removeAttribute("style");
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(new XMLSerializer().serializeToString(clone))}`;
+  return url.length <= MAX_LOGO_BYTES ? url : undefined;
+}
+
+/** The site's own logo from its header, so the simplified view still clearly belongs to that site. */
+export function siteLogo(): SiteLogo | undefined {
+  const candidates = document.body.querySelectorAll<HTMLElement | SVGSVGElement>("img, svg");
+  let best: { element: HTMLImageElement | SVGSVGElement; score: number } | undefined;
+  let seen = 0;
+  for (const element of candidates) {
+    if (seen++ > 400) break;
+    if (isMack(element) || (element instanceof SVGSVGElement && element.parentElement?.closest("svg"))) continue;
+    const box = element.getBoundingClientRect();
+    if (box.top + scrollY > 220 || box.width < 16 || box.height < 12 || box.width > 420 || box.height > 160) continue;
+    if (element instanceof HTMLElement && !visible(element)) continue;
+    let score = 0;
+    for (let node: Element | null = element, depth = 0; node && depth < 4; node = node.parentElement, depth++) {
+      const words = `${node.getAttribute("alt") ?? ""} ${node.getAttribute("aria-label") ?? ""} ${node.getAttribute("class") ?? ""} ${node.id} ${node.querySelector(":scope > title")?.textContent ?? ""}`;
+      if (LOGO_WORDS.test(words)) { score += 5; break; }
+    }
+    if (isHomeLink(element.closest("a"))) score += 4;
+    if (element.closest("header, [role=banner], nav")) score += 2;
+    if (box.left < 400) score += 1;
+    if (score >= 5 && (!best || score > best.score)) best = { element: element as HTMLImageElement | SVGSVGElement, score };
+  }
+  if (!best) return undefined;
+  const { element } = best;
+  const alt = logoLabel(element) || clean(document.querySelector('meta[property="og:site_name"]')?.getAttribute("content") ?? location.hostname.replace(/^www\./, ""), 120);
+  const background = backgroundBehind(element);
+  if (element instanceof SVGSVGElement) {
+    const src = svgDataUrl(element);
+    return src ? { src, alt, background } : undefined;
+  }
+  const src = element.currentSrc || element.src;
+  return /^https:\/\//.test(src) && src.length <= 2000 ? { src, alt, background } : undefined;
 }

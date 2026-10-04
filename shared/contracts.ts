@@ -106,7 +106,10 @@ export type LensUIState = {
   error?: LensError;
   clarificationOptions?: string[];
   accentColor?: string; // "#rrggbb" brand color of the source site; the UI adjusts it for contrast
+  siteLogo?: SiteLogo;
 };
+// The source site's own logo, as an https image or an inert SVG data URL, with the color it sits on.
+export type SiteLogo = { src: string; alt: string; background: string };
 export type LensAppProps = {
   state: LensUIState;
   onAction(id: ActionId): void;
@@ -164,6 +167,12 @@ export const LensUIStateSchema = z.object({
   transcript: z.string(), voiceState: VoiceStateSchema, busy: z.boolean(), error: LensErrorSchema.optional(),
   clarificationOptions: z.array(text).optional(),
   accentColor: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
+  siteLogo: z.lazy(() => SiteLogoSchema).optional(),
+}).strict();
+export const SiteLogoSchema = z.object({
+  src: z.string().max(200_000).regex(/^(https:\/\/|data:image\/(svg\+xml|png|jpeg|webp|gif)[;,])/),
+  alt: z.string().max(160),
+  background: z.string().regex(/^#[0-9a-f]{6}$/i),
 }).strict();
 
 export const parseDesignRequest = (value: unknown): DesignRequest => DesignRequestSchema.parse(value);

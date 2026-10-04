@@ -1,9 +1,9 @@
 import {
-  DesignProposalSchema, LensUIStateSchema, SpeechJobSchema, parseDesignRequest, parseGuidanceRequest, sameStamp, validateDesign,
-  type CommittedScreen, type GenerateScreen, type LensAppProps, type LensUIState, type ResolveIntent, type Stamp,
+  DesignProposalSchema, LensUIStateSchema, SiteLogoSchema, SpeechJobSchema, parseDesignRequest, parseGuidanceRequest, sameStamp, validateDesign,
+  type CommittedScreen, type GenerateScreen, type SiteLogo, type LensAppProps, type LensUIState, type ResolveIntent, type Stamp,
   type VoiceCallbacks, type VoiceController,
 } from "../../../shared/contracts";
-import { brandColor, deepLink, extractPage, isMack, liveTarget, sourceKind, type Extraction } from "./extractor";
+import { brandColor, deepLink, siteLogo, extractPage, isMack, liveTarget, sourceKind, type Extraction } from "./extractor";
 import { addPeekedLinks, hasPasswordField, peekCandidates, type Peek } from "./peek";
 import { mergeGuidance } from "./state";
 
@@ -14,6 +14,7 @@ type Dependencies = {
   initialGoal?: string; saveGoal(goal: string, fromUrl?: string): void; onExit(): void;
   extract?: () => Extraction;
   brandColor?: () => string | undefined;
+  siteLogo?: () => SiteLogo | undefined;
   peek?: Peek;
   navigate?: (url: string) => void;
 };
@@ -32,7 +33,11 @@ export const goalFromLabel = (label: string) => label.replace(/\s*\(sign in firs
 export function startPlatform(deps: Dependencies) {
   const extract = deps.extract ?? extractPage;
   const readAccent = deps.brandColor ?? brandColor;
+  const readLogo = deps.siteLogo ?? siteLogo;
   const withAccent = (accentColor: string | undefined) => (accentColor ? { accentColor } : {});
+  const withLogo = (logo: SiteLogo | undefined) => (logo && SiteLogoSchema.safeParse(logo).success ? { siteLogo: logo } : {});
+  // Branding is a nicety; a strange page must never stop Mack from loading.
+  const safely = <T,>(read: () => T | undefined) => { try { return read(); } catch { return undefined; } };
   const navigate = deps.navigate ?? ((url: string) => location.assign(url));
   const previousBody = document.body;
   const previousInert = previousBody.inert;
@@ -139,7 +144,8 @@ export function startPlatform(deps: Dependencies) {
       state = {
         screen: { title: extraction.snapshot.title || "This page", mode: "simplified", sections: [], snapshotVersion: extraction.snapshot.version, screenVersion: crypto.randomUUID() },
         instruction: "", transcript: state?.transcript ?? "", voiceState: voice ? "idle" : "error", busy: true,
-        ...withAccent(readAccent()),
+        ...withAccent(safely(readAccent)),
+        ...withLogo(safely(readLogo)),
       };
       render();
       const expected = designStamp = stamp();
