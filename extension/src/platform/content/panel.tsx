@@ -126,13 +126,18 @@ const PANEL_STYLES = `
 @media (prefers-reduced-motion: reduce) {
   [style*="mack-wave"] { animation: none !important; transform: scaleY(0.6) !important; }
 }
-@media (prefers-color-scheme: dark) {
-  :host {
-    --background: #1c1c20; --foreground: #f4f4f5; --card: #1c1c20; --card-foreground: #f4f4f5;
-    --primary: #f4f4f5; --primary-foreground: #18181b; --secondary: #29292f; --secondary-foreground: #f4f4f5;
-    --muted: #29292f; --muted-foreground: #a5a5b0; --accent: #29292f; --accent-foreground: #f4f4f5;
-    --input: #3a3a42; --border: #303037; --ring: #8b8b96; --destructive: #f87171;
-  }
+:host([data-theme="dark"]) {
+  --background: #1c1c20; --foreground: #f4f4f5; --card: #1c1c20; --card-foreground: #f4f4f5;
+  --primary: #f4f4f5; --primary-foreground: #18181b; --secondary: #29292f; --secondary-foreground: #f4f4f5;
+  --muted: #29292f; --muted-foreground: #a5a5b0; --accent: #29292f; --accent-foreground: #f4f4f5;
+  --input: #3a3a42; --border: #303037; --ring: #8b8b96; --destructive: #f87171;
+}
+:host([data-theme="dark"]) .mack-bar-logo {
+  mix-blend-mode: screen;
+}
+:host(:not([data-theme="dark"])) .mack-bar-logo {
+  filter: invert(1);
+  mix-blend-mode: multiply;
 }
 `;
 
@@ -647,7 +652,7 @@ export function Panel() {
                   <img
                     src={chrome.runtime.getURL("icons/icon48.png")}
                     alt="Mack"
-                    className="size-6 max-w-none shrink-0"
+                    className="mack-bar-logo size-6 max-w-none shrink-0"
                     draggable={false}
                   />
                 </div>
