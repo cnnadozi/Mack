@@ -34,7 +34,7 @@ const VOICE_STATUS: Record<VoiceState, MessageKey | undefined> = {
 };
 
 // Sizes stay large for older users: 48px icon targets, 19-24px labels (shadcn's defaults are smaller).
-const CONTROL = "h-12 px-4 text-[19px] font-semibold rounded-xl [&_svg]:size-[22px]";
+const CONTROL = "h-12 px-4 text-[20px] font-semibold rounded-xl [&_svg]:size-[22px]";
 const FIELD = "h-14 rounded-xl border-2 px-4 text-[22px] md:text-[22px] bg-card";
 
 function IconButton(props: { icon: LucideIcon; label: string; onClick(): void; expanded?: boolean; controls?: string; className?: string }) {
@@ -196,19 +196,18 @@ function SimplifiedView(props: ViewProps) {
             <Button type="button" variant="outline" className={cn(CONTROL, "mack-lid-control border-2")} onClick={onShowOriginal}>{t("originalPage")}</Button>
             <Button type="button" variant="outline" className={cn(CONTROL, "mack-lid-control border-2")} onClick={onExit}>{t("exitMack")}</Button>
           </div>
+          {/* Search sits in the header, where sites put it. */}
+          {screen.search && <SearchBox search={screen.search} disabled={state.busy} highlighted={highlightedActionId === screen.search.actionId} onSearch={props.onSearch} key={screen.snapshotVersion} />}
         </div>
       </header>
       <div ref={shellRef} className="mack-shell" data-embedded={props.embedded || undefined}>
-        {/* The single most likely next step, pulled up out of the box above everything else. */}
+        {/* What Mack says leads into the single most likely next step, pulled up out of the box. */}
+        <Guidance {...props} />
         {lead && (
           <div className="mack-primary-slot">
             <TaskButtonView key={lead.actionId} button={lead} variant="primary" order={0} highlighted={lead.actionId === highlightedActionId} badgeId={`${badgeId}-badge`} onAction={onAction} />
           </div>
         )}
-
-        <Guidance {...props} />
-
-        {screen.search && <SearchBox search={screen.search} disabled={state.busy} highlighted={highlightedActionId === screen.search.actionId} onSearch={props.onSearch} key={screen.snapshotVersion} />}
 
         <div className="mack-tasks" key={screen.snapshotVersion}>
           {mainSections.map((section, index) => (
@@ -274,9 +273,9 @@ function SearchBox(props: { search: SiteSearch; disabled: boolean; highlighted: 
     <Card ref={cardRef} className="mack-search" role="search" aria-labelledby={`${inputId}-label`} data-highlighted={highlighted || undefined}>
       <form onSubmit={submit} className="mack-search-form">
         <span className="mack-search-head">
-          <label id={`${inputId}-label`} htmlFor={inputId}>{search.label}</label>
+          <label id={`${inputId}-label`} htmlFor={inputId} className="mack-visually-hidden">{search.label}</label>
           {highlighted && (
-            <Badge className="mack-badge h-auto rounded-full px-3 py-1 text-[17px] font-extrabold">{t("typeHere")}</Badge>
+            <Badge className="mack-badge h-auto rounded-full px-3 py-1 text-[20px] font-extrabold">{t("typeHere")}</Badge>
           )}
         </span>
         <div className="mack-search-row">
@@ -289,7 +288,7 @@ function SearchBox(props: { search: SiteSearch; disabled: boolean; highlighted: 
               enterKeyHint="search"
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder={t("searchPlaceholder")}
+              placeholder={search.label}
               className={cn(FIELD, "h-16 pl-14 text-2xl md:text-2xl")}
             />
           </span>
@@ -402,7 +401,7 @@ function TaskButtonView(props: {
       </span>
       <span className="mack-task-label">{button.label}</span>
       {highlighted ? (
-        <Badge id={badgeId} className="mack-badge h-auto rounded-full px-3 py-1 text-[17px] font-extrabold">{t("nextStep")}</Badge>
+        <Badge id={badgeId} className="mack-badge h-auto rounded-full px-3 py-1 text-[20px] font-extrabold">{t("nextStep")}</Badge>
       ) : (
         <Trail className="mack-task-trail size-[26px]" strokeWidth={2.4} aria-hidden="true" />
       )}

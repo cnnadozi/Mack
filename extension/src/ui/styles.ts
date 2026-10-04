@@ -123,7 +123,7 @@ export const MACK_STYLES = `
 .mack-brand { margin: 0 0 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .mack-logo { display: inline-flex; align-items: center; height: 44px; padding: 6px 12px; border-radius: 10px; }
 .mack-logo img { display: block; height: 100%; max-width: 200px; width: auto; object-fit: contain; }
-.mack-logo-text { font-size: 17px; font-weight: 800; color: #16181c; }
+.mack-logo-text { font-size: 20px; font-weight: 800; color: #16181c; }
 .mack-logo[data-kind="icon"] { gap: 8px; }
 .mack-logo[data-kind="name"] { height: auto; min-height: 44px; background: #ffffff; }
 .mack-logo[data-kind="icon"] img { height: 28px; width: 28px; border-radius: 6px; }
@@ -132,9 +132,9 @@ export const MACK_STYLES = `
 
 .mack :focus-visible { outline: 4px solid var(--focus); outline-offset: 3px; }
 
-/* What Mack says now: plain words on the ground, not another box. */
+/* What Mack says now: plain words on the ground, leading straight into the card below. */
 .mack-instruction {
-  margin: 0;
+  margin: 0 0 -10px;
   padding: 0 4px;
   color: var(--ink);
   font-size: 25px;
@@ -165,10 +165,14 @@ export const MACK_STYLES = `
 .mack-choices h2 { margin: 0; font-size: 20px; color: var(--ink); }
 .mack-choices ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 
-/* Site search: one card with a plain, heavy field. */
-.mack-search { padding: 18px 20px 20px; gap: 0; border: 1px solid var(--r3); border-radius: var(--radius); box-shadow: none; background: var(--r0); }
-.mack-search-form { display: flex; flex-direction: column; gap: 12px; }
-.mack-search label { font-size: 22px; font-weight: 750; color: var(--ink); }
+/* Site search: a full-width row across the bottom of the lid, a white field on the site's colour. */
+.mack-search { flex: 1 1 100%; padding: 0; gap: 0; border: none; border-radius: var(--radius); box-shadow: none; background: transparent; }
+.mack-search-form { display: flex; flex-direction: column; gap: 8px; }
+.mack-lid .mack-search input { background: #ffffff; color: #16181c; border-color: transparent; }
+.mack-lid .mack-search input::placeholder { color: #565c66; }
+.mack-lid .mack-search .mack-search-icon { color: #565c66; }
+.mack .mack-lid .mack-search button[type="submit"] { background: var(--on-brand); color: var(--brand); border: 2px solid var(--on-brand); }
+.mack-search-head:not(:has(.mack-badge)) { display: none; }
 .mack-search-row { display: flex; flex-wrap: wrap; gap: 10px; }
 .mack-search-field { position: relative; flex: 1 1 260px; display: flex; }
 .mack-search-icon { position: absolute; inset-inline-start: 18px; top: 50%; transform: translateY(-50%); color: var(--ink-muted); pointer-events: none; z-index: 1; }
@@ -233,11 +237,12 @@ export const MACK_STYLES = `
   z-index: 1;
 }
 /* While Mack points, everything else steps back (dimmed labels stay large-text readable, 3:1). */
-.mack-shell:has([data-highlighted="true"]) :is(.mack-task, .mack-search, .mack-instruction):not([data-highlighted="true"]) { opacity: 0.55; }
+.mack-overlay:has([data-highlighted="true"]) :is(.mack-task, .mack-search, .mack-instruction):not([data-highlighted="true"]) { opacity: 0.55; }
 /* Tabs step back by turning grey, not by fading, so their labels keep full contrast. */
-.mack-shell:has([data-highlighted="true"]) .mack-divider { border-bottom-color: var(--r3); }
-.mack-shell:has([data-highlighted="true"]) .mack-tab { background: var(--r2); color: var(--r5); }
+.mack-overlay:has([data-highlighted="true"]) .mack-divider { border-bottom-color: var(--r3); }
+.mack-overlay:has([data-highlighted="true"]) .mack-tab { background: var(--r2); color: var(--r5); }
 .mack-search[data-highlighted="true"] {
+  padding: 10px;
   border: 4px solid var(--highlight);
   box-shadow: 0 0 0 3px var(--highlight-edge), 0 0 0 8px var(--highlight), 0 0 30px 10px color-mix(in srgb, var(--highlight) 80%, transparent);
   animation: mack-glow 1.2s ease-in-out infinite;

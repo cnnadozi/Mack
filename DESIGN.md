@@ -225,7 +225,7 @@ The ramp, light to dark: **Card Stock** (`card-stock`, cards, request bar, field
 - **Headline** (700, 28px; 25px at 560px and below): the pulled-up next-step card label.
 - **Instruction** (700, 25px, 1.3; 21px in the guide panel): what Mack says now, set as plain words on the ground, not in a box.
 - **Title** (600, 24px, 1.25): ordinary task card labels. "More options" rows use 22px at the same weight.
-- **Tab** (750, 22px, 1.25; 20px at 560px and below): divider-tab section names and the site search label.
+- **Tab** (750, 22px, 1.25; 20px at 560px and below): divider-tab section names.
 - **Body** (400, 20px, 1.4): status lines, empty states, error text (600), request labels (750). 20px is the floor for essential text.
 
 ### Named Rules
@@ -233,7 +233,7 @@ The ramp, light to dark: **Card Stock** (`card-stock`, cards, request bar, field
 
 ## Layout
 
-One centred column, 820px max, with a 20px gutter, on the full-viewport tin overlay (fixed, scrolls internally, `overscroll-behavior: contain`). The lid spans the full width with its content aligned to the same 820px column. Vertical rhythm: 24px between the shell's blocks (next-step card, instruction, search, the box, request bar), 32px between filed sections, 14px from a tab to its cards, 10px between cards, 8px between controls. Divider tabs stagger across the column (each section's tab is inset by 9% of the column per position, cycling over four positions; 5% at 560px and below) and cap at 78% width, so the tabs read as a filed set rather than a list of headings.
+One centred column, 820px max, with a 20px gutter, on the full-viewport tin overlay (fixed, scrolls internally, `overscroll-behavior: contain`). The lid spans the full width with its content aligned to the same 820px column; when the page offers site search, the search row runs across the bottom of the lid, where sites put it. Below the lid, the instruction leads straight into the next-step card (14px apart), then the box. Vertical rhythm: 24px between the shell's blocks (instruction and next-step card, the box, request bar), 32px between filed sections, 14px from a tab to its cards, 10px between cards, 8px between controls. Divider tabs stagger across the column (each section's tab is inset by 9% of the column per position, cycling over four positions; 5% at 560px and below) and cap at 78% width, so the tabs read as a filed set rather than a list of headings.
 
 When the view is embedded in the extension, the shell keeps 160px of bottom padding so the last cards scroll clear of Mack's floating bar; standalone, a sticky request bar sits at the bottom on card stock with a hairline top edge. The guide panel is a 460px (or viewport minus 32px) card docked 16px from any of four corners and cycled by "Move panel". The single breakpoint is 560px. Right-to-left layouts mirror the trailing arrows and the chevron. All sizes are in pixels because the host page controls the root font size.
 
@@ -285,7 +285,7 @@ Index-card corners, not app tiles. Cards, the search card, the error banner and 
 
 ### Inputs / Fields
 - **Style:** card-stock fill, 2px border, 9px corners, 56px tall with 22px text (the site search field is 64px with 24px text and a 26px search icon inset 18px).
-- **Site search card:** a flat card (hairline, 5px, no shadow) holding a 22px/750 label, the field and the Search button; its field border uses field-edge.
+- **Site search:** a full-width row across the bottom of the lid: a white field (placeholder is the site's search name, e.g. "Search Costco"; the label stays for screen readers) and a Search button in on-brand fill with site-colour text. No card around it.
 - **Focus:** the shared focus-amber outline.
 
 ### Guide Panel
