@@ -34,8 +34,10 @@ Rules:
 - Write a short plain title for the screen.
 
 Site search:
-- If the page has a site search box and searching is one of the main things visitors do here (stores, catalogs, libraries, directories, "find a doctor/location" tools, help centers), or the goal is to find a specific item, set "search" to that box's id with a short label naming the site, e.g. "Search Costco". Mack shows it as a large search box at the top, and it runs the site's real search.
-- Otherwise leave "search" out. Never use a field that is not listed in page.searchFields.
+- Show the search box only when searching IS the main thing visitors do on this page: they mostly come to look up one item among very many, and typing what they want is faster than any button. Stores and shopping sites (e.g. Costco, Amazon, Best Buy), product or results listings, library catalogs, recipe or video sites, and search pages themselves. Then set "search" to that box's id with a short label naming the site, e.g. "Search Costco". Mack shows it as a large search box at the top, and it runs the site's real search.
+- Leave "search" out on every other page, even when the site has a search box. Hospitals and health systems, insurers, banks, utilities, government and city services, schools and most company sites are used through a handful of tasks (find a doctor, locations, sign in, pay a bill, apply, report a problem), so give those tasks buttons instead. A "Find a doctor" or "Find a location" tool is a button, not a reason to show site search.
+- If a goal is stated and it is to find a specific item that only the search can reach, show the search box.
+- Never use a field that is not listed in page.searchFields.
 
 Never hide what the page is for. Mack must not take away anything the user came to do here.
 
