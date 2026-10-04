@@ -1,7 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { MackApp, type MackAppProps } from "./MackApp";
 import tailwindCss from "virtual:mack-tailwind";
-import { PortalContainerContext, TooltipProvider } from "./components/ui/tooltip";
 import { MACK_STYLES } from "./styles";
 
 export type MackMount = {
