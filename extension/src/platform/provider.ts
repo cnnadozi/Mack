@@ -43,25 +43,42 @@ export const DESIGN_SCHEMA = {
 // Raised for provider-reported failures; the message comes from the provider, never from the key.
 export class ProviderRejected extends Error {}
 
-export function geminiBody(input: ModelInput) {
+// Mack's calls rank links and return short JSON. Thinking roughly doubled latency (2.1 s -> 1.0 s on
+// gemini-3.8-flash) without changing which tasks it chose, so it is turned down where the model allows.
+export function thinkingFor(model: string): Record<string, unknown> | undefined {
+  if (/^gemini-3/i.test(model)) return { thinkingLevel: "low" };
+  if (/^gemini-2\.5-flash/i.test(model)) return { thinkingBudget: 0 };
+  return undefined;
+}
+
+export function geminiBody(input: ModelInput, model = "") {
+  const thinking = thinkingFor(model);
   return {
     systemInstruction: { parts: [{ text: input.system }] },
     contents: [{ role: "user", parts: [{ text: typeof input.payload === "string" ? input.payload : JSON.stringify(input.payload) }] }],
     generationConfig: {
       responseMimeType: "application/json",
       ...(input.task === "design" ? { responseJsonSchema: DESIGN_SCHEMA } : {}),
+      ...(thinking ? { thinkingConfig: thinking } : {}),
       temperature: 0.2,
     },
   };
 }
 
 export async function generateJSON(input: ModelInput, key: string, model: string, signal: AbortSignal): Promise<Record<string, unknown>> {
-  const response = await fetch(`${ENDPOINT}/${encodeURIComponent(model)}:generateContent`, {
+  const post = (body: unknown) => fetch(`${ENDPOINT}/${encodeURIComponent(model)}:generateContent`, {
     method: "POST",
     headers: { "content-type": "application/json", "x-goog-api-key": key },
-    body: JSON.stringify(geminiBody(input)),
+    body: JSON.stringify(body),
     signal,
   });
+  const body = geminiBody(input, model);
+  let response = await post(body);
+  // A model that rejects the thinking setting still works without it.
+  if (response.status === 400 && body.generationConfig.thinkingConfig && /thinking/i.test(await response.clone().text())) {
+    const { thinkingConfig: _, ...generationConfig } = body.generationConfig;
+    response = await post({ ...body, generationConfig });
+  }
   const data = await response.json().catch(() => ({})) as {
     error?: { message?: string };
     promptFeedback?: { blockReason?: string };

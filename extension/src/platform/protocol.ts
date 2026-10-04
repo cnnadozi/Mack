@@ -17,7 +17,19 @@ export const SessionMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("mack:exit") }).strict(),
   z.object({ type: z.literal("mack:resume") }).strict(),
   z.object({ type: z.literal("mack:peek"), urls: z.array(z.string().url()).max(8) }).strict(),
+  z.object({ type: z.literal("mack:design-get") }).strict(),
+  z.object({ type: z.literal("mack:design-put"), entry: z.lazy(() => CachedDesignSchema) }).strict(),
 ]);
+const cacheText = z.string().min(1).max(2000);
+// A design remembered by stable action keys (kind, label, href), since action IDs change on every extraction.
+export const CachedDesignSchema = z.object({
+  title: cacheText,
+  goal: z.string().max(2000).optional(),
+  sections: z.array(z.object({ id: cacheText, heading: cacheText.optional(), buttons: z.array(z.object({ key: cacheText, label: cacheText }).strict()).max(40) }).strict()).max(12),
+  search: z.object({ key: cacheText, label: cacheText }).strict().optional(),
+}).strict();
+export type CachedDesign = z.infer<typeof CachedDesignSchema>;
+export const CachedDesignReplySchema = z.object({ entry: CachedDesignSchema.optional() }).strict();
 export const ModelErrorSchema = z.enum(["unauthorized", "invalid_request", "inactive", "busy", "missing_key", "model_failed", "model_rejected", "aborted"]);
 export const ModelReplySchema = z.discriminatedUnion("ok", [
   z.object({ ok: z.literal(true), result: z.record(json) }).strict(),

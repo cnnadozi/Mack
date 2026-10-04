@@ -121,9 +121,11 @@ describe("MackApp", () => {
   it("shows a loading state and an honest empty state", () => {
     const { rerenderWith } = setup(uiFixtures.loading);
     screen.getByText("Working…");
+    expect(screen.getByTestId("mack-loading").getAttribute("aria-hidden")).toBe("true");
     expect(screen.queryByText(/No simple actions/)).toBeNull();
     rerenderWith(uiFixtures.empty);
     screen.getByText(/No simple actions are ready/);
+    expect(screen.queryByTestId("mack-loading")).toBeNull();
   });
 
   it("renders only a compact movable guide in original mode", () => {
